@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Time Series on Tanliu Blog</title>
+    <link>http://localhost:1313/tags/time-series/</link>
+    <description>Recent content in Time Series on Tanliu Blog</description>
+    <generator>Hugo</generator>
+    <language>en-us</language>
+    <lastBuildDate>Mon, 04 Nov 2024 00:00:00 +0000</lastBuildDate>
+    <atom:link href="http://localhost:1313/tags/time-series/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>深入剖析时序Prophet模型（一）：准备知识</title>
+      <link>http://localhost:1313/post/2024-11-04-prophet1/</link>
+      <pubDate>Mon, 04 Nov 2024 00:00:00 +0000</pubDate>
+      <guid>http://localhost:1313/post/2024-11-04-prophet1/</guid>
+      <description>&lt;p&gt;Prophet是2017年由Facebook’s Core Data Science team开源的时间序列预测库。从时间上来看不是很新的模型，在深度学习、大模型大放异彩的24年，显得有些过时。但从实践上来看，其基于季节性、趋势变化和回归项的时序分解框架在扩展性、稳定性、解释性上表现不俗，非常适合单一时序场景中的预测。目前网上的博客主要介绍了模型的基本原理、使用方式，在使用过程中笔者仍有一些疑问，例如：&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>
