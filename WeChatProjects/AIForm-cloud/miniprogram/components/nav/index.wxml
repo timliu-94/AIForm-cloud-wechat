@@ -1,0 +1,18 @@
+<view class="home-navbar">
+  <t-navbar title="{{ navType === 'search' ? '' : titleText }}">
+    <view slot="left">
+      <view class="home-navbar__left">
+        <t-icon class="home-navbar__icon" bind:tap="openDrawer" name="view-list" size="42rpx" />
+      </view>
+    </view>
+  </t-navbar>
+  <t-drawer
+    wx:if="{{visible}}"
+    style="padding-top: {{statusHeight}}px;"
+    visible="{{visible}}"
+    items="{{sidebar}}"
+    placement="left"
+    title="页面目录"
+    bind:item-click="itemClick"
+  />
+</view>

@@ -1,0 +1,145 @@
+<nav title-text="签证填表" />
+
+<view class="home">
+  <view class="hero">
+    <view class="hero__label">Visa Form Assistant</view>
+    <view class="hero__title">选择目的地，开始填写签证表格</view>
+    <view class="hero__desc">按国家、签证类型和表格版本逐步确认，减少重复录入。</view>
+  </view>
+
+  <view class="search-wrap">
+    <view class="search">
+      <t-icon name="search" size="36rpx" color="#434654" />
+      <input placeholder="搜索国家/地区" value="{{query}}" bindinput="onSearch" />
+    </view>
+  </view>
+
+  <view class="section section--destination">
+    <view class="section__header">
+      <view class="section__title">选择目的地</view>
+      <view class="section__hint">共 {{countries.length}} 个国家</view>
+    </view>
+
+    <scroll-view class="continent-row" scroll-x show-scrollbar="{{false}}">
+      <view class="continent-row__inner">
+        <view
+          wx:for="{{destinationFilters}}"
+          wx:key="*this"
+          class="continent {{selectedContinent === item ? 'continent--active' : ''}}"
+          data-name="{{item}}"
+          bindtap="selectContinent"
+        >
+          {{item}}
+        </view>
+      </view>
+    </scroll-view>
+
+    <view class="country-list">
+      <view
+        wx:for="{{countries}}"
+        wx:key="id"
+        class="country-item {{selectedCountryId === item.id ? 'country-item--active' : ''}}"
+        data-id="{{item.id}}"
+        bindtap="selectCountry"
+      >
+        <image wx:if="{{item.flag}}" class="country-item__flag" src="{{item.flag}}" mode="aspectFill" />
+        <view wx:else class="country-item__fallback">{{item.flagLabel}}</view>
+        <view class="country-item__body">
+          <view class="country-item__name">{{item.name}}</view>
+          <view class="country-item__meta">
+            <text class="country-item__tag">{{item.continent}}</text>
+            <text>{{item.visaTypes.length}} 种签证类型</text>
+          </view>
+        </view>
+        <t-icon name="chevron-right" size="34rpx" color="{{selectedCountryId === item.id ? '#003da6' : '#737686'}}" />
+      </view>
+    </view>
+  </view>
+
+  <view class="section" wx:if="{{selectedCountry}}">
+    <view class="section__header section__header--start">
+      <view class="section__title">签证类型</view>
+      <view class="section__pill">{{selectedCountry.name}}</view>
+    </view>
+    <view class="option-grid">
+      <view
+        wx:for="{{selectedCountry.visaTypes}}"
+        wx:key="id"
+        class="option {{selectedVisaTypeId === item.id ? 'option--active' : ''}}"
+        data-id="{{item.id}}"
+        bindtap="selectVisaType"
+      >
+        <t-icon name="{{item.icon}}" size="44rpx" color="{{selectedVisaTypeId === item.id ? '#003da6' : '#737686'}}" />
+        <view class="option__name">{{item.name}}</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="section" wx:if="{{selectedDistrict}}">
+    <view class="section__header section__header--start">
+      <view class="section__title">表格版本</view>
+      <view class="section__pill">{{selectedVisaType.name}}</view>
+    </view>
+    <view
+      wx:for="{{selectedDistrict.versions}}"
+      wx:key="id"
+      class="version {{selectedVersionId === item.id ? 'version--active' : ''}}"
+      data-id="{{item.id}}"
+      bindtap="selectVersion"
+    >
+      <view class="version__badge" wx:if="{{index === 0}}">推荐</view>
+      <view class="radio {{selectedVersionId === item.id ? 'radio--active' : ''}}"></view>
+      <view class="version__body">
+        <view class="version__name">{{item.name}}</view>
+        <view class="version__meta">版本: {{item.version}} | 更新于: {{item.publishedAt}}</view>
+        <view class="version__scope">{{item.scope}}</view>
+      </view>
+      <button class="version__preview" data-id="{{item.id}}" catchtap="previewVersion">
+        <t-icon name="browse" size="26rpx" color="#003da6" />
+        <text>预览</text>
+      </button>
+    </view>
+  </view>
+
+  <view class="section section--mode" wx:if="{{selectedVersion}}">
+    <view class="section__title section__title--solo">填写方式</view>
+    <view class="mode-card mode-card--smart {{selectedFillMode === 'smart' ? 'mode-card--active' : ''}}" data-mode="smart" bindtap="selectFillMode">
+      <view class="mode-card__badge">智能推荐</view>
+      <view class="radio {{selectedFillMode === 'smart' ? 'radio--active' : ''}}"></view>
+      <view class="mode-card__body">
+        <view class="mode-card__head">
+          <t-icon name="edit-1" size="38rpx" color="#003da6" />
+          <view>小程序智能填写</view>
+        </view>
+        <view class="mode-card__list">
+          <view>全中文引导，告别语言障碍</view>
+          <view>智能格式校验，减少拒签风险</view>
+          <view>历史数据复用，填写更快捷</view>
+          <view>支持导出标准 PDF 格式</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="mode-card {{selectedFillMode === 'pdf' ? 'mode-card--active' : ''}}" data-mode="pdf" bindtap="selectFillMode">
+      <view class="radio {{selectedFillMode === 'pdf' ? 'radio--active' : ''}}"></view>
+      <view class="mode-card__body">
+        <view class="mode-card__head">
+          <t-icon name="download" size="38rpx" color="#737686" />
+          <view>下载可编辑 PDF</view>
+        </view>
+        <view class="mode-card__desc">下载官方原版 PDF 表格，自行使用电脑编辑填写或打印手写。</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="empty" wx:if="{{!countries.length}}">
+    <view class="empty__title">未找到相关国家/地区</view>
+    <view class="empty__desc">调整关键词后重试</view>
+  </view>
+</view>
+
+<view class="action-bar">
+  <button class="action-bar__button" bindtap="startSelectedMode" disabled="{{!selectedVersion}}">
+    {{selectedFillMode === 'pdf' ? '下载 PDF' : '开始填写'}}
+  </button>
+</view>

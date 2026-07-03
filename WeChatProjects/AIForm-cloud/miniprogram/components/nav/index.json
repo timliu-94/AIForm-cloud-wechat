@@ -1,0 +1,11 @@
+{
+  "component": true,
+  "usingComponents": {
+    "t-navbar": "tdesign-miniprogram/navbar/navbar",
+    "t-icon": "tdesign-miniprogram/icon/icon",
+    "t-drawer": "tdesign-miniprogram/drawer/drawer"
+  },
+  "componentPlaceholder": {
+    "t-drawer": "view"
+  }
+}

@@ -1,0 +1,51 @@
+<t-toast id="t-toast" />
+
+<view class="my">
+  <nav title-text="我的" />
+
+  <view class="profile-card">
+    <view class="profile-card__avatar">
+      <t-icon name="user" size="54rpx" color="#003da6" />
+    </view>
+    <view class="profile-card__body">
+      <view class="profile-card__name">Visa Applicant</view>
+      <view class="profile-card__verified">
+        <t-icon name="check-circle-filled" size="28rpx" color="#003da6" />
+        <text>Verified Account</text>
+      </view>
+      <view class="profile-card__tier">Tier: Silver Member</view>
+    </view>
+  </view>
+
+  <view class="points-card">
+    <view>
+      <view class="points-card__label">当前申请 (Applications)</view>
+      <view class="points-card__value">{{applicationCount}}<text>份</text></view>
+    </view>
+    <view class="points-card__icon">
+      <t-icon name="file" size="42rpx" color="#cbd6ff" />
+    </view>
+  </view>
+
+  <view class="action-list">
+    <button
+      wx:for="{{settingList}}"
+      wx:for-item="item"
+      wx:key="type"
+      class="action-item {{item.danger ? 'action-item--danger' : ''}}"
+      data-data="{{item}}"
+      bindtap="onEleClick"
+    >
+      <view class="action-item__main">
+        <view class="action-item__icon">
+          <t-icon name="{{item.icon}}" size="34rpx" />
+        </view>
+        <view>
+          <view class="action-item__title">{{item.name}}</view>
+          <view wx:if="{{item.note}}" class="action-item__note">{{item.note}}</view>
+        </view>
+      </view>
+      <t-icon wx:if="{{item.url}}" name="chevron-right" size="34rpx" color="#737686" />
+    </button>
+  </view>
+</view>

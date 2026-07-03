@@ -1,0 +1,68 @@
+<nav title-text="我的表格" />
+
+<scroll-view class="applications" scroll-y>
+  <view class="page-head">
+    <view class="page-head__title">我的表格</view>
+    <view class="page-head__tabs">
+      <view class="page-head__tab page-head__tab--active">全部</view>
+      <view class="page-head__tab">草稿</view>
+      <view class="page-head__tab">已完成</view>
+    </view>
+  </view>
+
+  <view class="empty" wx:if="{{applications.length === 0}}">
+    <t-icon name="file" size="72rpx" color="#94a3b8" />
+    <view class="empty__title">暂无表格</view>
+    <view class="empty__desc">从首页选择国家和签证类型后开始智能填写。</view>
+  </view>
+
+  <view
+    wx:for="{{applications}}"
+    wx:key="id"
+    class="application-card"
+  >
+    <view class="application-card__head">
+      <view class="application-card__main">
+        <view class="application-card__flag">
+          <image wx:if="{{item.countryFlag}}" class="application-card__flag-image" src="{{item.countryFlag}}" mode="aspectFill" />
+          <view wx:else class="application-card__flag-fallback">{{item.countryFlagLabel}}</view>
+        </view>
+        <view class="application-card__content">
+          <view class="application-card__title-row" data-index="{{index}}" bindtap="renameApplication">
+            <view class="application-card__title">{{item.title}}</view>
+            <t-icon name="edit-1" size="28rpx" color="#737686" />
+          </view>
+          <view class="application-card__meta">{{item.formVersionTitle}}</view>
+        </view>
+      </view>
+      <view class="application-card__side">
+        <view class="status {{item.status === 'draft' ? 'status--draft' : 'status--done'}}">{{item.status === 'draft' ? '草稿' : '已完成'}}</view>
+        <button class="application-card__delete" data-index="{{index}}" bindtap="deleteApplication" aria-label="删除">
+          <t-icon name="delete" size="28rpx" color="#ba1a1a" />
+        </button>
+      </view>
+    </view>
+    <view class="application-card__info">
+      <t-icon name="time" size="28rpx" color="#737686" />
+      <text>表格版本 {{item.version}} · 更新 {{item.displayUpdatedAt}}</text>
+    </view>
+    <view class="application-card__actions">
+      <button data-index="{{index}}" bindtap="previewApplication">
+        <t-icon name="browse" size="30rpx" />
+        <text>预览</text>
+      </button>
+      <button data-index="{{index}}" bindtap="editApplication">
+        <t-icon name="edit" size="30rpx" />
+        <text>修改</text>
+      </button>
+      <button data-index="{{index}}" bindtap="copyForCompanion">
+        <t-icon name="copy" size="30rpx" />
+        <text>为同行人创建</text>
+      </button>
+      <button data-index="{{index}}" bindtap="exportApplication">
+        <t-icon name="download" size="30rpx" />
+        <text>导出</text>
+      </button>
+    </view>
+  </view>
+</scroll-view>

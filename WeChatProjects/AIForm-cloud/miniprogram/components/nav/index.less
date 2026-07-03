@@ -1,0 +1,33 @@
+@import '/variable.less';
+
+.home-navbar {
+  --td-navbar-bg-color: #ffffff;
+  --td-navbar-color: #003da6;
+  --td-navbar-title-font-weight: 700;
+  --td-navbar-title-font-size: 34rpx;
+
+  .t-navbar {
+    border-bottom: 1rpx solid #c3c6d7;
+
+    &__left {
+      margin-left: 10rpx;
+    }
+  }
+
+  &__icon {
+    padding: 14rpx;
+    color: #434654;
+    border-radius: 999rpx;
+
+    &:active {
+      background: #e6e8eb;
+    }
+  }
+
+  &__left {
+    display: flex;
+    align-items: center;
+    padding: 0 16rpx;
+  }
+  --td-drawer-title-font-size: 48rpx;
+}

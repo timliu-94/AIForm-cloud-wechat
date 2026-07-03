@@ -1,0 +1,40 @@
+<nav title-text="PDF 预览" />
+
+<view class="preview {{isTemplatePreview ? 'preview--template' : ''}}" wx:if="{{application}}">
+  <view class="summary">
+    <view class="summary__info">
+      <view class="summary__title">{{application.title}}</view>
+      <view class="summary__meta">{{application.country}} · {{application.visaType}}</view>
+    </view>
+    <button wx:if="{{isTemplatePreview}}" class="summary__back" bindtap="backToHome">返回</button>
+  </view>
+
+  <scroll-view class="canvas-scroll" scroll-y>
+    <!-- PDF 页面图 + 把已填写的值按 acroform 坐标叠加回原位 -->
+    <view class="pdf-canvas" wx:if="{{currentPage}}">
+      <image class="pdf-bg" src="{{currentPage.previewImage}}" mode="widthFix" bindload="onPreviewImageLoad" bindtap="previewImage" binderror="onPreviewImageError" />
+      <view
+        wx:for="{{currentPage.overlays}}"
+        wx:key="name"
+        class="overlay {{item.manual ? 'overlay--manual' : (item.filled ? 'overlay--filled' : 'overlay--pending')}} {{item.isHandwriting ? 'overlay--handwriting' : ''}} {{item.skipFill ? 'overlay--skip' : ''}} {{item.isCheckbox ? 'overlay--checkbox' : ''}}"
+        style="{{item.style}}"
+      >
+        <text class="overlay__value">{{item.display}}</text>
+        <view class="overlay__label" wx:if="{{showLabels}}">{{item.label}}</view>
+      </view>
+    </view>
+  </scroll-view>
+
+  <view class="footer">
+    <view class="page-nav">
+      <text class="page-nav__btn {{pageIndex <= 0 ? 'page-nav__btn--disabled' : ''}}" bindtap="prevPage">上一页</text>
+      <text class="page-nav__page">{{pageIndex + 1}} / {{pages.length}}</text>
+      <text class="page-nav__btn {{pageIndex >= pages.length - 1 ? 'page-nav__btn--disabled' : ''}}" bindtap="nextPage">下一页</text>
+    </view>
+
+    <view class="footer__actions" wx:if="{{!isTemplatePreview}}">
+      <button class="footer-btn footer-btn--ghost" bindtap="editForm">返回修改</button>
+      <button class="footer-btn footer-btn--primary" bindtap="exportPdf">确认导出</button>
+    </view>
+  </view>
+</view>

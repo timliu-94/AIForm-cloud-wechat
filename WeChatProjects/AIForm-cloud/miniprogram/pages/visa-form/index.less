@@ -1,0 +1,503 @@
+@import '/variable.less';
+
+@form-brand: #003da6;
+@form-brand-strong: #0052d9;
+@form-brand-soft: rgba(219, 225, 255, 0.72);
+@form-bg: #f7f9fc;
+@form-surface: #ffffff;
+@form-surface-low: #f2f4f7;
+@form-surface-container: #eceef1;
+@form-surface-high: #e6e8eb;
+@form-text: #191c1e;
+@form-muted: #434654;
+@form-outline: #737686;
+@form-outline-variant: #c3c6d7;
+@form-danger: #ba1a1a;
+@form-warning: #974700;
+@card-shadow: 0 2rpx 8rpx rgba(25, 28, 30, 0.04);
+
+page {
+  background: @form-bg;
+  /* 锁定页面整体滚动：预览区与表单区固定为上下分屏，
+     仅底部表单在内部滚动，避免预览随手指滑出屏幕外。 */
+  height: 100%;
+  overflow: hidden;
+  color: @form-text;
+  line-height: 1.6;
+}
+
+.split {
+  /* 默认用 calc 兜底铺满导航栏以下视口；onReady 会用实测高度覆盖，
+     无论 JS 是否及时返回，分屏都不会撑出页面、产生整页滚动。 */
+  height: calc(100vh - @nav-bar-height);
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  overflow: hidden;
+  background: @form-bg;
+}
+
+/* —— 顶部 PDF 预览 —— */
+.preview-pane {
+  flex: none;
+  background: @form-surface-low;
+  border-bottom: 1rpx solid @form-outline-variant;
+  box-shadow: none;
+  position: relative;
+  z-index: 2;
+
+  &__head {
+    padding: 18rpx 32rpx 0;
+  }
+
+  // [优化] 预览区标题增加轻量标签，明确“预览”和“当前字段”的层级
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: 16rpx;
+    min-width: 0;
+  }
+
+  &__title {
+    flex: 1;
+    min-width: 0;
+    font-size: 26rpx;
+    color: @form-text;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__badge {
+    flex: none;
+    padding: 4rpx 16rpx;
+    border-radius: 8rpx;
+    font-size: 20rpx;
+    color: @form-brand;
+    background: @form-brand-soft;
+  }
+}
+
+.page-tabs {
+  white-space: nowrap;
+  padding: 14rpx 0 16rpx;
+}
+
+.page-tab {
+  display: inline-block;
+  min-height: 44rpx;
+  padding: 8rpx 26rpx;
+  margin-right: 12rpx;
+  box-sizing: border-box;
+  font-size: 24rpx;
+  color: @form-muted;
+  background: @form-surface;
+  border: 1rpx solid @form-outline-variant;
+  border-radius: 8rpx;
+  transition: all 0.2s ease;
+
+  &:active {
+    opacity: 0.7;
+    transform: scale(0.98);
+  }
+
+  &--active {
+    color: #fff;
+    border-color: @form-brand-strong;
+    background: @form-brand-strong;
+    box-shadow: none;
+  }
+}
+
+.pdf-scroll {
+  height: 760rpx;
+  background: @form-surface-low;
+}
+
+.pdf-canvas {
+  position: relative;
+  width: 100%;
+}
+
+.pdf-bg {
+  width: 100%;
+  display: block;
+  border: 1rpx solid @form-outline-variant;
+  border-radius: 4rpx;
+  box-shadow: 0 8rpx 24rpx rgba(25, 28, 30, 0.08);
+}
+
+.box {
+  position: absolute;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+
+  &__value {
+    flex: 1;
+    padding: 0 2rpx;
+    font-size: 16rpx;
+    line-height: 1;
+    color: #0a2540;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &--empty {
+    border: 1rpx dashed rgba(0, 61, 166, 0.38);
+  }
+
+  &--filled {
+    border: 1rpx solid rgba(0, 61, 166, 0.58);
+    background: rgba(0, 61, 166, 0.06);
+  }
+
+  /* 无需线上录入字段：保留红框、参与联动，但区别于待填/已填。 */
+  &--manual {
+    border: 1rpx solid rgba(128, 128, 128, 0.7);
+    background: rgba(128, 128, 128, 0.06);
+  }
+
+  &--manual &__value {
+    text-align: center;
+    color: #606266;
+    font-weight: 600;
+  }
+
+  &--handwriting {
+    border-color: rgba(212, 56, 13, 0.7);
+    background: rgba(212, 56, 13, 0.06);
+  }
+
+  &--handwriting &__value {
+    color: #d4380d;
+  }
+
+  /* 用户填写/定位时高亮的红框 */
+  &--active {
+    border: 3rpx solid @form-danger;
+    background: rgba(186, 26, 26, 0.1);
+    box-shadow: 0 0 0 3rpx rgba(186, 26, 26, 0.18);
+    z-index: 5;
+  }
+
+  &--checkbox &__value {
+    text-align: center;
+    color: @form-brand;
+    font-weight: 700;
+  }
+}
+
+/* —— 底部表单 —— */
+.form-list {
+  flex: 1;
+  /* flex 子项默认 min-height:auto，会被内容撑高到与内容等高，导致 scroll-view
+     自身不再溢出、无法内部滚动（再被 .split 的 overflow:hidden 裁掉）。
+     置 0 后它才会收缩到分配空间内、把超出部分作为可滚动内容。 */
+  min-height: 0;
+  padding: 24rpx 32rpx 18rpx;
+  box-sizing: border-box;
+
+  &__pad {
+    height: 150rpx;
+  }
+}
+
+// [优化] 卡片式分组：16px 圆角与轻阴影，减轻长表单拥挤感
+.leaf-card {
+  margin-bottom: 24rpx;
+  background: @form-surface;
+  border-radius: 16rpx;
+  overflow: hidden;
+  box-shadow: @card-shadow;
+  border: 1rpx solid @form-outline-variant;
+}
+
+.leaf-block {
+  margin: 24rpx 24rpx 0;
+  padding: 18rpx 20rpx;
+  background: @form-surface-low;
+  border-left: 6rpx solid @form-brand-strong;
+  border-radius: 8rpx;
+
+  &__line {
+    display: block;
+    font-size: 26rpx;
+    line-height: 1.6;
+    color: @form-text;
+  }
+}
+
+.leaf-fields {
+  padding: 8rpx 24rpx 24rpx;
+}
+
+.field {
+  margin-top: 22rpx;
+}
+
+.field--active {
+  outline: 0;
+  border-radius: 18rpx;
+}
+
+.field-input {
+  &__label {
+    display: flex;
+    flex-direction: column;
+    gap: 4rpx;
+    margin-bottom: 10rpx;
+    font-size: 24rpx;
+    line-height: 1.5;
+    color: @form-text;
+    font-weight: 600;
+  }
+
+  &__type {
+    margin-left: 10rpx;
+    padding: 2rpx 12rpx;
+    font-size: 20rpx;
+    color: @form-brand;
+    background: @form-brand-soft;
+    border-radius: 16rpx;
+  }
+
+  &__example {
+    font-size: 22rpx;
+    color: @form-muted;
+    font-weight: 400;
+  }
+
+  &__control {
+    width: 100%;
+    min-height: 84rpx;
+    padding: 16rpx 22rpx;
+    box-sizing: border-box;
+    font-size: 28rpx;
+    line-height: 1.6;
+    color: @form-text;
+    background: @form-surface-container;
+    border-radius: 8rpx;
+    border: 2rpx solid transparent;
+    transition: all 0.2s ease;
+
+    &--textarea {
+      min-height: 140rpx;
+    }
+
+    &--picker {
+      display: flex;
+      align-items: center;
+    }
+
+    &--phone {
+      display: flex;
+      align-items: center;
+      padding: 0 22rpx;
+    }
+  }
+
+  &.field--active &__control,
+  .field--active &__control {
+    border-color: @form-brand-strong;
+    background: #fff;
+    box-shadow: 0 0 0 2rpx @form-brand-strong;
+    transform: none;
+  }
+
+  &__phone-prefix {
+    margin-right: 8rpx;
+    font-size: 28rpx;
+    color: @form-text;
+  }
+
+  &__phone-input {
+    flex: 1;
+    min-height: 88rpx;
+    font-size: 28rpx;
+    color: @form-text;
+  }
+
+  &__placeholder {
+    color: #9ca3af;
+  }
+
+  // [优化] 焦点态辅助文字以内联方式平滑出现，减少弹窗打断
+  &__hint {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    padding-top: 0;
+    font-size: 22rpx;
+    line-height: 1.5;
+    color: @form-danger;
+    transition: all 0.2s ease;
+  }
+
+  &__hint--show {
+    max-height: 60rpx;
+    opacity: 1;
+    padding-top: 8rpx;
+  }
+}
+
+.field-checkbox {
+  display: flex;
+  align-items: center;
+  min-height: 88rpx;
+  padding: 18rpx 22rpx;
+  box-sizing: border-box;
+  background: @form-surface-container;
+  border-radius: 8rpx;
+  border: 2rpx solid transparent;
+  transition: all 0.2s ease;
+
+  &:active {
+    opacity: 0.7;
+    transform: scale(0.99);
+  }
+
+  &--on {
+    border-color: @form-brand-strong;
+    background: @form-brand-soft;
+  }
+
+  &__box {
+    width: 44rpx;
+    height: 44rpx;
+    margin-right: 16rpx;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28rpx;
+    color: #fff;
+    background: #fff;
+    border: 2rpx solid @gy3;
+    border-radius: 10rpx;
+    box-sizing: border-box;
+  }
+
+  &--on &__box {
+    background: @form-brand-strong;
+    border-color: @form-brand-strong;
+  }
+
+  &__label {
+    flex: 1;
+    font-size: 26rpx;
+    line-height: 1.6;
+    color: @form-text;
+  }
+}
+
+/* —— 表单底部「下一页」 —— */
+.next-page {
+  padding: 8rpx 0 6rpx;
+
+  &__btn {
+    margin: 0;
+    width: 100%;
+    min-height: 88rpx;
+    font-size: 28rpx;
+    color: @form-brand;
+    background: @form-brand-soft;
+    border-radius: 8rpx;
+    transition: all 0.2s ease;
+
+    &:active {
+      opacity: 0.7;
+      transform: scale(0.99);
+    }
+  }
+}
+
+.leaf-empty {
+  padding: 6rpx 24rpx 24rpx;
+  font-size: 24rpx;
+  color: @form-muted;
+}
+
+.leaf-manual {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  margin: 18rpx 24rpx 24rpx;
+  min-height: 72rpx;
+  padding: 16rpx 20rpx;
+  box-sizing: border-box;
+  border-radius: 8rpx;
+  background: #ffdbc8;
+  border: 1rpx solid #ffb689;
+  font-size: 24rpx;
+  color: @form-warning;
+
+  &__icon {
+    font-size: 26rpx;
+  }
+
+  &--skip {
+    background: #f5f7fa;
+    border-color: #dcdfe6;
+    color: #606266;
+  }
+
+  &--handwriting {
+    background: #fff7e6;
+    border-color: #ffd591;
+    color: #ad6800;
+  }
+}
+
+/* —— 底部操作栏 —— */
+.form-footer {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 18rpx 32rpx calc(18rpx + env(safe-area-inset-bottom));
+  background: @form-surface;
+  border-top: 1rpx solid @form-outline-variant;
+  box-shadow: 0 -4rpx 12rpx rgba(25, 28, 30, 0.05);
+  position: relative;
+  z-index: 3;
+}
+
+.footer-btn {
+  flex: 1;
+  margin: 0;
+  min-height: 88rpx;
+  padding: 0 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  font-size: 28rpx;
+  line-height: 1.2;
+  border-radius: 8rpx;
+  transition: all 0.2s ease;
+
+  &:active {
+    opacity: 0.7;
+    transform: scale(0.98);
+  }
+
+  &--plain {
+    color: @form-muted;
+    background: @form-surface-low;
+    border: 1rpx solid @form-outline-variant;
+  }
+
+  &--ghost {
+    color: @form-brand;
+    background: @form-brand-soft;
+  }
+
+  &--primary {
+    color: #fff;
+    background: @form-brand-strong;
+    box-shadow: none;
+  }
+}

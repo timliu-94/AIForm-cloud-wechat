@@ -1,0 +1,229 @@
+// 意大利申根签证表单数据层。
+// 把抽取出来的 acroforms schema（叶子节点 + 其包含的 acroform 字段）转换成
+// 小程序表单/预览所需的视图模型。核心约束：按 JSON 叶子节点顺序展示，每个叶子
+// 是一个不可分割的文字块，里面的若干 acroforms 以「包含」关系嵌套在该文字块下。
+const schema = require('../data/countries/italy/schema/Italy_acroforms_new.json.js');
+const { countryFormFile } = require('./cloudAssets');
+
+const TEMPLATE_ID = 'italy';
+const COUNTRY_NAME = '意大利';
+const FORM_TITLE = '意大利申根签证申请表';
+const PREVIEW_COUNTRY_DIR = 'Italy';
+
+// 新版标注（Italy_acroforms_new.json）已自带语义信息，无需再做
+// OCR 配对 / 标签覆盖 / 示范映射 / 幽灵字段表：
+//   - 叶子节点 is_need_filled：标注该文字块是否需要用户填写。为 false 时不渲染录入控件、
+//     不计入进度、不写回值，但仍保留文字块与预览图红框。
+//   - 叶子节点 is_handwritting：标注该文字块需手写。它会出现在表单里提示用户手写，
+//     不渲染线上输入控件、不计入进度，但仍保留对应 acroform 的图片预览红框。
+//   - acroform is_acro_need_filled：标注该 PDF 字段是否需要用户填写。
+//   - acroform field_name：字段中文名（直接作为标签）。
+//   - acroform field_example：填写示范（直接展示在输入框下方）。
+//   - acroform input_type：语义类型，决定录入控件（日期/地址/电话/文本）。
+
+// input_type 可能是字符串或数组（一个文本框对应多种可能含义），统一成可读文本。
+function normalizeInputType(inputType) {
+  if (Array.isArray(inputType)) return inputType.filter(Boolean).join(' / ');
+  return inputType || '';
+}
+
+function hasType(inputType, keyword) {
+  if (Array.isArray(inputType)) return inputType.some((t) => String(t).indexOf(keyword) >= 0);
+  return String(inputType || '').indexOf(keyword) >= 0;
+}
+
+// 文本框根据语义类型挑选录入控件。
+function pickComponent(inputType) {
+  if (hasType(inputType, '日期')) return 'date';
+  if (hasType(inputType, '电话')) return 'phone';
+  if (hasType(inputType, '地址')) return 'textarea';
+  return 'text';
+}
+
+// 标注里未给出语义字段名时，field_name 会回落成 acroform 自身的 name（如
+// choicebutton_0_28）。这类无意义名字视作「无名」，由调用方给出兜底标签。
+function semanticName(af) {
+  const fn = af.field_name;
+  return fn && fn !== af.name ? fn : '';
+}
+
+function isAcroFillable(af) {
+  return af.is_acro_need_filled !== false;
+}
+
+// 每页可选校准（百分比偏移 + 纵向缩放），默认不校准。
+// 背景：本套 acroforms 坐标来自处理后的 ffd_output.pdf，与预览图渲染所用的
+// Italy_forms.pdf 存在偏差。若日后用同一 PDF 重新生成 schema/预览图，这里保持
+// 恒等即可；若沿用现有素材需要对齐红框，可按页填入 dyPct/scaleY 微调。
+const PAGE_CALIBRATION = {
+  // 1: { dxPct: 0, dyPct: 0, scaleY: 1 },
+};
+
+// PDF 点坐标(左下角原点) → 渲染图百分比坐标(左上角原点)。
+// 用百分比而非像素，可适配任意 DPI 的 PNG（这正是“PDF 转 PNG 后坐标会变”需要做的换算）。
+function buildGeometry(rect, size, pageNo) {
+  const [w, h] = size;
+  const [x0, y0, x1, y1] = rect;
+  const cal = PAGE_CALIBRATION[pageNo] || {};
+  const dxPct = cal.dxPct || 0;
+  const dyPct = cal.dyPct || 0;
+  const scaleY = cal.scaleY || 1;
+  const left = (x0 / w) * 100 + dxPct;
+  const top = ((h - y1) / h) * 100 * scaleY + dyPct;
+  const width = ((x1 - x0) / w) * 100;
+  const height = ((y1 - y0) / h) * 100 * scaleY;
+  return {
+    pLeft: left,
+    pTop: top,
+    pWidth: width,
+    pHeight: height,
+    pCenterY: top + height / 2,
+    previewStyle: [
+      `left:${left.toFixed(2)}%`,
+      `top:${top.toFixed(2)}%`,
+      `width:${width.toFixed(2)}%`,
+      `height:${height.toFixed(2)}%`,
+    ].join(';'),
+  };
+}
+
+// 把一个叶子节点（文字块）里的 acroforms 转成带标签的表单字段。
+// 标签 / 示范 / 控件类型均直接取自新版标注（field_name / field_example / input_type）。
+function buildLeafFields(leaf, size) {
+  const ordered = (leaf.acroforms || []).filter(isAcroFillable);
+  let btnIdx = 0;
+  return ordered.map((af) => {
+    const isBtn = af.field_type === '/Btn';
+    const named = semanticName(af);
+    let label = named;
+    if (!label) {
+      // 标注未给出字段名时的兜底：勾选框给「选项 N」，文本框给语义类型或「文本」。
+      label = isBtn ? `选项 ${btnIdx + 1}` : (normalizeInputType(af.input_type) || '文本');
+    }
+    if (isBtn) btnIdx += 1;
+    const geo = buildGeometry(af.rect, size, leaf.page);
+    const component = isBtn ? 'checkbox' : pickComponent(af.input_type);
+    // 填写示范：仅文本类字段取用（日期/勾选有各自的占位提示，不取示范）。
+    const example = (!isBtn && component !== 'date') ? (af.field_example || '') : '';
+    return {
+      name: af.name,
+      leafId: leaf.leaf_id,
+      page: leaf.page,
+      fieldType: af.field_type,
+      kind: isBtn ? 'checkbox' : 'text',
+      component,
+      example,
+      label,
+      // 复合 input_type（如「单选+文本」）作为类型标注会误导，仅在有明确字段名时展示。
+      inputType: named ? normalizeInputType(af.input_type) : '',
+      rect: af.rect,
+      ...geo,
+    };
+  });
+}
+
+function buildForm() {
+  const pages = schema.pages.map((page) => {
+    const leaves = page.leaf_nodes.map((leaf) => {
+      const skipFill = leaf.is_need_filled === false;
+      const isHandwriting = leaf.is_handwritting === true;
+      const needInput = !skipFill && !isHandwriting;
+      const fields = buildLeafFields(leaf, page.size);
+      return {
+        leafId: leaf.leaf_id,
+        page: leaf.page,
+        text: leaf.text,
+        lines: (leaf.text || '').split('\n'),
+        skipFill,
+        isHandwriting,
+        needInput,
+        manualFill: skipFill || isHandwriting,
+        manualText: isHandwriting ? '需要手写' : '无需填写',
+        fieldCount: fields.length,
+        inputFieldCount: needInput ? fields.length : 0,
+        fields,
+      };
+    });
+    return {
+      page: page.page,
+      width: page.size[0],
+      height: page.size[1],
+      previewImage: countryFormFile(PREVIEW_COUNTRY_DIR, `Italy-${page.page}.png`),
+      leaves,
+    };
+  });
+
+  // 全局字段表用于进度统计、初值、定位等，只包含需要线上录入的字段。
+  const fields = [];
+  pages.forEach((page) => page.leaves.forEach((leaf) => {
+    if (!leaf.needInput) return;
+    leaf.fields.forEach((f) => fields.push(f));
+  }));
+
+  return {
+    templateId: TEMPLATE_ID,
+    country: COUNTRY_NAME,
+    title: FORM_TITLE,
+    summary: schema.summary,
+    pages,
+    fields,
+    pageTabs: pages.map((p) => ({ page: p.page, label: `第 ${p.page} 页`, count: p.leaves.reduce((n, l) => n + l.inputFieldCount, 0) })),
+  };
+}
+
+// 依据已填写的值，为预览页生成每页的叠加层（把值放回 PDF 字段位置）。
+function buildPreviewPages(form, values) {
+  return form.pages.map((page) => {
+    const overlays = [];
+    page.leaves.forEach((leaf) => {
+      // 无需填写的叶子不在图片预览中展示；需要手写的叶子保留红框提示。
+      if (leaf.skipFill) return;
+      // 需要手写的叶子不参与未填统计，但保留图片上的 acroform 红框。
+      if (!leaf.needInput) {
+        leaf.fields.forEach((field) => {
+          overlays.push({
+            name: field.name,
+            label: field.label,
+            filled: false,
+            manual: true,
+            skipFill: leaf.skipFill,
+            isHandwriting: leaf.isHandwriting,
+            display: leaf.manualText,
+            isCheckbox: false,
+            style: field.previewStyle,
+          });
+        });
+        return;
+      }
+      leaf.fields.forEach((field) => {
+        const raw = values[field.name];
+        const isCheckbox = field.kind === 'checkbox';
+        const filled = isCheckbox ? raw === true : !!(raw && String(raw).length);
+        let display = raw || '';
+        if (isCheckbox) display = raw === true ? '✓' : '';
+        overlays.push({
+          name: field.name,
+          label: field.label,
+          filled,
+          manual: false,
+          display,
+          isCheckbox,
+          style: field.previewStyle,
+        });
+      });
+    });
+    return {
+      page: page.page,
+      previewImage: page.previewImage,
+      overlays,
+    };
+  });
+}
+
+module.exports = {
+  TEMPLATE_ID,
+  COUNTRY_NAME,
+  FORM_TITLE,
+  buildForm,
+  buildPreviewPages,
+};

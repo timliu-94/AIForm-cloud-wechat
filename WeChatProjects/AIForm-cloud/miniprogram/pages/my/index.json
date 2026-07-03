@@ -1,0 +1,11 @@
+{
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "t-icon": "tdesign-miniprogram/icon/icon",
+    "nav": "/components/nav",
+    "t-toast": "tdesign-miniprogram/toast/toast"
+  },
+  "componentPlaceholder": {
+    "t-toast": "view"
+  }
+}

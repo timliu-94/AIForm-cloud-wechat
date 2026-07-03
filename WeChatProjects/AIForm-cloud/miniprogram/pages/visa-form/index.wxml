@@ -1,0 +1,145 @@
+<nav title-text="智能填表" />
+
+<view class="split" style="{{splitHeight ? 'height:' + splitHeight + 'px;' : ''}}">
+  <!-- // [优化] 顶部：PDF 图片预览（与下方表单上下分屏），视觉上弱化工具感，突出当前填写位置 -->
+  <view class="preview-pane">
+    <view class="preview-pane__head">
+      <view class="preview-pane__meta">
+        <view class="preview-pane__title">第 {{activePage}} 页 · {{activeFieldLabel || '点击下方字段定位'}}</view>
+        <view class="preview-pane__badge">PDF 预览</view>
+      </view>
+      <scroll-view class="page-tabs" scroll-x>
+        <view
+          wx:for="{{pageTabs}}"
+          wx:key="page"
+          class="page-tab {{item.page === activePage ? 'page-tab--active' : ''}}"
+          data-page="{{item.page}}"
+          bindtap="switchPage"
+        >{{item.label}}</view>
+      </scroll-view>
+    </view>
+
+    <scroll-view class="pdf-scroll" scroll-y scroll-top="{{previewScrollTop}}" scroll-with-animation>
+      <view class="pdf-canvas">
+        <image class="pdf-bg" src="{{previewImage}}" mode="widthFix" bindload="onPreviewImageLoad" binderror="onPreviewImageError" />
+        <view
+          wx:for="{{previewFields}}"
+          wx:key="name"
+          class="box {{item.active ? 'box--active' : (item.manual ? 'box--manual' : (item.filled ? 'box--filled' : 'box--empty'))}} {{item.isHandwriting ? 'box--handwriting' : ''}} {{item.skipFill ? 'box--skip' : ''}} {{item.isCheckbox ? 'box--checkbox' : ''}}"
+          style="{{item.style}}"
+          data-name="{{item.name}}"
+          data-leaf="{{item.leafId}}"
+          bindtap="tapPreviewBox"
+        >
+          <text class="box__value">{{item.display}}</text>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <scroll-view
+    class="form-list"
+    scroll-y
+    scroll-into-view="{{formScrollIntoView}}"
+    scroll-with-animation
+    bindscroll="onFormScroll"
+  >
+    <view class="leaf-card" wx:for="{{activeFormLeaves}}" wx:for-item="leaf" wx:key="leafId" id="{{leaf.leafId}}">
+      <view class="leaf-block">
+        <text class="leaf-block__line" wx:for="{{leaf.lines}}" wx:for-item="line" wx:key="*this">{{line}}</text>
+      </view>
+
+      <view class="leaf-manual leaf-manual--handwriting" wx:if="{{leaf.isHandwriting}}">
+        <text class="leaf-manual__icon">!</text>
+        <text>需要手写</text>
+      </view>
+
+      <view class="leaf-fields" wx:elif="{{leaf.needInput && leaf.fieldCount > 0}}">
+        <view class="field" wx:for="{{leaf.fields}}" wx:for-item="field" wx:key="name">
+          <view
+            wx:if="{{field.kind === 'checkbox'}}"
+            class="field-checkbox {{values[field.name] ? 'field-checkbox--on' : ''}} {{activeFieldName === field.name ? 'field--active' : ''}}"
+            data-name="{{field.name}}"
+            bindtap="onCheckboxTap"
+          >
+            <view class="field-checkbox__box">{{values[field.name] ? '✓' : ''}}</view>
+            <text class="field-checkbox__label">{{field.label}}</text>
+          </view>
+
+          <view wx:else class="field-input {{activeFieldName === field.name ? 'field--active' : ''}}">
+            <view class="field-input__label">
+              <text>{{field.label}}</text>
+              <text wx:if="{{field.example}}" class="field-input__example">示范：{{field.example}}</text>
+            </view>
+
+            <picker
+              wx:if="{{field.component === 'date'}}"
+              mode="date"
+              value="{{datePickerValues[field.name]}}"
+              data-name="{{field.name}}"
+              bindchange="onDateChange"
+              bindtap="onFieldFocus"
+            >
+              <view class="field-input__control field-input__control--picker">
+                <text wx:if="{{values[field.name]}}">{{values[field.name]}}</text>
+                <text wx:else class="field-input__placeholder">请选择日期（日-月-年）</text>
+              </view>
+            </picker>
+
+            <textarea
+              wx:elif="{{field.component === 'textarea'}}"
+              class="field-input__control field-input__control--textarea"
+              value="{{values[field.name]}}"
+              placeholder="请输入{{field.label}}"
+              data-name="{{field.name}}"
+              bindinput="onTextInput"
+              bindfocus="onFieldFocus"
+              auto-height
+            />
+
+            <view
+              wx:elif="{{field.component === 'phone'}}"
+              class="field-input__control field-input__control--phone"
+            >
+              <text class="field-input__phone-prefix">+</text>
+              <input
+                class="field-input__phone-input"
+                type="number"
+                value="{{phoneInputValues[field.name]}}"
+                placeholder="区号+号码，如 8613800000000"
+                data-name="{{field.name}}"
+                bindinput="onPhoneInput"
+                bindfocus="onFieldFocus"
+              />
+            </view>
+
+            <input
+              wx:else
+              class="field-input__control"
+              value="{{values[field.name]}}"
+              placeholder="请输入{{field.label}}"
+              data-name="{{field.name}}"
+              bindinput="onTextInput"
+              bindfocus="onFieldFocus"
+            />
+            <view class="field-input__hint {{activeFieldName === field.name ? 'field-input__hint--show' : ''}}">填写后会同步高亮到上方 PDF 对应位置</view>
+          </view>
+        </view>
+      </view>
+
+      <view class="leaf-empty" wx:else>该文字块为说明文字，无需填写</view>
+    </view>
+
+    <view class="next-page" wx:if="{{hasNextPage}}">
+      <button class="next-page__btn" bindtap="goNextPage">下一页 →</button>
+    </view>
+
+    <view class="form-list__pad"></view>
+  </scroll-view>
+
+  <view class="form-footer">
+    <button class="footer-btn footer-btn--plain" bindtap="backToHome">返回</button>
+    <button class="footer-btn footer-btn--ghost" bindtap="saveDraft">保存草稿</button>
+    <button class="footer-btn footer-btn--primary" bindtap="goPreview">完成</button>
+  </view>
+</view>
