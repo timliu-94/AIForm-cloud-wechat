@@ -170,6 +170,7 @@ button::after {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 8rpx;
   height: 60rpx;
   padding: 0 30rpx;
   border: 1rpx solid @outline-variant;
@@ -180,6 +181,51 @@ button::after {
   line-height: 38rpx;
   background: @surface-container;
   box-sizing: border-box;
+
+  &__hot-icon {
+    position: relative;
+    flex: none;
+    width: 28rpx;
+    height: 34rpx;
+  }
+
+  &__hot-icon::before {
+    position: absolute;
+    right: 3rpx;
+    bottom: 2rpx;
+    width: 22rpx;
+    height: 28rpx;
+    border-radius: 20rpx 20rpx 20rpx 4rpx;
+    background: linear-gradient(135deg, #ff3d00 0%, #ff7a00 58%, #ffc247 100%);
+    box-shadow: 0 4rpx 8rpx rgba(255, 103, 0, 0.28);
+    content: '';
+    transform: rotate(-42deg);
+    transform-origin: 50% 80%;
+  }
+
+  &__hot-icon::after {
+    position: absolute;
+    top: 2rpx;
+    right: 2rpx;
+    width: 10rpx;
+    height: 14rpx;
+    border-radius: 10rpx 10rpx 10rpx 2rpx;
+    background: #ff6a00;
+    content: '';
+    transform: rotate(24deg);
+  }
+
+  &__hot-core {
+    position: absolute;
+    right: 8rpx;
+    bottom: 4rpx;
+    z-index: 1;
+    width: 10rpx;
+    height: 15rpx;
+    border-radius: 12rpx 12rpx 12rpx 3rpx;
+    background: linear-gradient(135deg, #fff7a8 0%, #ffd35a 100%);
+    transform: rotate(-38deg);
+  }
 }
 
 .continent--active {
@@ -267,11 +313,15 @@ button::after {
     line-height: 30rpx;
     background: @surface-container;
   }
+
+  &__radio {
+    margin-top: 0;
+  }
 }
 
 .country-item--active {
   border-color: @primary;
-  background: rgba(0, 61, 166, 0.05);
+  background: rgba(219, 225, 255, 0.45);
 }
 
 .option-grid {

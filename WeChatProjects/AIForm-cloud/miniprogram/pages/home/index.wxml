@@ -29,7 +29,10 @@
           data-name="{{item}}"
           bindtap="selectContinent"
         >
-          {{item}}
+          <view wx:if="{{item === hotFilter}}" class="continent__hot-icon">
+            <view class="continent__hot-core"></view>
+          </view>
+          <text>{{item}}</text>
         </view>
       </view>
     </scroll-view>
@@ -51,7 +54,7 @@
             <text>{{item.visaTypes.length}} 种签证类型</text>
           </view>
         </view>
-        <t-icon name="chevron-right" size="34rpx" color="{{selectedCountryId === item.id ? '#003da6' : '#737686'}}" />
+        <view class="country-item__radio radio {{selectedCountryId === item.id ? 'radio--active' : ''}}"></view>
       </view>
     </view>
   </view>

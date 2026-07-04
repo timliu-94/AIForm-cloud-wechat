@@ -4,7 +4,7 @@ const {
   findCountry,
 } = require('../../utils/visaData');
 
-const ALL_FILTER = '全部';
+const HOT_FILTER = '热门';
 
 function getVisaTypeIcon(typeId) {
   if (typeId.includes('business')) return 'work';
@@ -43,9 +43,10 @@ function getDefaultSelection(country) {
 Page({
   data: {
     continents,
-    destinationFilters: [ALL_FILTER, ...continents],
+    destinationFilters: [HOT_FILTER, ...continents],
+    hotFilter: HOT_FILTER,
     query: '',
-    selectedContinent: ALL_FILTER,
+    selectedContinent: HOT_FILTER,
     countries: [],
     selectedCountry: null,
     selectedCountryId: '',
@@ -165,8 +166,8 @@ Page({
     const {selectedContinent} = this.data;
     const countries = visaCatalog.filter((country) => {
       const hitQuery = !query || country.name.toLowerCase().includes(query);
-      const hitContinent = selectedContinent === ALL_FILTER
-        ? true
+      const hitContinent = selectedContinent === HOT_FILTER
+        ? country.hot
         : country.continent === selectedContinent;
       return hitQuery && hitContinent;
     }).map(decorateCountry);
