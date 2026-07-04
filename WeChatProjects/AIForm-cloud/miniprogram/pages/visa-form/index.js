@@ -3,7 +3,8 @@ const { buildDefaultApplicationTitle, normalizeTitle } = require('../../utils/ap
 const { resolvePreviewImages } = require('../../utils/cloudAssets');
 
 const APPLICATIONS_KEY = 'visa_applications';
-const PREVIEW_PANE_RPX = 760; // 顶部 PDF 预览区高度
+const PREVIEW_PANE_RPX = 760; // 顶部预览区高度
+const PREVIEW_MIN_SCALE = 1;
 
 // 日期统一以「日-月-年」(DD-MM-YYYY) 作为存储与展示格式，
 // 但微信 date 选择器只认 YYYY-MM-DD，需在两种格式间转换。
@@ -35,7 +36,11 @@ Page({
     totalCount: 0,
     activeFieldName: '',
     activeFieldLabel: '',
-    previewScrollTop: 0,
+    previewCanvasWidth: 0,
+    previewCanvasHeight: 0,
+    previewScale: PREVIEW_MIN_SCALE,
+    previewX: 0,
+    previewY: 0,
     formScrollIntoView: '',
     applicationId: '',
     draftTitle: '',
@@ -66,6 +71,7 @@ Page({
     this.canvasWidthPx = info.windowWidth;
     this.imageHeightPx = this.canvasWidthPx * (form.pages[0].height / form.pages[0].width);
     this.paneHeightPx = PREVIEW_PANE_RPX * rpxToPx;
+    this._previewScale = PREVIEW_MIN_SCALE;
 
     this.form = form;
     // 全量字段索引（含手写字段），仅用于预览红框定位/联动；进度统计、初值
@@ -88,6 +94,8 @@ Page({
           activeFormLeaves: this.filterFormLeaves(firstPage.leaves),
           previewImage: firstPage.previewImage,
           previewFields: this.buildPreviewFields(firstPage.leaves, values, ''),
+          previewCanvasWidth: this.canvasWidthPx,
+          previewCanvasHeight: this.imageHeightPx,
           values,
           datePickerValues: this.buildDatePickerValues(values),
           phoneInputValues: this.buildPhoneInputValues(values),
@@ -104,12 +112,25 @@ Page({
   },
 
   onPreviewImageError() {
-    console.error('PDF preview image load failed:', this.data.previewImage);
+    console.error('Preview image load failed:', this.data.previewImage);
     wx.showToast({ title: '预览图加载失败', icon: 'none' });
   },
 
   onPreviewImageLoad() {
-    console.log('PDF preview image loaded:', this.data.previewImage);
+    console.log('Preview image loaded:', this.data.previewImage);
+  },
+
+  onPreviewMove(e) {
+    const { x = 0, y = 0 } = e.detail || {};
+    this.setData({ previewX: x, previewY: y });
+  },
+
+  onPreviewScale(e) {
+    const scale = e.detail && e.detail.scale ? e.detail.scale : PREVIEW_MIN_SCALE;
+    this._previewScale = scale;
+    if (Math.abs(scale - this.data.previewScale) > 0.01) {
+      this.setData({ previewScale: scale });
+    }
   },
 
   filterFormLeaves(leaves) {
@@ -189,10 +210,13 @@ Page({
       previewFields: this.buildPreviewFields(target.leaves, this.data.values, firstField ? firstField.name : ''),
       activeFieldName: firstField ? firstField.name : '',
       activeFieldLabel: firstField ? firstField.label : '',
-      previewScrollTop: 0,
+      previewScale: PREVIEW_MIN_SCALE,
+      previewX: 0,
+      previewY: 0,
       formScrollIntoView: '',
       hasNextPage: this.hasNextPage(page),
     });
+    this._previewScale = PREVIEW_MIN_SCALE;
     // 待新页叶子节点渲染后再设置 scroll-into-view，确保触发滚动到首个填写块顶端。
     if (firstLeaf) {
       wx.nextTick(() => this.setData({ formScrollIntoView: firstLeaf.leafId }));
@@ -287,7 +311,7 @@ Page({
     this.setData({ formScrollIntoView: leaf });
   },
 
-  // 表单滚动 → 高亮所在文字块，并把预览滚到对应位置（节流）。
+  // 表单滚动 → 高亮所在文字块，并把预览移动到对应位置（节流）。
   onFormScroll(e) {
     const now = Date.now();
     if (this._scrollGate && now - this._scrollGate < 120) return;
@@ -307,17 +331,18 @@ Page({
     }
   },
 
-  // 高亮某字段：更新红框 + 把顶部预览滚动到该字段处。
+  // 高亮某字段：更新红框 + 把顶部预览移动到该字段处。
   setActiveField(name, fromForm) {
     const field = this.findField(name);
     if (!field) return;
     const center = (field.pCenterY / 100) * this.imageHeightPx;
-    const maxTop = Math.max(0, this.imageHeightPx - this.paneHeightPx);
-    const scrollTop = Math.min(maxTop, Math.max(0, center - this.paneHeightPx / 2));
+    const scale = this._previewScale || this.data.previewScale || PREVIEW_MIN_SCALE;
+    const minY = Math.min(0, this.paneHeightPx - this.imageHeightPx * scale);
+    const previewY = Math.min(0, Math.max(minY, this.paneHeightPx / 2 - center * scale));
     const patch = {
       activeFieldName: name,
       activeFieldLabel: field.label,
-      previewScrollTop: scrollTop,
+      previewY,
       previewFields: this.buildPreviewFields(this.data.activeLeaves, this.data.values, name),
     };
     if (this.data.activePage !== field.page) {
@@ -375,9 +400,9 @@ Page({
   confirmTitle(onConfirm) {
     const fallback = buildDefaultApplicationTitle(COUNTRY_NAME);
     wx.showModal({
-      title: '保存申请',
+      title: '保存表格',
       editable: true,
-      placeholderText: '请输入申请标题',
+      placeholderText: '请输入表格标题',
       content: normalizeTitle(this.data.draftTitle) || fallback,
       success: (res) => {
         if (!res.confirm) return;
@@ -401,7 +426,7 @@ Page({
       templateId: this.form.templateId,
       title,
       country: this.form.country,
-      visaType: '申根短期签证',
+      visaType: '申根短期申请表',
       status: 'draft',
       values: { ...this.data.values },
       updatedAt: now,

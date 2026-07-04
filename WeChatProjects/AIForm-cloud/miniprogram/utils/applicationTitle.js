@@ -3,8 +3,8 @@ function normalizeTitle(value) {
 }
 
 function buildDefaultApplicationTitle(country) {
-  const countryName = normalizeTitle(country) || '签证';
-  return `${countryName}签证`;
+  const countryName = normalizeTitle(country) || '目的地';
+  return `${countryName}申请表`;
 }
 
 function stripCompanionSuffix(title) {
@@ -16,7 +16,7 @@ function escapeRegExp(value) {
 }
 
 function buildCompanionApplicationTitle(sourceTitle, applications) {
-  const baseTitle = stripCompanionSuffix(sourceTitle) || '同行人申请';
+  const baseTitle = stripCompanionSuffix(sourceTitle) || '同行人表格';
   const usedNumbers = (applications || []).reduce((result, item) => {
     const title = normalizeTitle(item.title);
     const match = title.match(new RegExp(`^${escapeRegExp(baseTitle)}_(\\d+)$`));

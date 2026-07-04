@@ -8,7 +8,7 @@
       <t-icon name="user" size="54rpx" color="#003da6" />
     </view>
     <view class="profile-card__body">
-      <view class="profile-card__name">Visa Applicant</view>
+      <view class="profile-card__name">Form Assistant User</view>
       <view class="profile-card__verified">
         <t-icon name="check-circle-filled" size="28rpx" color="#003da6" />
         <text>Verified Account</text>
@@ -19,7 +19,7 @@
 
   <view class="points-card">
     <view>
-      <view class="points-card__label">当前申请 (Applications)</view>
+      <view class="points-card__label">本地表格 (Forms)</view>
       <view class="points-card__value">{{applicationCount}}<text>份</text></view>
     </view>
     <view class="points-card__icon">
@@ -47,5 +47,62 @@
       </view>
       <t-icon wx:if="{{item.url}}" name="chevron-right" size="34rpx" color="#737686" />
     </button>
+  </view>
+
+  <view wx:if="{{showFeedback}}" class="panel feedback-panel">
+    <view class="panel__title">问题反馈</view>
+    <view class="form-row">
+      <view class="form-row__label">类型</view>
+      <picker mode="selector" range="{{feedbackTypes}}" value="{{feedbackTypeIndex}}" bindchange="onFeedbackTypeChange">
+        <view class="form-row__control form-row__control--picker">
+          <text>{{feedbackTypes[feedbackTypeIndex]}}</text>
+          <t-icon name="chevron-right" size="30rpx" color="#737686" />
+        </view>
+      </picker>
+    </view>
+    <view class="form-row">
+      <view class="form-row__label">详细描述</view>
+      <textarea
+        class="feedback-panel__textarea"
+        value="{{feedbackDescription}}"
+        placeholder="请描述遇到的问题、使用建议或其他想法"
+        maxlength="500"
+        bindinput="onFeedbackInput"
+      />
+      <view class="feedback-panel__count">{{feedbackDescription.length}}/500</view>
+    </view>
+    <view class="panel__actions">
+      <button class="panel-btn panel-btn--plain" bindtap="cancelFeedback">取消</button>
+      <button class="panel-btn panel-btn--primary" bindtap="submitFeedback">提交</button>
+    </view>
+  </view>
+
+  <view wx:if="{{showContact}}" class="panel contact-panel">
+    <view class="panel__title">联系我们</view>
+    <view class="contact-row">
+      <view class="contact-row__main">
+        <view class="contact-row__label">QQ群</view>
+        <view class="contact-row__value">{{contactInfo.qqGroup}}</view>
+      </view>
+      <button class="contact-row__copy" data-value="{{contactInfo.qqGroup}}" bindtap="copyContact">复制</button>
+    </view>
+    <view class="contact-row">
+      <view class="contact-row__main">
+        <view class="contact-row__label">邮箱</view>
+        <view class="contact-row__value">{{contactInfo.email}}</view>
+      </view>
+      <button class="contact-row__copy" data-value="{{contactInfo.email}}" bindtap="copyContact">复制</button>
+    </view>
+  </view>
+</view>
+
+<view wx:if="{{showFeedbackSuccess}}" class="feedback-success-modal" catchtouchmove="noop" bindtap="closeFeedbackSuccess">
+  <view class="feedback-success-modal__panel" catchtap="noop">
+    <view class="feedback-success-modal__icon">
+      <t-icon name="check" size="42rpx" color="#003da6" />
+    </view>
+    <view class="feedback-success-modal__title">提交成功</view>
+    <view class="feedback-success-modal__content">感谢你的建议，我们会认真查看并持续优化使用体验。</view>
+    <button class="feedback-success-modal__button" bindtap="closeFeedbackSuccess">知道了</button>
   </view>
 </view>

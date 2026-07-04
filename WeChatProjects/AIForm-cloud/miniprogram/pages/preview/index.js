@@ -26,7 +26,7 @@ Page({
     const applications = wx.getStorageSync(APPLICATIONS_KEY) || [];
     const application = applications.find((item) => item.id === applicationId);
     if (!application) {
-      wx.showToast({ title: '申请不存在', icon: 'none' });
+      wx.showToast({ title: '表格不存在', icon: 'none' });
       return;
     }
 
@@ -74,7 +74,7 @@ Page({
     const application = {
       title: template ? template.version.name : form.title,
       country: template ? template.country.name : form.country,
-      visaType: template ? template.visaType.name : '原始模板',
+      visaType: template ? template.visaType.name : '原始表格',
     };
 
     resolvePreviewImages(pages)
@@ -143,7 +143,7 @@ Page({
     wx.showModal({
       title: '导出 PDF',
       editable: true,
-      placeholderText: '请输入申请标题',
+      placeholderText: '请输入表格标题',
       content: normalizeTitle(application.title) || fallback,
       success: (res) => {
         if (!res.confirm) return;
@@ -155,7 +155,7 @@ Page({
         this.saveTitle(title);
         wx.showModal({
           title: '导出 PDF',
-          content: '示范版仅演示预览。正式环境将由服务端把已填写的值写回 AcroForms 并生成可下载 PDF。',
+          content: '示范版仅演示预览。正式环境将把已填写的值写回 PDF 表格并生成可下载文件。下载后请自行核对，并按领事馆或官方签证中心要求完成打印、签字、预约或递交。',
           showCancel: false,
         });
       },

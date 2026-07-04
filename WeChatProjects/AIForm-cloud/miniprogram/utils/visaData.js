@@ -170,14 +170,14 @@ const visaCatalog = [
         districts: [
           {
             id: 'china',
-            name: '中国大陆申请地',
+            name: '中国大陆地区',
             versions: [
               {
                 id: 'us-ds160-demo',
                 name: 'DS-160 信息采集表',
                 version: '2026.01',
                 publishedAt: '2026-01-15',
-                scope: '中国大陆预约面谈',
+                scope: '中国大陆地区填写参考',
                 status: 'active',
                 sourcePdf: countryFormFile('USA', 'us_ds160_demo.pdf'),
               },

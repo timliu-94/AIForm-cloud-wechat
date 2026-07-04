@@ -79,6 +79,90 @@
   }
 }
 
+.bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  margin-bottom: 24rpx;
+  padding: 18rpx 20rpx;
+  border: 1rpx solid @outline-variant;
+  border-radius: 16rpx;
+  background: @surface-lowest;
+  box-shadow: 0 2rpx 8rpx rgba(25, 28, 30, 0.04);
+
+  &__select {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 10rpx;
+    height: 60rpx;
+    margin: 0;
+    padding: 0 12rpx 0 4rpx;
+    border-radius: 8rpx;
+    color: @text;
+    font-size: 26rpx;
+    line-height: 60rpx;
+    background: transparent;
+
+    &::after {
+      border: 0;
+    }
+
+    &:active {
+      background: @surface-low;
+    }
+  }
+
+  &__count {
+    min-width: 0;
+    flex: 1;
+    color: @muted;
+    font-size: 24rpx;
+    line-height: 34rpx;
+    text-align: center;
+  }
+
+  &__delete {
+    flex: none;
+    min-width: 104rpx;
+    height: 60rpx;
+    margin: 0;
+    padding: 0 24rpx;
+    border-radius: 10rpx;
+    color: @outline;
+    font-size: 26rpx;
+    line-height: 60rpx;
+    background: @surface-high;
+
+    &::after {
+      border: 0;
+    }
+
+    &--active {
+      color: @error;
+      background: @error-container;
+    }
+  }
+}
+
+.select-box {
+  width: 34rpx;
+  height: 34rpx;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2rpx solid @outline-variant;
+  border-radius: 8rpx;
+  background: @surface-lowest;
+  box-sizing: border-box;
+
+  &--checked {
+    border-color: @primary-container;
+    background: @primary-container;
+  }
+}
+
 .application-card {
   margin-top: 20rpx;
   padding: 26rpx;
@@ -92,6 +176,11 @@
     border-color: @primary-container;
   }
 
+  &--selected {
+    border-color: @primary-container;
+    background: fade(@primary-fixed, 28%);
+  }
+
   &__head {
     display: flex;
     align-items: flex-start;
@@ -100,10 +189,32 @@
   }
 
   &__main {
+    flex: 1;
     display: flex;
     align-items: center;
-    gap: 16rpx;
+    gap: 14rpx;
     min-width: 0;
+  }
+
+  &__select {
+    width: 44rpx;
+    height: 44rpx;
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+    border-radius: 8rpx;
+    background: transparent;
+
+    &::after {
+      border: 0;
+    }
+
+    &:active {
+      background: @primary-fixed;
+    }
   }
 
   &__side {
@@ -168,6 +279,7 @@
   }
 
   &__content {
+    flex: 1;
     min-width: 0;
   }
 
@@ -179,7 +291,7 @@
   }
 
   &__title {
-    max-width: 420rpx;
+    max-width: 100%;
     overflow: hidden;
     color: @text;
     font-size: 30rpx;

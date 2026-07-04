@@ -3,8 +3,10 @@ const {
   visaCatalog,
   findCountry,
 } = require('../../utils/visaData');
+const { getEditablePdf } = require('../../utils/editablePdfMap');
 
 const HOT_FILTER = '热门';
+const OFFICIAL_NOTICE_HIDDEN_KEY = 'official_notice_hidden';
 
 function getVisaTypeIcon(typeId) {
   if (typeId.includes('business')) return 'work';
@@ -56,10 +58,30 @@ Page({
     selectedVersion: null,
     selectedVersionId: '',
     selectedFillMode: '',
+    showOfficialNotice: false,
+    dontRemindOfficialNotice: false,
   },
 
   onLoad() {
     this.refreshCountries({ autoSelect: true });
+    this.setData({
+      showOfficialNotice: !wx.getStorageSync(OFFICIAL_NOTICE_HIDDEN_KEY),
+    });
+  },
+
+  noop() {},
+
+  toggleOfficialNoticeDontRemind() {
+    this.setData({
+      dontRemindOfficialNotice: !this.data.dontRemindOfficialNotice,
+    });
+  },
+
+  acknowledgeOfficialNotice() {
+    if (this.data.dontRemindOfficialNotice) {
+      wx.setStorageSync(OFFICIAL_NOTICE_HIDDEN_KEY, true);
+    }
+    this.setData({ showOfficialNotice: false });
   },
 
   onSearch(e) {
@@ -153,11 +175,56 @@ Page({
   downloadPdf() {
     const version = this.data.selectedVersion;
     if (!version) return;
+
+    const pdf = getEditablePdf(version.id);
+    if (!pdf) {
+      wx.showToast({
+        title: '暂无可下载PDF',
+        icon: 'none',
+      });
+      return;
+    }
+
+    if (!wx.cloud) {
+      wx.showToast({
+        title: '云下载不可用',
+        icon: 'none',
+      });
+      return;
+    }
+
     this.setData({ selectedFillMode: 'pdf' });
-    wx.showModal({
-      title: '下载可编辑 PDF',
-      content: `示范版将下载 ${version.sourcePdf}。正式环境会返回带 AcroForm 的官方空白 PDF。`,
-      showCancel: false,
+
+    wx.showLoading({
+      title: '下载中',
+      mask: true,
+    });
+
+    wx.cloud.downloadFile({
+      fileID: pdf.fileID,
+      success: (res) => {
+        wx.hideLoading();
+        wx.openDocument({
+          filePath: res.tempFilePath,
+          fileType: pdf.fileType || 'pdf',
+          showMenu: true,
+          fail: (err) => {
+            console.error('Open editable PDF failed:', err);
+            wx.showToast({
+              title: '打开PDF失败',
+              icon: 'none',
+            });
+          },
+        });
+      },
+      fail: (err) => {
+        wx.hideLoading();
+        console.error('Download editable PDF failed:', err);
+        wx.showToast({
+          title: '下载失败',
+          icon: 'none',
+        });
+      },
     });
   },
 

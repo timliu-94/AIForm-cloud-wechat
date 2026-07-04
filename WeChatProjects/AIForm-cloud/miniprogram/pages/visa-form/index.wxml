@@ -1,12 +1,11 @@
-<nav title-text="智能填表" />
+<nav title-text="辅助填写" />
 
 <view class="split" style="{{splitHeight ? 'height:' + splitHeight + 'px;' : ''}}">
-  <!-- // [优化] 顶部：PDF 图片预览（与下方表单上下分屏），视觉上弱化工具感，突出当前填写位置 -->
+  <!-- 顶部图片预览（与下方表单上下分屏），突出当前填写位置 -->
   <view class="preview-pane">
     <view class="preview-pane__head">
       <view class="preview-pane__meta">
         <view class="preview-pane__title">第 {{activePage}} 页 · {{activeFieldLabel || '点击下方字段定位'}}</view>
-        <view class="preview-pane__badge">PDF 预览</view>
       </view>
       <scroll-view class="page-tabs" scroll-x>
         <view
@@ -19,22 +18,36 @@
       </scroll-view>
     </view>
 
-    <scroll-view class="pdf-scroll" scroll-y scroll-top="{{previewScrollTop}}" scroll-with-animation>
-      <view class="pdf-canvas">
-        <image class="pdf-bg" src="{{previewImage}}" mode="widthFix" bindload="onPreviewImageLoad" binderror="onPreviewImageError" />
-        <view
-          wx:for="{{previewFields}}"
-          wx:key="name"
-          class="box {{item.active ? 'box--active' : (item.manual ? 'box--manual' : (item.filled ? 'box--filled' : 'box--empty'))}} {{item.isHandwriting ? 'box--handwriting' : ''}} {{item.skipFill ? 'box--skip' : ''}} {{item.isCheckbox ? 'box--checkbox' : ''}}"
-          style="{{item.style}}"
-          data-name="{{item.name}}"
-          data-leaf="{{item.leafId}}"
-          bindtap="tapPreviewBox"
-        >
-          <text class="box__value">{{item.display}}</text>
+    <movable-area class="preview-area" scale-area>
+      <movable-view
+        class="preview-mover"
+        direction="all"
+        scale
+        scale-min="1"
+        scale-max="3"
+        scale-value="{{previewScale}}"
+        x="{{previewX}}"
+        y="{{previewY}}"
+        bindchange="onPreviewMove"
+        bindscale="onPreviewScale"
+        style="width:{{previewCanvasWidth}}px;height:{{previewCanvasHeight}}px;"
+      >
+        <view class="pdf-canvas">
+          <image class="pdf-bg" src="{{previewImage}}" mode="widthFix" bindload="onPreviewImageLoad" binderror="onPreviewImageError" />
+          <view
+            wx:for="{{previewFields}}"
+            wx:key="name"
+            class="box {{item.active ? 'box--active' : (item.manual ? 'box--manual' : (item.filled ? 'box--filled' : 'box--empty'))}} {{item.isHandwriting ? 'box--handwriting' : ''}} {{item.skipFill ? 'box--skip' : ''}} {{item.isCheckbox ? 'box--checkbox' : ''}}"
+            style="{{item.style}}"
+            data-name="{{item.name}}"
+            data-leaf="{{item.leafId}}"
+            bindtap="tapPreviewBox"
+          >
+            <text class="box__value">{{item.display}}</text>
+          </view>
         </view>
-      </view>
-    </scroll-view>
+      </movable-view>
+    </movable-area>
   </view>
 
   <scroll-view
@@ -122,7 +135,7 @@
               bindinput="onTextInput"
               bindfocus="onFieldFocus"
             />
-            <view class="field-input__hint {{activeFieldName === field.name ? 'field-input__hint--show' : ''}}">填写后会同步高亮到上方 PDF 对应位置</view>
+            <view class="field-input__hint {{activeFieldName === field.name ? 'field-input__hint--show' : ''}}">填写后会同步高亮到上方预览对应位置</view>
           </view>
         </view>
       </view>

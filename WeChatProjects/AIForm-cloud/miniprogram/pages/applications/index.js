@@ -55,6 +55,7 @@ function toStoredApplications(applications) {
       countryFlagLabel,
       formVersionTitle,
       displayUpdatedAt,
+      selected,
       ...application
     } = item;
     return application;
@@ -64,6 +65,9 @@ function toStoredApplications(applications) {
 Page({
   data: {
     applications: [],
+    selectedIds: [],
+    selectedCount: 0,
+    allSelected: false,
   },
 
   onShow() {
@@ -71,9 +75,7 @@ Page({
   },
 
   loadApplications() {
-    this.setData({
-      applications: decorateApplications(wx.getStorageSync(APPLICATIONS_KEY) || []),
-    });
+    this.setApplications(wx.getStorageSync(APPLICATIONS_KEY) || []);
   },
 
   editApplication(e) {
@@ -108,7 +110,7 @@ Page({
     };
     const storedApplications = toStoredApplications([copy, ...this.data.applications]);
     wx.setStorageSync(APPLICATIONS_KEY, storedApplications);
-    this.setData({ applications: decorateApplications(storedApplications) });
+    this.setApplications(storedApplications);
     wx.showToast({ title: '已为同行人创建', icon: 'success' });
   },
 
@@ -135,7 +137,7 @@ Page({
         };
         const storedApplications = toStoredApplications(applications);
         wx.setStorageSync(APPLICATIONS_KEY, storedApplications);
-        this.setData({ applications: decorateApplications(storedApplications) });
+        this.setApplications(storedApplications);
         wx.showToast({ title: '标题已更新', icon: 'success' });
       },
     });
@@ -164,10 +166,10 @@ Page({
         };
         const storedApplications = toStoredApplications(applications);
         wx.setStorageSync(APPLICATIONS_KEY, storedApplications);
-        this.setData({ applications: decorateApplications(storedApplications) });
+        this.setApplications(storedApplications);
         wx.showModal({
           title: '导出 PDF',
-          content: '示范版仅演示预览。正式环境将由服务端把已填写的值写回 AcroForms 并生成可下载 PDF。',
+          content: '示范版仅演示预览。正式环境将把已填写的值写回 PDF 表格并生成可下载文件。下载后请自行核对，并按领事馆或官方签证中心要求完成打印、签字、预约或递交。',
           showCancel: false,
         });
       },
@@ -185,7 +187,67 @@ Page({
         applications.splice(index, 1);
         const storedApplications = toStoredApplications(applications);
         wx.setStorageSync(APPLICATIONS_KEY, storedApplications);
-        this.setData({ applications: decorateApplications(storedApplications) });
+        this.setApplications(storedApplications);
+      },
+    });
+  },
+
+  setApplications(applications) {
+    const decoratedApplications = decorateApplications(applications);
+    const existingIds = decoratedApplications.map((item) => item.id);
+    const selectedIds = this.data.selectedIds.filter((id) => existingIds.includes(id));
+    const selectedSet = new Set(selectedIds);
+    this.setData({
+      applications: decoratedApplications.map((item) => ({
+        ...item,
+        selected: selectedSet.has(item.id),
+      })),
+      selectedIds,
+      selectedCount: selectedIds.length,
+      allSelected: decoratedApplications.length > 0 && selectedIds.length === decoratedApplications.length,
+    });
+  },
+
+  toggleSelectApplication(e) {
+    const { id } = e.currentTarget.dataset;
+    const selectedIds = this.data.selectedIds.includes(id)
+      ? this.data.selectedIds.filter((itemId) => itemId !== id)
+      : [...this.data.selectedIds, id];
+    this.updateSelection(selectedIds);
+  },
+
+  toggleSelectAll() {
+    const selectedIds = this.data.allSelected ? [] : this.data.applications.map((item) => item.id);
+    this.updateSelection(selectedIds);
+  },
+
+  updateSelection(selectedIds) {
+    const selectedSet = new Set(selectedIds);
+    this.setData({
+      applications: this.data.applications.map((item) => ({
+        ...item,
+        selected: selectedSet.has(item.id),
+      })),
+      selectedIds,
+      selectedCount: selectedIds.length,
+      allSelected: this.data.applications.length > 0 && selectedIds.length === this.data.applications.length,
+    });
+  },
+
+  deleteSelectedApplications() {
+    const selectedCount = this.data.selectedIds.length;
+    if (!selectedCount) return;
+    wx.showModal({
+      title: '删除表格',
+      content: `确定删除选中的 ${selectedCount} 份表格吗？删除后不可恢复。`,
+      success: (res) => {
+        if (!res.confirm) return;
+        const selectedSet = new Set(this.data.selectedIds);
+        const applications = this.data.applications.filter((item) => !selectedSet.has(item.id));
+        const storedApplications = toStoredApplications(applications);
+        wx.setStorageSync(APPLICATIONS_KEY, storedApplications);
+        this.setData({ selectedIds: [] }, () => this.setApplications(storedApplications));
+        wx.showToast({ title: `已删除 ${selectedCount} 份`, icon: 'success' });
       },
     });
   },

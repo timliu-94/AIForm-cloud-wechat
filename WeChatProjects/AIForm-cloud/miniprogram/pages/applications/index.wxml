@@ -10,19 +10,42 @@
     </view>
   </view>
 
+  <view class="bulk-bar" wx:if="{{applications.length > 0}}">
+    <button class="bulk-bar__select" bindtap="toggleSelectAll">
+      <view class="select-box {{allSelected ? 'select-box--checked' : ''}}">
+        <t-icon wx:if="{{allSelected}}" name="check" size="24rpx" color="#ffffff" />
+      </view>
+      <text>全选</text>
+    </button>
+    <view class="bulk-bar__count">
+      <text wx:if="{{selectedCount > 0}}">已选择 {{selectedCount}} 项</text>
+      <text wx:else>共 {{applications.length}} 份表格</text>
+    </view>
+    <button
+      class="bulk-bar__delete {{selectedCount > 0 ? 'bulk-bar__delete--active' : ''}}"
+      disabled="{{selectedCount === 0}}"
+      bindtap="deleteSelectedApplications"
+    >删除</button>
+  </view>
+
   <view class="empty" wx:if="{{applications.length === 0}}">
     <t-icon name="file" size="72rpx" color="#94a3b8" />
     <view class="empty__title">暂无表格</view>
-    <view class="empty__desc">从首页选择国家和签证类型后开始智能填写。</view>
+    <view class="empty__desc">从首页选择国家和表格用途后开始辅助填写。</view>
   </view>
 
   <view
     wx:for="{{applications}}"
     wx:key="id"
-    class="application-card"
+    class="application-card {{item.selected ? 'application-card--selected' : ''}}"
   >
     <view class="application-card__head">
       <view class="application-card__main">
+        <button class="application-card__select" data-id="{{item.id}}" catchtap="toggleSelectApplication" aria-label="选择表格">
+          <view class="select-box {{item.selected ? 'select-box--checked' : ''}}">
+            <t-icon wx:if="{{item.selected}}" name="check" size="24rpx" color="#ffffff" />
+          </view>
+        </button>
         <view class="application-card__flag">
           <image wx:if="{{item.countryFlag}}" class="application-card__flag-image" src="{{item.countryFlag}}" mode="aspectFill" />
           <view wx:else class="application-card__flag-fallback">{{item.countryFlagLabel}}</view>
