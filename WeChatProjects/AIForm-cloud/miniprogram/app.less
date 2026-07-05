@@ -1,11 +1,18 @@
 /**app.wxss**/
+@import '/variable.less';
+
 page {
-  background-color: #f7f9fc;
-  color: #191c1e;
+  background-color: @surface;
+  color: @text-primary;
   font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 .page {
   height: 100vh;
-  background-color: #fff;
+  background-color: @surface;
+}
+
+button {
+  font-family: inherit;
 }

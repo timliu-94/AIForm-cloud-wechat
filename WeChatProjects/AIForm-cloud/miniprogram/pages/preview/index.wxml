@@ -33,7 +33,7 @@
     </view>
 
     <view class="footer__actions" wx:if="{{!isTemplatePreview}}">
-      <button class="footer-btn footer-btn--ghost" bindtap="editForm">返回修改</button>
+      <button class="footer-btn footer-btn--ghost" bindtap="editForm">修改</button>
       <button class="footer-btn footer-btn--primary" bindtap="exportPdf">确认导出</button>
     </view>
   </view>

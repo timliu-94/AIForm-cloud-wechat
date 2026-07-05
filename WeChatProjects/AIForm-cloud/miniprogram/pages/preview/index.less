@@ -37,7 +37,7 @@
     padding: 8rpx 24rpx;
     font-size: 26rpx;
     line-height: 1.5;
-    color: #fff;
+    color: @surface-lowest;
     background: @brand7-normal;
     border-radius: 32rpx;
   }
@@ -64,7 +64,7 @@
 .pdf-canvas {
   position: relative;
   width: 100%;
-  background: #fff;
+  background: @surface-lowest;
   box-shadow: 0 2rpx 16rpx rgba(0, 0, 0, 0.08);
 }
 
@@ -135,7 +135,7 @@
     padding: 0 6rpx;
     font-size: 16rpx;
     line-height: 1.4;
-    color: #fff;
+    color: @surface-lowest;
     background: rgba(0, 82, 217, 0.7);
     border-radius: 4rpx;
     white-space: nowrap;
@@ -201,10 +201,16 @@
 }
 
 .footer-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex: 1;
   margin: 0;
+  padding: 0 24rpx;
   font-size: 30rpx;
+  line-height: 1.2;
   border-radius: 44rpx;
+  box-sizing: border-box;
 
   &--ghost {
     color: @brand7-normal;
@@ -212,7 +218,101 @@
   }
 
   &--primary {
-    color: #fff;
+    color: @surface-lowest;
     background: @brand7-normal;
+  }
+}
+
+/* Design refresh: preview workspace with the same surface system. */
+.preview {
+  background: @surface;
+}
+
+.summary {
+  border-bottom: 1rpx solid @surface-variant;
+  background: @surface-lowest;
+
+  &__title {
+    color: @text-primary;
+    font-weight: 700;
+  }
+
+  &__meta {
+    color: @text-secondary;
+  }
+
+  &__back {
+    color: @surface-lowest;
+    background: @primary;
+    border-radius: 999rpx;
+  }
+
+  &__pending {
+    color: @warning;
+    background: @warning-container;
+  }
+}
+
+.canvas-scroll {
+  background: @surface-low;
+}
+
+.pdf-canvas {
+  overflow: hidden;
+  border: 1rpx solid @outline-variant;
+  border-radius: 8rpx;
+  background: @surface-lowest;
+  box-shadow: 0 8rpx 24rpx rgba(25, 28, 30, 0.08);
+}
+
+.overlay--filled {
+  border-color: rgba(0, 82, 217, 0.44);
+  background: rgba(0, 82, 217, 0.07);
+}
+
+.overlay--pending,
+.overlay--handwriting {
+  border-color: rgba(186, 26, 26, 0.58);
+  background: rgba(186, 26, 26, 0.06);
+}
+
+.overlay__label {
+  background: rgba(0, 82, 217, 0.8);
+}
+
+.overlay--pending .overlay__label,
+.overlay--handwriting .overlay__label {
+  background: rgba(186, 26, 26, 0.78);
+}
+
+.footer {
+  border-top: 1rpx solid @outline-variant;
+  background: @surface-lowest;
+  box-shadow: 0 -4rpx 12rpx rgba(25, 28, 30, 0.05);
+}
+
+.page-nav__btn {
+  color: @primary;
+}
+
+.page-nav__btn--disabled {
+  color: @outline;
+}
+
+.page-nav__page {
+  color: @text-secondary;
+}
+
+.footer-btn {
+  min-height: 88rpx;
+  border-radius: 999rpx;
+
+  &--ghost {
+    color: @primary;
+    background: @primary-fixed;
+  }
+
+  &--primary {
+    background: @primary;
   }
 }

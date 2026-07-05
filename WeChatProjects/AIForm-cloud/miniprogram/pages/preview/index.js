@@ -124,7 +124,7 @@ Page({
   editForm() {
     if (this.data.isTemplatePreview) return;
     if (!this.data.application) return;
-    wx.navigateTo({
+    wx.redirectTo({
       url: `/pages/visa-form/index?applicationId=${this.data.application.id}`,
     });
   },

@@ -7,27 +7,27 @@
     <view class="hero__desc">选择目的地和签证类型，系统将引导你完成申请表填写并生成表格文件。</view>
   </view>
 
-  <view class="search-wrap">
-    <view class="search">
-      <t-icon name="search" size="36rpx" color="#434654" />
-      <input placeholder="搜索国家/地区" value="{{query}}" bindinput="onSearch" />
-    </view>
-    <view class="search-empty" wx:if="{{!countries.length}}">
-      <view class="search-empty__icon">
-        <t-icon name="chat" size="32rpx" color="#003da6" />
-      </view>
-      <view class="search-empty__body">
-        <view class="search-empty__title">没有找到国家，请联系我们</view>
-        <view class="search-empty__desc">提交你需要的国家/地区，我们会尽快补充。</view>
-      </view>
-      <button class="search-empty__button" bindtap="openFeedback">反馈</button>
-    </view>
-  </view>
-
   <view class="section section--destination">
     <view class="section__header">
       <view class="section__title">选择目的地</view>
       <view class="section__hint">共 {{countries.length}} 个国家</view>
+    </view>
+
+    <view class="search-wrap">
+      <view class="search">
+        <t-icon name="search" size="36rpx" color="#434654" />
+        <input placeholder="搜索国家/地区" value="{{query}}" bindinput="onSearch" />
+      </view>
+      <view class="search-empty" wx:if="{{!countries.length}}">
+        <view class="search-empty__icon">
+          <t-icon name="chat" size="32rpx" color="#003da6" />
+        </view>
+        <view class="search-empty__body">
+          <view class="search-empty__title">没有找到国家，请联系我们</view>
+          <view class="search-empty__desc">提交你需要的国家/地区，我们会尽快补充。</view>
+        </view>
+        <button class="search-empty__button" bindtap="openFeedback">反馈</button>
+      </view>
     </view>
 
     <scroll-view class="continent-row" scroll-x show-scrollbar="{{false}}">
@@ -55,7 +55,11 @@
         data-id="{{item.id}}"
         bindtap="selectCountry"
       >
-        <image wx:if="{{item.flag}}" class="country-item__flag" src="{{item.flag}}" mode="aspectFill" />
+        <view wx:if="{{item.flag}}" class="country-item__flag">
+          <image class="country-item__flag-image" src="{{item.flag}}" mode="aspectFill" />
+          <view class="country-item__flag-wave country-item__flag-wave--front"></view>
+          <view class="country-item__flag-wave country-item__flag-wave--back"></view>
+        </view>
         <view wx:else class="country-item__fallback">{{item.flagLabel}}</view>
         <view class="country-item__body">
           <view class="country-item__name">{{item.name}}</view>

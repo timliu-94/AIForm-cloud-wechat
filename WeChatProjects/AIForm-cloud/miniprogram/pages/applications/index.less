@@ -1,21 +1,10 @@
 @import '/variable.less';
 
-@surface: #f7f9fc;
-@surface-lowest: #ffffff;
-@surface-low: #f2f4f7;
-@surface-container: #eceef1;
-@surface-high: #e6e8eb;
-@primary: #003da6;
-@primary-container: #0052d9;
-@primary-fixed: #dbe1ff;
-@text: #191c1e;
-@muted: #434654;
-@outline: #737686;
-@outline-variant: #c3c6d7;
-@error: #ba1a1a;
-@error-container: #ffdad6;
-@success-bg: #e6f4ea;
-@success: #1e8e3e;
+@surface-high: @surface-container-high;
+@primary-container: @primary;
+@text: @text-primary;
+@muted: @text-secondary;
+@success-bg: @success-container;
 
 .applications {
   height: calc(100vh - @nav-bar-height - @tab-bar-height);
@@ -557,7 +546,7 @@
   }
 
   &__confirm {
-    color: #ffffff;
+    color: @surface-lowest;
     background: @primary-container;
 
     &[disabled] {
@@ -592,5 +581,117 @@
   text {
     min-width: 0;
     flex: 1;
+  }
+}
+
+/* Design refresh: consistent surfaces, cards, and controls. */
+.applications {
+  background: @surface;
+}
+
+.page-head {
+  padding-bottom: 4rpx;
+
+  &__title {
+    color: @text;
+    font-size: 44rpx;
+    line-height: 56rpx;
+  }
+
+  &__tabs {
+    border-bottom-color: @outline-variant;
+  }
+
+  &__tab--active {
+    color: @primary-container;
+    border-bottom-color: @primary-container;
+  }
+}
+
+.search-panel__box,
+.bulk-bar,
+.empty,
+.application-card,
+.companion-dialog__panel {
+  border-color: @outline-variant;
+  background: @surface-lowest;
+  box-shadow: 0 2rpx 8rpx rgba(25, 28, 30, 0.04);
+}
+
+.search-panel__box {
+  height: 84rpx;
+  border-radius: 24rpx;
+}
+
+.bulk-bar {
+  border-radius: 20rpx;
+}
+
+.bulk-bar__delete--active {
+  color: @error;
+  background: @error-container;
+}
+
+.select-box--checked {
+  border-color: @primary-container;
+  background: @primary-container;
+}
+
+.application-card {
+  border-radius: 24rpx;
+
+  &:active {
+    border-color: @primary-container;
+  }
+
+  &--selected {
+    border-color: @primary-container;
+    background: fade(@primary-fixed, 34%);
+    box-shadow: 0 4rpx 14rpx rgba(0, 82, 217, 0.12);
+  }
+
+  &__flag {
+    border-radius: 8rpx;
+  }
+
+  &__flag-fallback {
+    color: @primary-container;
+    background: @primary-fixed;
+  }
+
+  &__actions {
+    border-top-color: @surface-high;
+
+    button:active {
+      color: @primary-container;
+      background: @primary-fixed;
+    }
+  }
+}
+
+.status {
+  color: @primary-container;
+  background: fade(@primary-fixed, 74%);
+}
+
+.status--done {
+  color: @success;
+  background: @success-bg;
+}
+
+.status--draft {
+  color: @muted;
+  background: @surface-high;
+}
+
+.companion-dialog {
+  background: rgba(25, 28, 30, 0.42);
+
+  &__panel {
+    border-radius: 24rpx 24rpx 16rpx 16rpx;
+  }
+
+  &__confirm {
+    background: @primary-container;
   }
 }

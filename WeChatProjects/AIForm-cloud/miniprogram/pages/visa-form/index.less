@@ -1,20 +1,19 @@
 @import '/variable.less';
 
-@form-brand: #003da6;
-@form-brand-strong: #0052d9;
+@form-brand: @primary-strong;
+@form-brand-strong: @primary;
 @form-brand-soft: rgba(219, 225, 255, 0.72);
-@form-bg: #f7f9fc;
-@form-surface: #ffffff;
-@form-surface-low: #f2f4f7;
-@form-surface-container: #eceef1;
-@form-surface-high: #e6e8eb;
-@form-text: #191c1e;
-@form-muted: #434654;
-@form-outline: #737686;
-@form-outline-variant: #c3c6d7;
-@form-danger: #ba1a1a;
-@form-warning: #974700;
-@card-shadow: 0 2rpx 8rpx rgba(25, 28, 30, 0.04);
+@form-bg: @surface;
+@form-surface: @surface-lowest;
+@form-surface-low: @surface-low;
+@form-surface-container: @surface-container;
+@form-surface-high: @surface-container-high;
+@form-text: @text-primary;
+@form-muted: @text-secondary;
+@form-outline: @outline;
+@form-outline-variant: @outline-variant;
+@form-danger: @error;
+@form-warning: @warning;
 
 page {
   background: @form-bg;
@@ -92,7 +91,7 @@ page {
   }
 
   &--active {
-    color: #fff;
+    color: @surface-lowest;
     border-color: @form-brand-strong;
     background: @form-brand-strong;
     box-shadow: none;
@@ -299,7 +298,7 @@ page {
   &.field--active &__control,
   .field--active &__control {
     border-color: @form-brand-strong;
-    background: #fff;
+    background: @surface-lowest;
     box-shadow: 0 0 0 2rpx @form-brand-strong;
     transform: none;
   }
@@ -370,8 +369,8 @@ page {
     align-items: center;
     justify-content: center;
     font-size: 28rpx;
-    color: #fff;
-    background: #fff;
+    color: @surface-lowest;
+    background: @surface-lowest;
     border: 2rpx solid @gy3;
     border-radius: 10rpx;
     box-sizing: border-box;
@@ -426,7 +425,7 @@ page {
   padding: 16rpx 20rpx;
   box-sizing: border-box;
   border-radius: 8rpx;
-  background: #ffdbc8;
+  background: @warning-container;
   border: 1rpx solid #ffb689;
   font-size: 24rpx;
   color: @form-warning;
@@ -493,8 +492,159 @@ page {
   }
 
   &--primary {
-    color: #fff;
+    color: @surface-lowest;
     background: @form-brand-strong;
     box-shadow: none;
+  }
+}
+
+/* Design refresh: keep split-screen behavior, align visual system. */
+.split {
+  background: @form-bg;
+}
+
+.preview-pane {
+  background: @form-surface-low;
+  border-bottom-color: @form-outline-variant;
+}
+
+.preview-pane__head {
+  background: @form-surface-low;
+}
+
+.preview-pane__title {
+  color: @form-text;
+  font-weight: 700;
+}
+
+.page-tab {
+  border-radius: 999rpx;
+  border-color: @form-outline-variant;
+  color: @form-muted;
+  background: @form-surface;
+
+  &--active {
+    color: @surface-lowest;
+    border-color: @form-brand-strong;
+    background: @form-brand-strong;
+  }
+}
+
+.preview-area {
+  background: @form-surface-low;
+}
+
+.pdf-bg {
+  border-color: @form-outline-variant;
+  border-radius: 8rpx;
+  box-shadow: 0 8rpx 24rpx rgba(25, 28, 30, 0.08);
+}
+
+.box--empty {
+  border-color: rgba(0, 82, 217, 0.38);
+}
+
+.box--filled {
+  border-color: rgba(0, 82, 217, 0.54);
+  background: rgba(0, 82, 217, 0.07);
+}
+
+.box--active {
+  border-color: @form-danger;
+  background: rgba(186, 26, 26, 0.1);
+  box-shadow: 0 0 0 3rpx rgba(186, 26, 26, 0.18);
+}
+
+.form-list {
+  background: @form-bg;
+}
+
+.leaf-card {
+  border-color: @form-outline-variant;
+  border-radius: 20rpx;
+  background: @form-surface;
+  box-shadow: @card-shadow;
+}
+
+.leaf-block {
+  border-left-color: @form-brand-strong;
+  border-radius: 12rpx;
+  background: @form-surface-low;
+}
+
+.field-input__label {
+  color: @form-text;
+}
+
+.field-input__type {
+  color: @form-brand-strong;
+  background: @form-brand-soft;
+}
+
+.field-input__control,
+.field-checkbox {
+  border-radius: 12rpx;
+  border: 1rpx solid @form-outline-variant;
+  background: @form-surface-low;
+}
+
+.field-input.field--active .field-input__control,
+.field-input .field--active .field-input__control,
+.field--active .field-input__control {
+  border-color: @form-brand-strong;
+  background: @form-surface;
+  box-shadow: 0 0 0 2rpx rgba(0, 82, 217, 0.18);
+}
+
+.field-input__hint {
+  color: @form-brand-strong;
+}
+
+.field-checkbox--on {
+  border-color: @form-brand-strong;
+  background: @form-brand-soft;
+}
+
+.field-checkbox--on .field-checkbox__box {
+  border-color: @form-brand-strong;
+  background: @form-brand-strong;
+}
+
+.next-page__btn {
+  border-radius: 12rpx;
+  color: @form-brand-strong;
+  background: @form-brand-soft;
+}
+
+.leaf-empty {
+  color: @form-muted;
+}
+
+.leaf-manual {
+  border-radius: 12rpx;
+}
+
+.form-footer {
+  border-top-color: @form-outline-variant;
+  background: @form-surface;
+  box-shadow: 0 -4rpx 12rpx rgba(25, 28, 30, 0.05);
+}
+
+.footer-btn {
+  border-radius: 999rpx;
+
+  &--plain {
+    color: @form-muted;
+    background: @form-surface-low;
+    border-color: @form-outline-variant;
+  }
+
+  &--ghost {
+    color: @form-brand-strong;
+    background: @form-brand-soft;
+  }
+
+  &--primary {
+    background: @form-brand-strong;
   }
 }
