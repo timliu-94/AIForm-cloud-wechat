@@ -1,7 +1,8 @@
 const APPLICATIONS_KEY = 'visa_applications';
-const TRIP_FIELDS = ['arrival_date', 'departure_date', 'hotel_address', 'expense_self'];
-const { buildCompanionApplicationTitle, normalizeTitle } = require('../../utils/applicationTitle');
+const { buildCopyApplicationTitle, normalizeTitle } = require('../../utils/applicationTitle');
 const { findTemplate, visaCatalog } = require('../../utils/visaData');
+const { buildForm } = require('../../utils/italyForm');
+const { exportApplicationPdf, getPdfExportErrorMessage, getPdfExportErrorTitle } = require('../../utils/pdfExport');
 
 function padTime(value) {
   return String(value).padStart(2, '0');
@@ -48,6 +49,12 @@ function decorateApplications(applications) {
   });
 }
 
+function filterApplicationsByTitle(applications, keyword) {
+  const searchText = normalizeTitle(keyword).toLowerCase();
+  if (!searchText) return applications;
+  return applications.filter((item) => normalizeTitle(item.title).toLowerCase().includes(searchText));
+}
+
 function toStoredApplications(applications) {
   return (applications || []).map((item) => {
     const {
@@ -62,12 +69,61 @@ function toStoredApplications(applications) {
   });
 }
 
+function isSensitiveCompanionField(field) {
+  const title = normalizeTitle(field.label || field.name);
+  if (['姓', '名', '姓氏', '姓名'].indexOf(title) >= 0) return true;
+  if (title.indexOf('护照名') >= 0) return true;
+  if (title.indexOf('护照号') >= 0) return true;
+  if (title.indexOf('护照号码') >= 0) return true;
+  if (title.indexOf('旅行证件编号') >= 0) return true;
+  if (title.indexOf('旅行证件或身份证编号') >= 0) return true;
+  if (title.indexOf('身份证') >= 0) return true;
+  if (title.indexOf('身份') >= 0 && title.toUpperCase().indexOf('ID') >= 0) return true;
+  if (title.indexOf('手机号') >= 0 || title === '电话号码' || title === '电话') return true;
+  return false;
+}
+
+function isSensitiveCompanionBlock(leaf) {
+  const text = normalizeTitle(leaf.text);
+  if (text.indexOf('护照名') >= 0 || text.indexOf('护照号') >= 0 || text.indexOf('护照号码') >= 0) return true;
+  if (text.indexOf('身份证') >= 0 || text.indexOf('National identity number') >= 0) return true;
+  if (text.indexOf('手机号') >= 0) return true;
+  return (leaf.fields || []).some(isSensitiveCompanionField);
+}
+
+function buildCompanionBlockOptions() {
+  const form = buildForm();
+  const blocks = [];
+  form.pages.forEach((page) => {
+    page.leaves.forEach((leaf) => {
+      if (!leaf.needInput || !leaf.fields || !leaf.fields.length) return;
+      blocks.push({
+        name: leaf.leafId,
+        title: leaf.text || leaf.fields.map((field) => field.label).join(' / '),
+        fieldNames: leaf.fields.map((field) => field.name),
+        selected: !isSensitiveCompanionBlock(leaf),
+      });
+    });
+  });
+  return blocks;
+}
+
 Page({
   data: {
+    allApplications: [],
     applications: [],
+    searchKeyword: '',
+    totalCount: 0,
+    filteredCount: 0,
     selectedIds: [],
     selectedCount: 0,
     allSelected: false,
+    companionDialogVisible: false,
+    companionSourceId: '',
+    companionSourceTitle: '',
+    companionFields: [],
+    companionSelectedCount: 0,
+    companionAllSelected: false,
   },
 
   onShow() {
@@ -80,6 +136,7 @@ Page({
 
   editApplication(e) {
     const item = this.data.applications[Number(e.currentTarget.dataset.index)];
+    if (!item) return;
     wx.navigateTo({
       url: `/pages/visa-form/index?templateId=${item.templateId}&applicationId=${item.id}`,
     });
@@ -87,6 +144,7 @@ Page({
 
   previewApplication(e) {
     const item = this.data.applications[Number(e.currentTarget.dataset.index)];
+    if (!item) return;
     wx.navigateTo({
       url: `/pages/preview/index?applicationId=${item.id}`,
     });
@@ -94,29 +152,97 @@ Page({
 
   copyForCompanion(e) {
     const source = this.data.applications[Number(e.currentTarget.dataset.index)];
+    if (!source) return;
+    const companionFields = buildCompanionBlockOptions();
+    if (!companionFields.length) {
+      wx.showToast({ title: '暂无可复制文本块', icon: 'none' });
+      return;
+    }
+    const companionSelectedCount = companionFields.filter((field) => field.selected).length;
+    this.setData({
+      companionDialogVisible: true,
+      companionSourceId: source.id,
+      companionSourceTitle: source.title || '',
+      companionFields,
+      companionSelectedCount,
+      companionAllSelected: companionSelectedCount === companionFields.length,
+    });
+  },
+
+  closeCompanionDialog() {
+    this.setData({
+      companionDialogVisible: false,
+      companionSourceId: '',
+      companionSourceTitle: '',
+      companionFields: [],
+      companionSelectedCount: 0,
+      companionAllSelected: false,
+    });
+  },
+
+  stopCompanionDialogTap() {},
+
+  toggleCompanionField(e) {
+    const { name } = e.currentTarget.dataset;
+    const companionFields = this.data.companionFields.map((field) => (
+      field.name === name ? { ...field, selected: !field.selected } : field
+    ));
+    this.updateCompanionSelection(companionFields);
+  },
+
+  toggleCompanionAll() {
+    const selected = !this.data.companionAllSelected;
+    const companionFields = this.data.companionFields.map((field) => ({ ...field, selected }));
+    this.updateCompanionSelection(companionFields);
+  },
+
+  updateCompanionSelection(companionFields) {
+    const companionSelectedCount = companionFields.filter((field) => field.selected).length;
+    this.setData({
+      companionFields,
+      companionSelectedCount,
+      companionAllSelected: companionFields.length > 0 && companionSelectedCount === companionFields.length,
+    });
+  },
+
+  createCompanionApplication() {
+    const source = this.data.allApplications.find((item) => item.id === this.data.companionSourceId);
+    if (!source) {
+      this.closeCompanionDialog();
+      return;
+    }
+    const selectedBlocks = this.data.companionFields.filter((field) => field.selected);
+    if (!selectedBlocks.length) {
+      wx.showToast({ title: '请至少选择一项', icon: 'none' });
+      return;
+    }
     const now = new Date().toISOString();
     const values = {};
-    TRIP_FIELDS.forEach((field) => {
-      values[field] = source.values[field] || '';
+    selectedBlocks.forEach((block) => {
+      (block.fieldNames || []).forEach((fieldName) => {
+        values[fieldName] = (source.values || {})[fieldName];
+      });
     });
     const copy = {
       ...source,
       id: `app_${Date.now()}`,
-      title: buildCompanionApplicationTitle(source.title, this.data.applications),
+      title: buildCopyApplicationTitle(source.title, this.data.allApplications),
       status: 'draft',
       values,
       createdAt: now,
       updatedAt: now,
     };
-    const storedApplications = toStoredApplications([copy, ...this.data.applications]);
+    const storedApplications = toStoredApplications([copy, ...this.data.allApplications]);
     wx.setStorageSync(APPLICATIONS_KEY, storedApplications);
+    this.closeCompanionDialog();
     this.setApplications(storedApplications);
-    wx.showToast({ title: '已为同行人创建', icon: 'success' });
+    wx.showToast({ title: '已创建副本', icon: 'success' });
   },
 
   renameApplication(e) {
     const index = Number(e.currentTarget.dataset.index);
     const item = this.data.applications[index];
+    if (!item) return;
     wx.showModal({
       title: '修改标题',
       editable: true,
@@ -129,12 +255,11 @@ Page({
           wx.showToast({ title: '标题不能为空', icon: 'none' });
           return;
         }
-        const applications = this.data.applications.slice();
-        applications[index] = {
-          ...applications[index],
+        const applications = this.data.allApplications.map((application) => application.id === item.id ? {
+          ...application,
           title,
           updatedAt: new Date().toISOString(),
-        };
+        } : application);
         const storedApplications = toStoredApplications(applications);
         wx.setStorageSync(APPLICATIONS_KEY, storedApplications);
         this.setApplications(storedApplications);
@@ -146,6 +271,7 @@ Page({
   exportApplication(e) {
     const index = Number(e.currentTarget.dataset.index);
     const item = this.data.applications[index];
+    if (!item) return;
     wx.showModal({
       title: '导出 PDF',
       editable: true,
@@ -158,19 +284,22 @@ Page({
           wx.showToast({ title: '标题不能为空', icon: 'none' });
           return;
         }
-        const applications = this.data.applications.slice();
-        applications[index] = {
-          ...applications[index],
+        const applications = this.data.allApplications.map((application) => application.id === item.id ? {
+          ...application,
           title,
           updatedAt: new Date().toISOString(),
-        };
+        } : application);
         const storedApplications = toStoredApplications(applications);
         wx.setStorageSync(APPLICATIONS_KEY, storedApplications);
         this.setApplications(storedApplications);
-        wx.showModal({
-          title: '导出 PDF',
-          content: '示范版仅演示预览。正式环境将把已填写的值写回 PDF 表格并生成可下载文件。下载后请自行核对，并按领事馆或官方签证中心要求完成打印、签字、预约或递交。',
-          showCancel: false,
+        const exportItem = applications.find((application) => application.id === item.id);
+        exportApplicationPdf(exportItem, title).catch((err) => {
+          console.error('Export PDF failed:', err);
+          wx.showModal({
+            title: getPdfExportErrorTitle(err),
+            content: getPdfExportErrorMessage(err),
+            showCancel: false,
+          });
         });
       },
     });
@@ -178,13 +307,14 @@ Page({
 
   deleteApplication(e) {
     const index = Number(e.currentTarget.dataset.index);
+    const item = this.data.applications[index];
+    if (!item) return;
     wx.showModal({
       title: '删除表格',
       content: '删除后不会影响已保存的人员卡和旅程卡。',
       success: (res) => {
         if (!res.confirm) return;
-        const applications = this.data.applications.slice();
-        applications.splice(index, 1);
+        const applications = this.data.allApplications.filter((application) => application.id !== item.id);
         const storedApplications = toStoredApplications(applications);
         wx.setStorageSync(APPLICATIONS_KEY, storedApplications);
         this.setApplications(storedApplications);
@@ -196,16 +326,36 @@ Page({
     const decoratedApplications = decorateApplications(applications);
     const existingIds = decoratedApplications.map((item) => item.id);
     const selectedIds = this.data.selectedIds.filter((id) => existingIds.includes(id));
+    this.applyApplications(decoratedApplications, selectedIds, this.data.searchKeyword);
+  },
+
+  applyApplications(allApplications, selectedIds, searchKeyword) {
     const selectedSet = new Set(selectedIds);
+    const applications = filterApplicationsByTitle(allApplications, searchKeyword);
     this.setData({
-      applications: decoratedApplications.map((item) => ({
+      allApplications: allApplications.map((item) => ({
         ...item,
         selected: selectedSet.has(item.id),
       })),
+      applications: applications.map((item) => ({
+        ...item,
+        selected: selectedSet.has(item.id),
+      })),
+      searchKeyword,
+      totalCount: allApplications.length,
+      filteredCount: applications.length,
       selectedIds,
       selectedCount: selectedIds.length,
-      allSelected: decoratedApplications.length > 0 && selectedIds.length === decoratedApplications.length,
+      allSelected: applications.length > 0 && applications.every((item) => selectedSet.has(item.id)),
     });
+  },
+
+  onSearchInput(e) {
+    this.applyApplications(this.data.allApplications, this.data.selectedIds, e.detail.value || '');
+  },
+
+  clearSearch() {
+    this.applyApplications(this.data.allApplications, this.data.selectedIds, '');
   },
 
   toggleSelectApplication(e) {
@@ -217,21 +367,16 @@ Page({
   },
 
   toggleSelectAll() {
-    const selectedIds = this.data.allSelected ? [] : this.data.applications.map((item) => item.id);
+    const visibleIds = this.data.applications.map((item) => item.id);
+    const visibleSet = new Set(visibleIds);
+    const selectedIds = this.data.allSelected
+      ? this.data.selectedIds.filter((id) => !visibleSet.has(id))
+      : Array.from(new Set([...this.data.selectedIds, ...visibleIds]));
     this.updateSelection(selectedIds);
   },
 
   updateSelection(selectedIds) {
-    const selectedSet = new Set(selectedIds);
-    this.setData({
-      applications: this.data.applications.map((item) => ({
-        ...item,
-        selected: selectedSet.has(item.id),
-      })),
-      selectedIds,
-      selectedCount: selectedIds.length,
-      allSelected: this.data.applications.length > 0 && selectedIds.length === this.data.applications.length,
-    });
+    this.applyApplications(this.data.allApplications, selectedIds, this.data.searchKeyword);
   },
 
   deleteSelectedApplications() {
@@ -243,7 +388,7 @@ Page({
       success: (res) => {
         if (!res.confirm) return;
         const selectedSet = new Set(this.data.selectedIds);
-        const applications = this.data.applications.filter((item) => !selectedSet.has(item.id));
+        const applications = this.data.allApplications.filter((item) => !selectedSet.has(item.id));
         const storedApplications = toStoredApplications(applications);
         wx.setStorageSync(APPLICATIONS_KEY, storedApplications);
         this.setData({ selectedIds: [] }, () => this.setApplications(storedApplications));

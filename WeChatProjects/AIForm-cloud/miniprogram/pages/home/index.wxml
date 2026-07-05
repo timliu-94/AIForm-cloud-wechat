@@ -1,16 +1,26 @@
-<nav title-text="申请表填写助手" />
+<nav title-text="签证申请表智慧填写" />
 
 <view class="home">
   <view class="hero">
-    <view class="hero__label">Form Filling Assistant</view>
-    <view class="hero__title">申请表填写助手</view>
-    <view class="hero__desc">辅助填写从各国领事馆官方网站或官方机构公开发布渠道取得的申请表，生成可下载的表格文件。</view>
+    <view class="hero__label">Smart Visa Form</view>
+    <view class="hero__title">签证申请表智慧填写</view>
+    <view class="hero__desc">选择目的地和签证类型，系统将引导你完成申请表填写并生成表格文件。</view>
   </view>
 
   <view class="search-wrap">
     <view class="search">
       <t-icon name="search" size="36rpx" color="#434654" />
       <input placeholder="搜索国家/地区" value="{{query}}" bindinput="onSearch" />
+    </view>
+    <view class="search-empty" wx:if="{{!countries.length}}">
+      <view class="search-empty__icon">
+        <t-icon name="chat" size="32rpx" color="#003da6" />
+      </view>
+      <view class="search-empty__body">
+        <view class="search-empty__title">没有找到国家，请联系我们</view>
+        <view class="search-empty__desc">提交你需要的国家/地区，我们会尽快补充。</view>
+      </view>
+      <button class="search-empty__button" bindtap="openFeedback">反馈</button>
     </view>
   </view>
 
@@ -61,7 +71,7 @@
 
   <view class="section" wx:if="{{selectedCountry}}">
     <view class="section__header section__header--start">
-      <view class="section__title">表格用途</view>
+      <view class="section__title">选择签证类型</view>
       <view class="section__pill">{{selectedCountry.name}}</view>
     </view>
     <view class="option-grid">
@@ -80,7 +90,7 @@
 
   <view class="section" wx:if="{{selectedDistrict}}">
     <view class="section__header section__header--start">
-      <view class="section__title">表格版本</view>
+      <view class="section__title">确认申请表</view>
       <view class="section__pill">{{selectedVisaType.name}}</view>
     </view>
     <view
@@ -104,46 +114,11 @@
     </view>
   </view>
 
-  <view class="section section--mode" wx:if="{{selectedVersion}}">
-    <view class="section__title section__title--solo">填写方式</view>
-    <view class="mode-card mode-card--smart {{selectedFillMode === 'smart' ? 'mode-card--active' : ''}}" data-mode="smart" bindtap="selectFillMode">
-      <view class="mode-card__badge">智能推荐</view>
-      <view class="radio {{selectedFillMode === 'smart' ? 'radio--active' : ''}}"></view>
-      <view class="mode-card__body">
-        <view class="mode-card__head">
-          <t-icon name="edit-1" size="38rpx" color="#003da6" />
-          <view>辅助填写</view>
-        </view>
-        <view class="mode-card__list">
-          <view>中文引导，便于理解表格字段</view>
-          <view>格式提示，减少填写错误</view>
-          <view>历史数据复用，填写更快捷</view>
-          <view>生成可下载的表格文件</view>
-        </view>
-      </view>
-    </view>
-
-    <view class="mode-card {{selectedFillMode === 'pdf' ? 'mode-card--active' : ''}}" data-mode="pdf" bindtap="selectFillMode">
-      <view class="radio {{selectedFillMode === 'pdf' ? 'radio--active' : ''}}"></view>
-      <view class="mode-card__body">
-        <view class="mode-card__head">
-          <t-icon name="download" size="38rpx" color="#737686" />
-          <view>下载可编辑 PDF</view>
-        </view>
-        <view class="mode-card__desc">下载来自各国领事馆官方网站或官方机构公开发布渠道的 PDF 表格，自行编辑填写或打印手写。</view>
-      </view>
-    </view>
-  </view>
-
-  <view class="empty" wx:if="{{!countries.length}}">
-    <view class="empty__title">未找到相关国家/地区</view>
-    <view class="empty__desc">调整关键词后重试</view>
-  </view>
 </view>
 
 <view class="action-bar">
   <button class="action-bar__button" bindtap="startSelectedMode" disabled="{{!selectedVersion}}">
-    {{selectedFillMode === 'pdf' ? '下载 PDF' : '开始填写'}}
+    开始智慧填写
   </button>
 </view>
 

@@ -1,4 +1,5 @@
 const cloud = require("wx-server-sdk");
+const fillPdfAcroForm = require("./pdf/fillPdfAcroForm");
 cloud.init({
   env: cloud.DYNAMIC_CURRENT_ENV,
 });
@@ -181,5 +182,7 @@ exports.main = async (event, context) => {
       return await insertRecord(event);
     case "deleteRecord":
       return await deleteRecord(event);
+    case "fillPdfAcroForm":
+      return await fillPdfAcroForm(event);
   }
 };

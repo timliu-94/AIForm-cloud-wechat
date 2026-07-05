@@ -3,10 +3,10 @@ const {
   visaCatalog,
   findCountry,
 } = require('../../utils/visaData');
-const { getEditablePdf } = require('../../utils/editablePdfMap');
 
 const HOT_FILTER = '热门';
 const OFFICIAL_NOTICE_HIDDEN_KEY = 'official_notice_hidden';
+const OPEN_FEEDBACK_KEY = 'open_feedback_from_home_empty_country';
 
 function getVisaTypeIcon(typeId) {
   if (typeId.includes('business')) return 'work';
@@ -38,7 +38,6 @@ function getDefaultSelection(country) {
     selectedDistrict: selectedDistrict || null,
     selectedVersion: selectedVersion || null,
     selectedVersionId: selectedVersion ? selectedVersion.id : '',
-    selectedFillMode: selectedVersion ? 'smart' : '',
   };
 }
 
@@ -57,7 +56,6 @@ Page({
     selectedDistrict: null,
     selectedVersion: null,
     selectedVersionId: '',
-    selectedFillMode: '',
     showOfficialNotice: false,
     dontRemindOfficialNotice: false,
   },
@@ -89,8 +87,16 @@ Page({
     this.refreshCountries();
   },
 
+  openFeedback() {
+    wx.setStorageSync(OPEN_FEEDBACK_KEY, true);
+    wx.switchTab({
+      url: '/pages/my/index',
+    });
+  },
+
   selectContinent(e) {
     this.setData({
+      query: '',
       selectedContinent: e.currentTarget.dataset.name,
       selectedCountry: null,
       selectedCountryId: '',
@@ -99,7 +105,6 @@ Page({
       selectedDistrict: null,
       selectedVersion: null,
       selectedVersionId: '',
-      selectedFillMode: '',
     });
     this.refreshCountries({ autoSelect: true });
   },
@@ -122,7 +127,6 @@ Page({
       selectedDistrict,
       selectedVersion: selectedDistrict.versions[0] || null,
       selectedVersionId: selectedDistrict.versions[0] ? selectedDistrict.versions[0].id : '',
-      selectedFillMode: selectedDistrict.versions[0] ? 'smart' : '',
     });
   },
 
@@ -133,7 +137,6 @@ Page({
     this.setData({
       selectedVersion,
       selectedVersionId: selectedVersion.id,
-      selectedFillMode: 'smart',
     });
   },
 
@@ -144,7 +147,6 @@ Page({
     this.setData({
       selectedVersion: version,
       selectedVersionId: version.id,
-      selectedFillMode: 'smart',
     });
     this.openPdfPreview();
   },
@@ -152,80 +154,13 @@ Page({
   startSmartFill() {
     const version = this.data.selectedVersion;
     if (!version) return;
-    this.setData({ selectedFillMode: 'smart' });
     wx.navigateTo({
       url: `/pages/visa-form/index?templateId=${version.id}`,
     });
   },
 
-  selectFillMode(e) {
-    this.setData({
-      selectedFillMode: e.currentTarget.dataset.mode,
-    });
-  },
-
   startSelectedMode() {
-    if (this.data.selectedFillMode === 'pdf') {
-      this.downloadPdf();
-      return;
-    }
     this.startSmartFill();
-  },
-
-  downloadPdf() {
-    const version = this.data.selectedVersion;
-    if (!version) return;
-
-    const pdf = getEditablePdf(version.id);
-    if (!pdf) {
-      wx.showToast({
-        title: '暂无可下载PDF',
-        icon: 'none',
-      });
-      return;
-    }
-
-    if (!wx.cloud) {
-      wx.showToast({
-        title: '云下载不可用',
-        icon: 'none',
-      });
-      return;
-    }
-
-    this.setData({ selectedFillMode: 'pdf' });
-
-    wx.showLoading({
-      title: '下载中',
-      mask: true,
-    });
-
-    wx.cloud.downloadFile({
-      fileID: pdf.fileID,
-      success: (res) => {
-        wx.hideLoading();
-        wx.openDocument({
-          filePath: res.tempFilePath,
-          fileType: pdf.fileType || 'pdf',
-          showMenu: true,
-          fail: (err) => {
-            console.error('Open editable PDF failed:', err);
-            wx.showToast({
-              title: '打开PDF失败',
-              icon: 'none',
-            });
-          },
-        });
-      },
-      fail: (err) => {
-        wx.hideLoading();
-        console.error('Download editable PDF failed:', err);
-        wx.showToast({
-          title: '下载失败',
-          icon: 'none',
-        });
-      },
-    });
   },
 
   refreshCountries(options = {}) {

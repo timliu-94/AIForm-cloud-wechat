@@ -10,28 +10,33 @@
     </view>
   </view>
 
-  <view class="bulk-bar" wx:if="{{applications.length > 0}}">
-    <button class="bulk-bar__select" bindtap="toggleSelectAll">
-      <view class="select-box {{allSelected ? 'select-box--checked' : ''}}">
-        <t-icon wx:if="{{allSelected}}" name="check" size="24rpx" color="#ffffff" />
-      </view>
-      <text>全选</text>
-    </button>
-    <view class="bulk-bar__count">
-      <text wx:if="{{selectedCount > 0}}">已选择 {{selectedCount}} 项</text>
-      <text wx:else>共 {{applications.length}} 份表格</text>
+  <view class="search-panel" wx:if="{{totalCount > 0}}">
+    <view class="search-panel__box">
+      <t-icon name="search" size="30rpx" color="#737686" />
+      <input
+        class="search-panel__input"
+        value="{{searchKeyword}}"
+        placeholder="按标题搜索"
+        placeholder-class="search-panel__placeholder"
+        confirm-type="search"
+        bindinput="onSearchInput"
+      />
+      <button wx:if="{{searchKeyword}}" class="search-panel__clear" bindtap="clearSearch" aria-label="清空搜索">
+        <t-icon name="close-circle" size="30rpx" color="#737686" />
+      </button>
     </view>
-    <button
-      class="bulk-bar__delete {{selectedCount > 0 ? 'bulk-bar__delete--active' : ''}}"
-      disabled="{{selectedCount === 0}}"
-      bindtap="deleteSelectedApplications"
-    >删除</button>
   </view>
 
-  <view class="empty" wx:if="{{applications.length === 0}}">
+  <view class="empty" wx:if="{{totalCount === 0}}">
     <t-icon name="file" size="72rpx" color="#94a3b8" />
     <view class="empty__title">暂无表格</view>
     <view class="empty__desc">从首页选择国家和表格用途后开始辅助填写。</view>
+  </view>
+
+  <view class="empty" wx:elif="{{applications.length === 0}}">
+    <t-icon name="search" size="72rpx" color="#94a3b8" />
+    <view class="empty__title">没有匹配的表格</view>
+    <view class="empty__desc">换个标题关键词再试。</view>
   </view>
 
   <view
@@ -88,4 +93,63 @@
       </button>
     </view>
   </view>
+
+  <view class="bulk-bar" wx:if="{{totalCount > 0}}">
+    <button class="bulk-bar__select" disabled="{{applications.length === 0}}" bindtap="toggleSelectAll">
+      <view class="select-box {{allSelected ? 'select-box--checked' : ''}}">
+        <t-icon wx:if="{{allSelected}}" name="check" size="24rpx" color="#ffffff" />
+      </view>
+      <text>全选</text>
+    </button>
+    <view class="bulk-bar__count">
+      <text wx:if="{{selectedCount > 0}}">已选择 {{selectedCount}} 项</text>
+      <text wx:elif="{{searchKeyword}}">匹配 {{filteredCount}} / {{totalCount}} 份</text>
+      <text wx:else>共 {{totalCount}} 份表格</text>
+    </view>
+    <button
+      class="bulk-bar__delete {{selectedCount > 0 ? 'bulk-bar__delete--active' : ''}}"
+      disabled="{{selectedCount === 0}}"
+      bindtap="deleteSelectedApplications"
+    >删除</button>
+  </view>
 </scroll-view>
+
+<view wx:if="{{companionDialogVisible}}" class="companion-dialog" catchtap="closeCompanionDialog">
+  <view class="companion-dialog__panel" catchtap="stopCompanionDialogTap">
+    <view class="companion-dialog__head">
+      <view class="companion-dialog__title">为同行人创建</view>
+      <button class="companion-dialog__close" bindtap="closeCompanionDialog" aria-label="关闭">
+        <t-icon name="close" size="32rpx" color="#434654" />
+      </button>
+    </view>
+    <view class="companion-dialog__source">{{companionSourceTitle}}</view>
+    <button class="companion-dialog__select-all" bindtap="toggleCompanionAll">
+      <view class="select-box {{companionAllSelected ? 'select-box--checked' : ''}}">
+        <t-icon wx:if="{{companionAllSelected}}" name="check" size="24rpx" color="#ffffff" />
+      </view>
+      <text>全选 PDF 文本块</text>
+    </button>
+    <scroll-view class="companion-dialog__list" scroll-y>
+      <button
+        wx:for="{{companionFields}}"
+        wx:key="name"
+        class="companion-field"
+        data-name="{{item.name}}"
+        bindtap="toggleCompanionField"
+      >
+        <view class="select-box {{item.selected ? 'select-box--checked' : ''}}">
+          <t-icon wx:if="{{item.selected}}" name="check" size="24rpx" color="#ffffff" />
+        </view>
+        <text>{{item.title}}</text>
+      </button>
+    </scroll-view>
+    <view class="companion-dialog__actions">
+      <button class="companion-dialog__cancel" bindtap="closeCompanionDialog">取消</button>
+      <button
+        class="companion-dialog__confirm"
+        disabled="{{companionSelectedCount === 0}}"
+        bindtap="createCompanionApplication"
+      >创建</button>
+    </view>
+  </view>
+</view>

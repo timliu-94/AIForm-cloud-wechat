@@ -28,8 +28,20 @@ function buildCompanionApplicationTitle(sourceTitle, applications) {
   return `${baseTitle}_${next}`;
 }
 
+function buildCopyApplicationTitle(sourceTitle, applications) {
+  const baseTitle = normalizeTitle(sourceTitle) || '申请表';
+  const copyTitle = `${baseTitle}_copy`;
+  const existingTitles = (applications || []).map((item) => normalizeTitle(item.title));
+  if (existingTitles.indexOf(copyTitle) < 0) return copyTitle;
+
+  let next = 2;
+  while (existingTitles.indexOf(`${copyTitle}_${next}`) >= 0) next += 1;
+  return `${copyTitle}_${next}`;
+}
+
 module.exports = {
   normalizeTitle,
   buildDefaultApplicationTitle,
   buildCompanionApplicationTitle,
+  buildCopyApplicationTitle,
 };

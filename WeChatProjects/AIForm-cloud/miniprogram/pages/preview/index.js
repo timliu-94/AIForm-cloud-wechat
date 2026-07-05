@@ -2,6 +2,7 @@ const { buildForm, buildPreviewPages, COUNTRY_NAME } = require('../../utils/ital
 const { findTemplate } = require('../../utils/visaData');
 const { buildDefaultApplicationTitle, normalizeTitle } = require('../../utils/applicationTitle');
 const { resolvePreviewImages } = require('../../utils/cloudAssets');
+const { exportApplicationPdf, getPdfExportErrorMessage, getPdfExportErrorTitle } = require('../../utils/pdfExport');
 
 const APPLICATIONS_KEY = 'visa_applications';
 
@@ -153,10 +154,13 @@ Page({
           return;
         }
         this.saveTitle(title);
-        wx.showModal({
-          title: '导出 PDF',
-          content: '示范版仅演示预览。正式环境将把已填写的值写回 PDF 表格并生成可下载文件。下载后请自行核对，并按领事馆或官方签证中心要求完成打印、签字、预约或递交。',
-          showCancel: false,
+        exportApplicationPdf({ ...application, title }, title).catch((err) => {
+          console.error('Export PDF failed:', err);
+          wx.showModal({
+            title: getPdfExportErrorTitle(err),
+            content: getPdfExportErrorMessage(err),
+            showCancel: false,
+          });
         });
       },
     });

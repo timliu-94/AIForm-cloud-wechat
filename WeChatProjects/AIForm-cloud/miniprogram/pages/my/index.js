@@ -2,8 +2,9 @@ import useToastBehavior from '~/behaviors/useToast';
 
 const APPLICATIONS_KEY = 'visa_applications';
 const FEEDBACK_KEY = 'user_feedback';
-const CONTACT_QQ_GROUP = '待补充';
-const CONTACT_EMAIL = '待补充';
+const OPEN_FEEDBACK_KEY = 'open_feedback_from_home_empty_country';
+const CONTACT_QQ_GROUP = '84173943';
+const CONTACT_EMAIL = '84173942@qq.com';
 
 Page({
   behaviors: [useToastBehavior],
@@ -13,6 +14,7 @@ Page({
     showFeedback: false,
     showFeedbackSuccess: false,
     showContact: false,
+    showPrivacy: false,
     feedbackTypes: ['问题反馈', '建议', '其他'],
     feedbackTypeIndex: 0,
     feedbackDescription: '',
@@ -21,17 +23,32 @@ Page({
       email: CONTACT_EMAIL,
     },
     settingList: [
-      { name: '表格记录', icon: 'file', type: 'applications', url: '/pages/applications/index' },
-      { name: '继续填写', icon: 'edit', type: 'fill', url: '/pages/visa-form/index?templateId=it-schengen-tourism-shanghai-demo' },
-      { name: '问题反馈', icon: 'chat', type: 'feedback', note: '提交问题、建议或其他反馈' },
+      { name: '隐私政策', icon: 'lock-on', type: 'privacy', note: '查看小程序隐私政策' },
+      { name: '意见与建议', icon: 'chat', type: 'feedback', note: '提交问题、建议或其他反馈' },
       { name: '联系我们', icon: 'mail', type: 'contact', note: '查看 QQ 群和邮箱' },
     ],
   },
 
   onShow() {
+    const shouldOpenFeedback = wx.getStorageSync(OPEN_FEEDBACK_KEY);
+    if (shouldOpenFeedback) {
+      wx.removeStorageSync(OPEN_FEEDBACK_KEY);
+    }
     this.setData({
       applicationCount: (wx.getStorageSync(APPLICATIONS_KEY) || []).length,
+      showFeedback: Boolean(shouldOpenFeedback) || this.data.showFeedback,
+      showContact: shouldOpenFeedback ? false : this.data.showContact,
+      showPrivacy: shouldOpenFeedback ? false : this.data.showPrivacy,
+      feedbackTypeIndex: shouldOpenFeedback ? 0 : this.data.feedbackTypeIndex,
     });
+    if (shouldOpenFeedback) {
+      wx.nextTick(() => {
+        wx.pageScrollTo({
+          selector: '.feedback-panel',
+          duration: 250,
+        });
+      });
+    }
   },
 
   onEleClick(e) {
@@ -49,6 +66,7 @@ Page({
       this.setData({
         showFeedback: !this.data.showFeedback,
         showContact: false,
+        showPrivacy: false,
       });
       return;
     }
@@ -57,6 +75,16 @@ Page({
       this.setData({
         showContact: !this.data.showContact,
         showFeedback: false,
+        showPrivacy: false,
+      });
+      return;
+    }
+
+    if (type === 'privacy') {
+      this.setData({
+        showPrivacy: !this.data.showPrivacy,
+        showFeedback: false,
+        showContact: false,
       });
       return;
     }
@@ -99,6 +127,7 @@ Page({
       feedbackTypeIndex: 0,
       feedbackDescription: '',
       showFeedback: false,
+      showPrivacy: false,
     });
   },
 
