@@ -1,11 +1,11 @@
 const {
   continents,
   visaCatalog,
-  findCountry,
 } = require('../../utils/visaData');
+const { firstLaunchNotice } = require('../../config/firstLaunchNotice');
+const { listCountryFormVersions, openCloudPdf } = require('../../utils/countryFormCatalog');
 
 const HOT_FILTER = '热门';
-const OFFICIAL_NOTICE_HIDDEN_KEY = 'official_notice_hidden';
 const OPEN_FEEDBACK_KEY = 'open_feedback_from_home_empty_country';
 
 function getVisaTypeIcon(typeId) {
@@ -26,19 +26,34 @@ function decorateCountry(country) {
   };
 }
 
-function getDefaultSelection(country) {
-  const selectedVisaType = country && country.visaTypes[0];
-  const selectedDistrict = selectedVisaType && selectedVisaType.districts[0];
-  const selectedVersion = selectedDistrict && selectedDistrict.versions[0];
+function getCountrySelection(country) {
   return {
     selectedCountry: country || null,
     selectedCountryId: country ? country.id : '',
-    selectedVisaType: selectedVisaType || null,
-    selectedVisaTypeId: selectedVisaType ? selectedVisaType.id : '',
-    selectedDistrict: selectedDistrict || null,
-    selectedVersion: selectedVersion || null,
-    selectedVersionId: selectedVersion ? selectedVersion.id : '',
+    selectedVisaType: null,
+    selectedVisaTypeId: '',
+    selectedDistrict: null,
+    selectedVersion: null,
+    selectedVersionId: '',
   };
+}
+
+function replaceItalyVersions(catalog, cloudVersions) {
+  if (!cloudVersions.length) return catalog;
+  return catalog.map((country) => {
+    if (country.id !== 'italy') return country;
+    return {
+      ...country,
+      visaTypes: country.visaTypes.map((visaType) => ({
+        ...visaType,
+        districts: visaType.districts.map((district) => (
+          visaType.id === 'tourism' && district.id === 'shanghai'
+            ? { ...district, versions: cloudVersions }
+            : district
+        )),
+      })),
+    };
+  });
 }
 
 Page({
@@ -56,30 +71,47 @@ Page({
     selectedDistrict: null,
     selectedVersion: null,
     selectedVersionId: '',
-    showOfficialNotice: false,
-    dontRemindOfficialNotice: false,
+    firstLaunchNotice,
+    showFirstLaunchNotice: false,
+    catalogLoading: false,
+    catalogError: '',
   },
 
   onLoad() {
-    this.refreshCountries({ autoSelect: true });
+    this.runtimeVisaCatalog = visaCatalog;
+    this.refreshCountries();
+    this.loadCountryFormCatalog();
     this.setData({
-      showOfficialNotice: !wx.getStorageSync(OFFICIAL_NOTICE_HIDDEN_KEY),
+      showFirstLaunchNotice: !wx.getStorageSync(firstLaunchNotice.storageKey),
     });
+  },
+
+  onPullDownRefresh() {
+    this.loadCountryFormCatalog({ force: true }).then(() => wx.stopPullDownRefresh());
+  },
+
+  loadCountryFormCatalog(options = {}) {
+    this.setData({ catalogLoading: true, catalogError: '' });
+    return listCountryFormVersions('Italy', options)
+      .then((versions) => {
+        this.runtimeVisaCatalog = replaceItalyVersions(visaCatalog, versions);
+        this.refreshCountries();
+        this.setData({ catalogLoading: false });
+      })
+      .catch((err) => {
+        console.error('Load country form catalog failed:', err);
+        this.setData({
+          catalogLoading: false,
+          catalogError: err.message || String(err),
+        });
+      });
   },
 
   noop() {},
 
-  toggleOfficialNoticeDontRemind() {
-    this.setData({
-      dontRemindOfficialNotice: !this.data.dontRemindOfficialNotice,
-    });
-  },
-
-  acknowledgeOfficialNotice() {
-    if (this.data.dontRemindOfficialNotice) {
-      wx.setStorageSync(OFFICIAL_NOTICE_HIDDEN_KEY, true);
-    }
-    this.setData({ showOfficialNotice: false });
+  acknowledgeFirstLaunchNotice() {
+    wx.setStorageSync(firstLaunchNotice.storageKey, true);
+    this.setData({ showFirstLaunchNotice: false });
   },
 
   onSearch(e) {
@@ -106,13 +138,14 @@ Page({
       selectedVersion: null,
       selectedVersionId: '',
     });
-    this.refreshCountries({ autoSelect: true });
+    this.refreshCountries();
   },
 
   selectCountry(e) {
-    const country = decorateCountry(findCountry(e.currentTarget.dataset.id));
+    const source = this.runtimeVisaCatalog || visaCatalog;
+    const country = decorateCountry(source.find((item) => item.id === e.currentTarget.dataset.id));
     this.setData({
-      ...getDefaultSelection(country),
+      ...getCountrySelection(country),
     });
   },
 
@@ -125,8 +158,8 @@ Page({
       selectedVisaType,
       selectedVisaTypeId: selectedVisaType.id,
       selectedDistrict,
-      selectedVersion: selectedDistrict.versions[0] || null,
-      selectedVersionId: selectedDistrict.versions[0] ? selectedDistrict.versions[0].id : '',
+      selectedVersion: null,
+      selectedVersionId: '',
     });
   },
 
@@ -148,12 +181,27 @@ Page({
       selectedVersion: version,
       selectedVersionId: version.id,
     });
-    this.openPdfPreview();
+    this.openPdfPreview(version);
   },
 
   startSmartFill() {
+    if (!this.data.selectedCountry) {
+      wx.showToast({ title: '请先完成第一步：选择目的地', icon: 'none' });
+      return;
+    }
+    if (!this.data.selectedVisaType) {
+      wx.showToast({ title: '请先完成第二步：选择签证类型', icon: 'none' });
+      return;
+    }
     const version = this.data.selectedVersion;
-    if (!version) return;
+    if (!version) {
+      wx.showToast({ title: '请先完成第三步：确认申请表', icon: 'none' });
+      return;
+    }
+    if (version.availableForFill === false) {
+      wx.showToast({ title: '该申请表填写资源不完整，请选择其他申请表', icon: 'none' });
+      return;
+    }
     wx.navigateTo({
       url: `/pages/visa-form/index?templateId=${version.id}`,
     });
@@ -163,29 +211,30 @@ Page({
     this.startSmartFill();
   },
 
-  refreshCountries(options = {}) {
+  refreshCountries() {
     const query = this.data.query.trim().toLowerCase();
     const {selectedContinent} = this.data;
-    const countries = visaCatalog.filter((country) => {
+    const countries = (this.runtimeVisaCatalog || visaCatalog).filter((country) => {
       const hitQuery = !query || country.name.toLowerCase().includes(query);
       const hitContinent = selectedContinent === HOT_FILTER
         ? country.hot
         : country.continent === selectedContinent;
       return hitQuery && hitContinent;
     }).map(decorateCountry);
-    const nextData = { countries };
-    if (options.autoSelect) {
-      Object.assign(nextData, getDefaultSelection(countries[0]));
-    }
-    this.setData({
-      ...nextData,
-    });
+    this.setData({ countries });
   },
 
-  openPdfPreview() {
-    if (!this.data.selectedVersion) return;
-    wx.navigateTo({
-      url: `/pages/preview/index?templateId=${this.data.selectedVersion.id}&templatePreview=1`,
-    });
+  openPdfPreview(version) {
+    const selectedVersion = version || this.data.selectedVersion;
+    if (!selectedVersion) return;
+    openCloudPdf(selectedVersion.sourcePdf)
+      .catch((err) => {
+        console.error('Open cloud PDF failed:', err);
+        wx.showModal({
+          title: 'PDF 打开失败',
+          content: err.errMsg || err.message || String(err),
+          showCancel: false,
+        });
+      });
   },
 });

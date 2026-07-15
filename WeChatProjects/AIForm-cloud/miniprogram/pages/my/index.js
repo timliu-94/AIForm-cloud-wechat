@@ -1,4 +1,5 @@
 import useToastBehavior from '~/behaviors/useToast';
+const { privacyPolicy } = require('../../config/firstLaunchNotice');
 
 const APPLICATIONS_KEY = 'visa_applications';
 const FEEDBACK_KEY = 'user_feedback';
@@ -22,6 +23,7 @@ Page({
       qqGroup: CONTACT_QQ_GROUP,
       email: CONTACT_EMAIL,
     },
+    privacyPolicy,
     settingList: [
       { name: '隐私政策', icon: 'lock-on', type: 'privacy', note: '查看小程序隐私政策' },
       { name: '意见与建议', icon: 'chat', type: 'feedback', note: '提交问题、建议或其他反馈' },

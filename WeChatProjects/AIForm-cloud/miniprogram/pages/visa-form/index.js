@@ -1,21 +1,85 @@
-const { buildForm, COUNTRY_NAME } = require('../../utils/italyForm');
+const { loadForm, COUNTRY_NAME } = require('../../utils/italyForm');
 const { buildDefaultApplicationTitle, normalizeTitle } = require('../../utils/applicationTitle');
 const { resolvePreviewImages } = require('../../utils/cloudAssets');
 
 const APPLICATIONS_KEY = 'visa_applications';
 const PREVIEW_PANE_RPX = 760; // 顶部预览区高度
 const PREVIEW_MIN_SCALE = 1;
+const DATE_START_YEAR = 1900;
+const DATE_END_YEAR = 2100;
 
-// 日期统一以「日-月-年」(DD-MM-YYYY) 作为存储与展示格式，
-// 但微信 date 选择器只认 YYYY-MM-DD，需在两种格式间转换。
-function toDisplayDate(pickerValue) {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(pickerValue || '');
-  return m ? `${m[3]}-${m[2]}-${m[1]}` : pickerValue || '';
+function padDatePart(value) {
+  return String(value).padStart(2, '0');
 }
 
-function toPickerDate(displayValue) {
-  const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(displayValue || '');
-  return m ? `${m[3]}-${m[2]}-${m[1]}` : displayValue || '';
+function buildRange(start, end, pad) {
+  const out = [];
+  for (let i = start; i <= end; i += 1) out.push(pad ? padDatePart(i) : String(i));
+  return out;
+}
+
+const MONTH_OPTIONS = buildRange(1, 12, true);
+const YEAR_OPTIONS = buildRange(DATE_START_YEAR, DATE_END_YEAR, false);
+
+function daysInMonth(year, month) {
+  return new Date(Number(year), Number(month), 0).getDate();
+}
+
+function buildDayOptions(year, month) {
+  return buildRange(1, daysInMonth(year, month), true);
+}
+
+// 日期统一以「日-月-年」(DD-MM-YYYY) 作为存储与展示格式。
+function normalizeDisplayDate(value) {
+  const raw = value || '';
+  let m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+  m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(raw);
+  return m ? raw : '';
+}
+
+function datePartsFromDisplay(value) {
+  const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(normalizeDisplayDate(value));
+  if (m) return { day: m[1], month: m[2], year: m[3] };
+  const now = new Date();
+  return {
+    day: padDatePart(now.getDate()),
+    month: padDatePart(now.getMonth() + 1),
+    year: String(now.getFullYear()),
+  };
+}
+
+function buildDateColumns(year, month) {
+  return [buildDayOptions(year, month), MONTH_OPTIONS, YEAR_OPTIONS];
+}
+
+function buildDateDisplayColumns(ranges) {
+  return [
+    (ranges[0] || []).map((day) => `${day}日`),
+    (ranges[1] || []).map((month) => `${month}月`),
+    (ranges[2] || []).map((year) => `${year}年`),
+  ];
+}
+
+function datePickerStateFromDisplay(value) {
+  const parts = datePartsFromDisplay(value);
+  if (YEAR_OPTIONS.indexOf(parts.year) < 0) parts.year = String(new Date().getFullYear());
+  const ranges = buildDateColumns(parts.year, parts.month);
+  const dayIndex = Math.max(0, ranges[0].indexOf(parts.day));
+  const monthIndex = Math.max(0, MONTH_OPTIONS.indexOf(parts.month));
+  const yearIndex = Math.max(0, YEAR_OPTIONS.indexOf(parts.year));
+  return {
+    ranges,
+    value: [dayIndex, monthIndex, yearIndex],
+  };
+}
+
+function displayDateFromPickerState(ranges, value) {
+  if (!ranges || !value) return '';
+  const day = ranges[0][value[0]];
+  const month = ranges[1][value[1]];
+  const year = ranges[2][value[2]];
+  return day && month && year ? `${day}-${month}-${year}` : '';
 }
 
 Page({
@@ -31,6 +95,8 @@ Page({
     previewFields: [],
     values: {},
     datePickerValues: {},
+    datePickerRanges: {},
+    datePickerDisplayRanges: {},
     phoneInputValues: {},
     filledCount: 0,
     totalCount: 0,
@@ -49,7 +115,35 @@ Page({
   },
 
   onLoad(options) {
-    const form = buildForm();
+    this._pageActive = true;
+    wx.showLoading({ title: '表单加载中', mask: true });
+    const applicationId = options.applicationId || '';
+    const record = applicationId
+      ? this.getApplications().find((item) => item.id === applicationId)
+      : null;
+    const templateId = options.templateId || (record && record.templateId) || undefined;
+    loadForm(templateId, record && record.templateVersion)
+      .then((form) => (this._pageActive ? this.initializeForm(options, form) : null))
+      .catch((err) => {
+        if (!this._pageActive) return;
+        console.error('Load form resources failed:', err);
+        wx.showModal({
+          title: '表单资源加载失败',
+          content: err.message || String(err),
+          showCancel: false,
+        });
+      })
+      .then(
+        () => wx.hideLoading(),
+        () => wx.hideLoading(),
+      );
+  },
+
+  onUnload() {
+    this._pageActive = false;
+  },
+
+  initializeForm(options, form) {
     const values = {};
     form.fields.forEach((field) => {
       values[field.name] = field.kind === 'checkbox' ? false : '';
@@ -64,6 +158,7 @@ Page({
         Object.assign(values, record.values || {});
       }
     }
+    this.normalizeDateValues(form, values);
 
     // 预览区几何换算需要的像素尺寸（用窗口宽度，按 A4 比例算出整页图高度）。
     const info = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
@@ -81,8 +176,9 @@ Page({
       if (leaf.skipFill) return;
       leaf.fields.forEach((field) => this.allFields.push(field));
     }));
-    resolvePreviewImages(form.pages)
+    return resolvePreviewImages(form.pages)
       .then((pages) => {
+        if (!this._pageActive) return;
         const firstPage = pages[0];
         this.setData({
           title: form.title,
@@ -97,7 +193,7 @@ Page({
           previewCanvasWidth: this.canvasWidthPx,
           previewCanvasHeight: this.imageHeightPx,
           values,
-          datePickerValues: this.buildDatePickerValues(values),
+          ...this.buildDatePickerData(values),
           phoneInputValues: this.buildPhoneInputValues(values),
           totalCount: form.fields.length,
           applicationId,
@@ -105,9 +201,6 @@ Page({
           hasNextPage: pages.length > 1,
         });
         this.refreshProgress(values);
-      })
-      .catch(() => {
-        wx.showToast({ title: '预览图加载失败', icon: 'none' });
       });
   },
 
@@ -240,17 +333,52 @@ Page({
 
   onDateChange(e) {
     const { name } = e.currentTarget.dataset;
-    this.setData({ [`datePickerValues.${name}`]: e.detail.value });
-    this.setFieldValue(name, toDisplayDate(e.detail.value));
+    const value = e.detail.value;
+    const ranges = this.data.datePickerRanges[name];
+    const displayDate = displayDateFromPickerState(ranges, value);
+    if (!displayDate) return;
+    this.setData({ [`datePickerValues.${name}`]: value });
+    this.setFieldValue(name, displayDate);
   },
 
-  // 为日期字段构建选择器所需的 YYYY-MM-DD 值（存储值是 DD-MM-YYYY）。
-  buildDatePickerValues(values) {
-    const map = {};
-    this.form.fields.forEach((field) => {
-      if (field.component === 'date') map[field.name] = toPickerDate(values[field.name]);
+  onDateColumnChange(e) {
+    const { name } = e.currentTarget.dataset;
+    const { column, value } = e.detail;
+    const currentValue = (this.data.datePickerValues[name] || [0, 0, 0]).slice();
+    currentValue[column] = value;
+
+    const currentRanges = this.data.datePickerRanges[name] || buildDateColumns(String(new Date().getFullYear()), '01');
+    const month = currentRanges[1][currentValue[1]];
+    const year = currentRanges[2][currentValue[2]];
+    const nextRanges = buildDateColumns(year, month);
+    if (currentValue[0] >= nextRanges[0].length) currentValue[0] = nextRanges[0].length - 1;
+
+    this.setData({
+      [`datePickerValues.${name}`]: currentValue,
+      [`datePickerRanges.${name}`]: nextRanges,
+      [`datePickerDisplayRanges.${name}`]: buildDateDisplayColumns(nextRanges),
     });
-    return map;
+  },
+
+  normalizeDateValues(form, values) {
+    form.fields.forEach((field) => {
+      if (field.component === 'date') values[field.name] = normalizeDisplayDate(values[field.name]);
+    });
+  },
+
+  buildDatePickerData(values) {
+    const datePickerValues = {};
+    const datePickerRanges = {};
+    const datePickerDisplayRanges = {};
+    this.form.fields.forEach((field) => {
+      if (field.component === 'date') {
+        const state = datePickerStateFromDisplay(values[field.name]);
+        datePickerValues[field.name] = state.value;
+        datePickerRanges[field.name] = state.ranges;
+        datePickerDisplayRanges[field.name] = buildDateDisplayColumns(state.ranges);
+      }
+    });
+    return { datePickerValues, datePickerRanges, datePickerDisplayRanges };
   },
 
   // 电话/手机字段：存储值含前导 +（+(区号)(号码)），输入框只展示去掉 + 的部分。
@@ -424,6 +552,7 @@ Page({
     const record = {
       id,
       templateId: this.form.templateId,
+      templateVersion: this.form.templateVersion,
       title,
       country: this.form.country,
       visaType: '申根短期申请表',

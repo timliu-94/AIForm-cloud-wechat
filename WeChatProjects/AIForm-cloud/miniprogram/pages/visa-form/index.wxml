@@ -87,10 +87,12 @@
 
             <picker
               wx:if="{{field.component === 'date'}}"
-              mode="date"
+              mode="multiSelector"
+              range="{{datePickerDisplayRanges[field.name]}}"
               value="{{datePickerValues[field.name]}}"
               data-name="{{field.name}}"
               bindchange="onDateChange"
+              bindcolumnchange="onDateColumnChange"
               bindtap="onFieldFocus"
             >
               <view class="field-input__control field-input__control--picker">

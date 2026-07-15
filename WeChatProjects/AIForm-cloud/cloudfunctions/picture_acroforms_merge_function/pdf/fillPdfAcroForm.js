@@ -69,7 +69,7 @@ async function fillPdfAcroForm(event) {
   const startedAt = Date.now();
   const wxContext = cloud.getWXContext();
   const templateId = event.templateId || 'italy';
-  const template = getPdfTemplate(templateId);
+  const template = getPdfTemplate(templateId, event.templateAsset);
   if (!template) {
     return {
       success: false,

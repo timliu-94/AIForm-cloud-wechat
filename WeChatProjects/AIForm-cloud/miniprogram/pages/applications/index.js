@@ -1,7 +1,7 @@
 const APPLICATIONS_KEY = 'visa_applications';
 const { buildCopyApplicationTitle, normalizeTitle } = require('../../utils/applicationTitle');
 const { findTemplate, visaCatalog } = require('../../utils/visaData');
-const { buildForm } = require('../../utils/italyForm');
+const { loadForm } = require('../../utils/italyForm');
 const { exportApplicationPdf, getPdfExportErrorMessage, getPdfExportErrorTitle } = require('../../utils/pdfExport');
 
 function padTime(value) {
@@ -43,7 +43,9 @@ function decorateApplications(applications) {
       ...item,
       countryFlag: country ? country.flag : '',
       countryFlagLabel: (country ? country.name : item.country || '').slice(0, 1),
-      formVersionTitle: template ? template.version.name : (item.formVersionTitle || item.visaType || ''),
+      formVersionTitle: template
+        ? template.version.name
+        : ((item.templateVersion && item.templateVersion.name) || item.formVersionTitle || item.visaType || ''),
       displayUpdatedAt: formatUpdatedAt(item.updatedAt),
     };
   });
@@ -91,8 +93,7 @@ function isSensitiveCompanionBlock(leaf) {
   return (leaf.fields || []).some(isSensitiveCompanionField);
 }
 
-function buildCompanionBlockOptions() {
-  const form = buildForm();
+function buildCompanionBlockOptions(form) {
   const blocks = [];
   form.pages.forEach((page) => {
     page.leaves.forEach((leaf) => {
@@ -153,20 +154,36 @@ Page({
   copyForCompanion(e) {
     const source = this.data.applications[Number(e.currentTarget.dataset.index)];
     if (!source) return;
-    const companionFields = buildCompanionBlockOptions();
-    if (!companionFields.length) {
-      wx.showToast({ title: '暂无可复制文本块', icon: 'none' });
-      return;
-    }
-    const companionSelectedCount = companionFields.filter((field) => field.selected).length;
-    this.setData({
-      companionDialogVisible: true,
-      companionSourceId: source.id,
-      companionSourceTitle: source.title || '',
-      companionFields,
-      companionSelectedCount,
-      companionAllSelected: companionSelectedCount === companionFields.length,
-    });
+    wx.showLoading({ title: '表单加载中', mask: true });
+    loadForm(source.templateId, source.templateVersion)
+      .then((form) => {
+        const companionFields = buildCompanionBlockOptions(form);
+        if (!companionFields.length) {
+          wx.showToast({ title: '暂无可复制文本块', icon: 'none' });
+          return;
+        }
+        const companionSelectedCount = companionFields.filter((field) => field.selected).length;
+        this.setData({
+          companionDialogVisible: true,
+          companionSourceId: source.id,
+          companionSourceTitle: source.title || '',
+          companionFields,
+          companionSelectedCount,
+          companionAllSelected: companionSelectedCount === companionFields.length,
+        });
+      })
+      .catch((err) => {
+        console.error('Load companion form resources failed:', err);
+        wx.showModal({
+          title: '表单资源加载失败',
+          content: err.message || String(err),
+          showCancel: false,
+        });
+      })
+      .then(
+        () => wx.hideLoading(),
+        () => wx.hideLoading(),
+      );
   },
 
   closeCompanionDialog() {

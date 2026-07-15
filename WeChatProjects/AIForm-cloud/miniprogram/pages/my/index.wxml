@@ -96,31 +96,14 @@
   </view>
 
   <view wx:if="{{showPrivacy}}" class="panel privacy-panel">
-    <view class="panel__title">隐私政策</view>
-    <view class="privacy-panel__updated">更新日期：2026年7月4日</view>
-    <view class="privacy-panel__section">
-      <view class="privacy-panel__heading">信息收集与使用</view>
-      <view class="privacy-panel__text">
-        本小程序用于辅助填写和管理签证申请表。我们会在本地保存你主动填写的表格内容、反馈内容以及表格记录数量，用于继续编辑、预览和导出表格。
-      </view>
-    </view>
-    <view class="privacy-panel__section">
-      <view class="privacy-panel__heading">本地存储</view>
-      <view class="privacy-panel__text">
-        表格数据和反馈记录主要保存在你的微信本地存储中。除你主动提交、导出或使用相关功能外，我们不会主动向第三方共享这些内容。
-      </view>
-    </view>
-    <view class="privacy-panel__section">
-      <view class="privacy-panel__heading">文件处理</view>
-      <view class="privacy-panel__text">
-        当你生成或预览 PDF 等文件时，小程序可能会调用云函数处理必要的表格数据，仅用于完成当前文件生成任务。
-      </view>
-    </view>
-    <view class="privacy-panel__section">
-      <view class="privacy-panel__heading">联系我们</view>
-      <view class="privacy-panel__text">
-        如需查询、更正或删除相关信息，可通过 QQ {{contactInfo.qqGroup}} 或邮箱 {{contactInfo.email}} 联系我们。
-      </view>
+    <view class="panel__title">{{privacyPolicy.title}}</view>
+    <view class="privacy-panel__updated">更新日期：{{privacyPolicy.updatedAt}}</view>
+    <view
+      wx:for="{{privacyPolicy.paragraphs}}"
+      wx:key="*this"
+      class="privacy-panel__section"
+    >
+      <view class="privacy-panel__text">{{item}}</view>
     </view>
   </view>
 </view>

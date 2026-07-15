@@ -2,13 +2,13 @@
 // 把抽取出来的 acroforms schema（叶子节点 + 其包含的 acroform 字段）转换成
 // 小程序表单/预览所需的视图模型。核心约束：按 JSON 叶子节点顺序展示，每个叶子
 // 是一个不可分割的文字块，里面的若干 acroforms 以「包含」关系嵌套在该文字块下。
-const schema = require('../data/countries/italy/schema/Italy_acroforms_new.json.js');
-const { countryFormFile } = require('./cloudAssets');
+const { getPreviewImage, getTemplateAsset, loadTemplateSchema } = require('../config/countryConfig');
+const { downloadCloudJSON } = require('./cloudAssets');
+const { findCachedCountryFormVersion } = require('./countryFormCatalog');
 
-const TEMPLATE_ID = 'italy';
+const TEMPLATE_ID = 'it-schengen-tourism-shanghai-demo';
 const COUNTRY_NAME = '意大利';
 const FORM_TITLE = '意大利申根签证申请表';
-const PREVIEW_COUNTRY_DIR = 'Italy';
 
 // 新版标注（Italy_acroforms_new.json）已自带语义信息，无需再做
 // OCR 配对 / 标签覆盖 / 示范映射 / 幽灵字段表：
@@ -122,8 +122,39 @@ function buildLeafFields(leaf, size) {
   });
 }
 
-function buildForm() {
+function normalizeTemplateVersion(templateId, override) {
+  const dynamic = override || findCachedCountryFormVersion(templateId);
+  if (dynamic) return dynamic;
+  const previewImages = getTemplateAsset(templateId, 'previewImages') || {};
+  return {
+    id: templateId,
+    country: 'Italy',
+    name: FORM_TITLE,
+    sourcePdf: getTemplateAsset(templateId, 'sourcePdf'),
+    editablePdf: getTemplateAsset(templateId, 'editablePdf'),
+    editableFilename: getTemplateAsset(templateId, 'editableFilename'),
+    acroformSchema: getTemplateAsset(templateId, 'acroformSchema'),
+    previewPattern: previewImages.pattern || '',
+    previewPages: previewImages.pages || [],
+  };
+}
+
+function getTemplatePreviewImage(templateId, templateVersion, page) {
+  if (templateVersion && templateVersion.previewPattern) {
+    return templateVersion.previewPattern.replace('{page}', page);
+  }
+  return getPreviewImage(templateId, page);
+}
+
+function buildForm(schema, templateId = TEMPLATE_ID, versionOverride) {
+  if (!schema || !Array.isArray(schema.pages) || !schema.pages.length) {
+    throw new Error('AcroForm JSON 缺少有效的 pages 数据');
+  }
+  const templateVersion = normalizeTemplateVersion(templateId, versionOverride);
   const pages = schema.pages.map((page) => {
+    if (!Array.isArray(page.size) || page.size.length < 2 || !Array.isArray(page.leaf_nodes)) {
+      throw new Error(`AcroForm JSON 第 ${page.page || '?'} 页结构无效`);
+    }
     const leaves = page.leaf_nodes.map((leaf) => {
       const skipFill = leaf.is_need_filled === false;
       const isHandwriting = leaf.is_handwritting === true;
@@ -148,7 +179,7 @@ function buildForm() {
       page: page.page,
       width: page.size[0],
       height: page.size[1],
-      previewImage: countryFormFile(PREVIEW_COUNTRY_DIR, `Italy-${page.page}.png`),
+      previewImage: getTemplatePreviewImage(templateId, templateVersion, page.page),
       leaves,
     };
   });
@@ -161,14 +192,23 @@ function buildForm() {
   }));
 
   return {
-    templateId: TEMPLATE_ID,
+    templateId,
+    templateVersion,
     country: COUNTRY_NAME,
-    title: FORM_TITLE,
+    title: templateVersion.name || FORM_TITLE,
     summary: schema.summary,
     pages,
     fields,
     pageTabs: pages.map((p) => ({ page: p.page, label: `第 ${p.page} 页`, count: p.leaves.reduce((n, l) => n + l.inputFieldCount, 0) })),
   };
+}
+
+function loadForm(templateId = TEMPLATE_ID, versionOverride) {
+  const templateVersion = normalizeTemplateVersion(templateId, versionOverride);
+  const schemaPromise = templateVersion.acroformSchema
+    ? downloadCloudJSON(templateVersion.acroformSchema)
+    : loadTemplateSchema(templateId);
+  return schemaPromise.then((schema) => buildForm(schema, templateId, templateVersion));
 }
 
 // 依据已填写的值，为预览页生成每页的叠加层（把值放回 PDF 字段位置）。
@@ -226,4 +266,5 @@ module.exports = {
   FORM_TITLE,
   buildForm,
   buildPreviewPages,
+  loadForm,
 };

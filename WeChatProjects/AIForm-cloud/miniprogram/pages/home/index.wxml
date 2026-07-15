@@ -1,15 +1,21 @@
-<nav title-text="签证申请表智慧填写" />
+<nav title-text="签证申请表辅助填写" />
 
 <view class="home">
   <view class="hero">
-    <view class="hero__label">Smart Visa Form</view>
-    <view class="hero__title">签证申请表智慧填写</view>
+    <view class="hero__label">
+      <t-icon class="hero__label-icon" name="/static/icons/ai-tool.svg" size="26rpx" color="#0052d9" />
+      <text>Smart Visa Form</text>
+    </view>
+    <view class="hero__title">签证申请表辅助填写</view>
     <view class="hero__desc">选择目的地和签证类型，系统将引导你完成申请表填写并生成表格文件。</view>
   </view>
 
   <view class="section section--destination">
     <view class="section__header">
-      <view class="section__title">选择目的地</view>
+      <view class="section__heading">
+        <view class="section__step {{selectedCountry ? 'section__step--completed' : ''}}">1</view>
+        <view class="section__title">第一步：选择目的地</view>
+      </view>
       <view class="section__hint">共 {{countries.length}} 个国家</view>
     </view>
 
@@ -39,9 +45,13 @@
           data-name="{{item}}"
           bindtap="selectContinent"
         >
-          <view wx:if="{{item === hotFilter}}" class="continent__hot-icon">
-            <view class="continent__hot-core"></view>
-          </view>
+          <t-icon
+            wx:if="{{item === hotFilter}}"
+            class="continent__hot-icon"
+            name="filter-3"
+            size="28rpx"
+            color="{{selectedContinent === item ? '#ffffff' : '#434654'}}"
+          />
           <text>{{item}}</text>
         </view>
       </view>
@@ -73,12 +83,16 @@
     </view>
   </view>
 
-  <view class="section" wx:if="{{selectedCountry}}">
-    <view class="section__header section__header--start">
-      <view class="section__title">选择签证类型</view>
-      <view class="section__pill">{{selectedCountry.name}}</view>
+  <view class="section {{!selectedCountry ? 'section--collapsed' : ''}}">
+    <view class="section__header">
+      <view class="section__heading">
+        <view class="section__step {{selectedVisaType ? 'section__step--completed' : ''}}">2</view>
+        <view class="section__title">第二步：选择签证类型</view>
+      </view>
+      <view class="section__pill" wx:if="{{selectedCountry}}">{{selectedCountry.name}}</view>
+      <view class="section__locked" wx:else>请先完成第一步</view>
     </view>
-    <view class="option-grid">
+    <view class="option-grid" wx:if="{{selectedCountry}}">
       <view
         wx:for="{{selectedCountry.visaTypes}}"
         wx:key="id"
@@ -86,62 +100,85 @@
         data-id="{{item.id}}"
         bindtap="selectVisaType"
       >
-        <t-icon name="{{item.icon}}" size="44rpx" color="{{selectedVisaTypeId === item.id ? '#003da6' : '#737686'}}" />
+        <t-icon name="{{item.icon}}" size="44rpx" color="{{selectedVisaTypeId === item.id ? '#0052d9' : '#737686'}}" />
         <view class="option__name">{{item.name}}</view>
       </view>
     </view>
   </view>
 
-  <view class="section" wx:if="{{selectedDistrict}}">
-    <view class="section__header section__header--start">
-      <view class="section__title">确认申请表</view>
-      <view class="section__pill">{{selectedVisaType.name}}</view>
-    </view>
-    <view
-      wx:for="{{selectedDistrict.versions}}"
-      wx:key="id"
-      class="version {{selectedVersionId === item.id ? 'version--active' : ''}}"
-      data-id="{{item.id}}"
-      bindtap="selectVersion"
-    >
-      <view class="version__badge" wx:if="{{index === 0}}">推荐</view>
-      <view class="radio {{selectedVersionId === item.id ? 'radio--active' : ''}}"></view>
-      <view class="version__body">
-        <view class="version__name">{{item.name}}</view>
-        <view class="version__meta">版本: {{item.version}} | 更新于: {{item.publishedAt}}</view>
-        <view class="version__scope">{{item.scope}}</view>
+  <view class="section {{!selectedVisaType ? 'section--collapsed' : ''}}">
+    <view class="section__header">
+      <view class="section__heading">
+        <view class="section__step {{selectedVersion ? 'section__step--completed' : ''}}">3</view>
+        <view class="section__title">第三步：确认申请表</view>
       </view>
-      <button class="version__preview" data-id="{{item.id}}" catchtap="previewVersion">
-        <t-icon name="browse" size="26rpx" color="#003da6" />
-        <text>预览</text>
-      </button>
+      <view class="section__pill" wx:if="{{selectedVisaType}}">{{selectedVisaType.name}}</view>
+      <view class="section__locked" wx:else>请先完成第二步</view>
     </view>
+    <block wx:if="{{selectedVisaType && selectedDistrict}}">
+      <view class="section__hint section__status" wx:if="{{catalogLoading}}">正在读取云存储申请表…</view>
+      <view class="section__hint section__status" wx:if="{{catalogError}}">云目录读取失败，当前显示缓存配置</view>
+      <view
+        wx:for="{{selectedDistrict.versions}}"
+        wx:key="id"
+        class="version {{selectedVersionId === item.id ? 'version--active' : ''}}"
+        data-id="{{item.id}}"
+        bindtap="selectVersion"
+      >
+        <view class="version__badge" wx:if="{{index === 0}}">推荐</view>
+        <view class="radio {{selectedVersionId === item.id ? 'radio--active' : ''}}"></view>
+        <view class="version__body">
+          <view class="version__name">{{item.name}}</view>
+          <view class="version__meta">版本: {{item.version}} | 更新于: {{item.publishedAt}}</view>
+          <view class="version__scope">{{item.scope}}</view>
+          <view class="version__scope" wx:if="{{item.availableForFill === false}}">仅可查看 PDF，填写资源不完整</view>
+        </view>
+        <button class="version__preview" data-id="{{item.id}}" catchtap="previewVersion">
+          <t-icon name="browse" size="26rpx" color="#0052d9" />
+          <text>预览</text>
+        </button>
+      </view>
+    </block>
   </view>
 
 </view>
 
 <view class="action-bar">
-  <button class="action-bar__button" bindtap="startSelectedMode" disabled="{{!selectedVersion}}">
-    开始智慧填写
+  <button
+    class="action-bar__button {{!selectedCountry || !selectedVisaType || !selectedVersion || selectedVersion.availableForFill === false ? 'action-bar__button--disabled' : ''}}"
+    bindtap="startSelectedMode"
+    aria-disabled="{{!selectedCountry || !selectedVisaType || !selectedVersion || selectedVersion.availableForFill === false}}"
+  >
+    开始填写
   </button>
 </view>
 
-<view wx:if="{{showOfficialNotice}}" class="notice-modal" catchtouchmove="noop">
+<view wx:if="{{showFirstLaunchNotice}}" class="notice-modal" catchtouchmove="noop">
   <view class="notice-modal__panel">
-    <view class="notice-modal__icon">
-      <text>i</text>
-    </view>
-    <view class="notice-modal__title">使用前请知晓</view>
-    <view class="notice-modal__content">
-      <view>本小程序非政府、使领馆或签证中心官方平台，不提供预约、递交、审批或结果查询服务。</view>
-      <view>表格来源及申请要求请以各国领事馆官方网站或官方机构发布信息为准。</view>
-    </view>
-    <view class="notice-modal__option" bindtap="toggleOfficialNoticeDontRemind">
-      <view class="notice-modal__checkbox {{dontRemindOfficialNotice ? 'notice-modal__checkbox--checked' : ''}}">
-        <text wx:if="{{dontRemindOfficialNotice}}">✓</text>
+    <view class="notice-modal__head">
+      <view class="notice-modal__icon">
+        <text>{{firstLaunchNotice.iconText}}</text>
       </view>
-      <text>下次进入不提醒</text>
+      <view class="notice-modal__title">{{firstLaunchNotice.title}}</view>
     </view>
-    <button class="notice-modal__button" bindtap="acknowledgeOfficialNotice">已知晓</button>
+    <scroll-view class="notice-modal__content" scroll-y>
+      <view
+        wx:for="{{firstLaunchNotice.sections}}"
+        wx:key="title"
+        class="notice-modal__section"
+      >
+        <view class="notice-modal__section-title">{{item.title}}</view>
+        <view wx:if="{{item.updatedAt}}" class="notice-modal__updated">更新日期：{{item.updatedAt}}</view>
+        <view
+          wx:for="{{item.paragraphs}}"
+          wx:for-item="paragraph"
+          wx:key="*this"
+          class="notice-modal__paragraph"
+        >
+          {{paragraph}}
+        </view>
+      </view>
+    </scroll-view>
+    <button class="notice-modal__button" bindtap="acknowledgeFirstLaunchNotice">{{firstLaunchNotice.confirmText}}</button>
   </view>
 </view>

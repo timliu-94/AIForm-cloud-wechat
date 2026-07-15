@@ -1,14 +1,17 @@
-const { countryFormFile } = require('./cloudAssets');
+const { getTemplateAsset } = require('../config/countryConfig');
+
+const ITALY_TEMPLATE_ID = 'it-schengen-tourism-shanghai-demo';
 
 const editablePdfMap = {
-  'it-schengen-tourism-shanghai-demo': {
-    fileID: countryFormFile('Italy', '意大利-上海领区-短期签证申请表.pdf'),
-    filename: '意大利-上海领区-短期签证申请表.pdf',
+  [ITALY_TEMPLATE_ID]: {
+    fileID: getTemplateAsset(ITALY_TEMPLATE_ID, 'editablePdf'),
+    filename: getTemplateAsset(ITALY_TEMPLATE_ID, 'editableFilename'),
     fileType: 'pdf',
   },
 };
 
 function getEditablePdf(templateId) {
+  if (templateId === 'italy') return editablePdfMap[ITALY_TEMPLATE_ID];
   return editablePdfMap[templateId] || null;
 }
 

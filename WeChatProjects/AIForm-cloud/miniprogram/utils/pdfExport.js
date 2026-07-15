@@ -16,6 +16,11 @@ function exportApplicationPdf(application, title) {
     data: {
       type: 'fillPdfAcroForm',
       templateId: application.templateId || 'italy',
+      templateAsset: application.templateVersion ? {
+        country: application.templateVersion.country,
+        versionDir: application.templateVersion.versionDir,
+        pdfFilename: application.templateVersion.pdfFilename,
+      } : null,
       title,
       values: application.values || {},
       options: {

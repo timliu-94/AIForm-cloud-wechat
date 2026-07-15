@@ -1,193 +1,57 @@
 const { countryFormFile } = require('./cloudAssets');
+const {
+  continents,
+  countries,
+  getCountryFlag,
+} = require('../config/countryConfig');
+const { findCachedCountryFormVersion } = require('./countryFormCatalog');
 
-const visaCatalog = [
-  {
-    id: 'italy',
-    name: '意大利',
-    continent: '欧洲',
-    hot: true,
-    flag: '/static/country_flag/意大利-it.png',
-    visaTypes: [
-      {
-        id: 'tourism',
-        name: '短期旅游',
-        districts: [
-          {
-            id: 'shanghai',
-            name: '上海领区',
-            versions: [
-              {
-                id: 'it-schengen-tourism-shanghai-demo',
-                name: '申根短期签证申请表',
-                version: '示范版',
-                publishedAt: '2026-06-27',
-                scope: '以上海领区示例 PDF 和 AcroForm 标注演示',
-                status: 'active',
-                sourcePdf: countryFormFile('Italy', 'schengen-Visa-application-form.pdf'),
-              },
-            ],
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'france',
-    name: '法国',
-    continent: '欧洲',
-    hot: true,
-    flag: '/static/country_flag/法国-fr.png',
-    visaTypes: [
-      {
-        id: 'tourism',
-        name: '短期旅游',
-        districts: [
-          {
-            id: 'shanghai',
-            name: '上海领区',
-            versions: [
-              {
-                id: 'fr-schengen-tourism-2026-01',
-                name: '申根短期签证申请表',
-                version: '2026.01',
-                publishedAt: '2026-01-10',
-                scope: '上海、江苏、浙江、安徽',
-                status: 'active',
-                sourcePdf: countryFormFile('France', 'france_schengen_2026.pdf'),
-              },
-            ],
-          },
-          {
-            id: 'beijing',
-            name: '北京领区',
-            versions: [
-              {
-                id: 'fr-schengen-tourism-2025-12',
-                name: '申根短期签证申请表',
-                version: '2025.12',
-                publishedAt: '2025-12-18',
-                scope: '北京、天津、河北、山东、山西、内蒙古',
-                status: 'active',
-                sourcePdf: countryFormFile('France', 'france_schengen_2025.pdf'),
-              },
-            ],
-          },
-        ],
-      },
-      {
-        id: 'business',
-        name: '商务',
-        districts: [
-          {
-            id: 'shanghai',
-            name: '上海领区',
-            versions: [
-              {
-                id: 'fr-business-2026-01',
-                name: '商务访问申请表',
-                version: '2026.01',
-                publishedAt: '2026-01-10',
-                scope: '上海、江苏、浙江、安徽',
-                status: 'active',
-                sourcePdf: countryFormFile('France', 'france_business_2026.pdf'),
-              },
-            ],
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'germany',
-    name: '德国',
-    continent: '欧洲',
-    hot: true,
-    flag: '/static/country_flag/德国-de.png',
-    visaTypes: [
-      {
-        id: 'tourism',
-        name: '短期旅游',
-        districts: [
-          {
-            id: 'shanghai',
-            name: '上海领区',
-            versions: [
-              {
-                id: 'de-schengen-tourism-2026-02',
-                name: '申根短期签证申请表',
-                version: '2026.02',
-                publishedAt: '2026-02-04',
-                scope: '上海、江苏、浙江、安徽',
-                status: 'active',
-                sourcePdf: countryFormFile('Germany', 'germany_schengen_2026.pdf'),
-              },
-            ],
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'japan',
-    name: '日本',
-    continent: '亚洲',
-    hot: true,
-    flag: '',
-    visaTypes: [
-      {
-        id: 'tourism',
-        name: '短期旅游',
-        districts: [
-          {
-            id: 'shanghai',
-            name: '上海领区',
-            versions: [
-              {
-                id: 'jp-tourism-2026-01',
-                name: '短期停留签证申请表',
-                version: '2026.01',
-                publishedAt: '2026-01-01',
-                scope: '上海、江苏、浙江、安徽、江西',
-                status: 'active',
-                sourcePdf: countryFormFile('Japan', 'japan_tourism_2026.pdf'),
-              },
-            ],
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'usa',
-    name: '美国',
-    continent: '北美洲',
-    hot: false,
-    flag: '',
-    visaTypes: [
-      {
-        id: 'business-tourism',
-        name: '商务/旅游',
-        districts: [
-          {
-            id: 'china',
-            name: '中国大陆地区',
-            versions: [
-              {
-                id: 'us-ds160-demo',
-                name: 'DS-160 信息采集表',
-                version: '2026.01',
-                publishedAt: '2026-01-15',
-                scope: '中国大陆地区填写参考',
-                status: 'active',
-                sourcePdf: countryFormFile('USA', 'us_ds160_demo.pdf'),
-              },
-            ],
-          },
-        ],
-      },
-    ],
-  },
-];
+function upsertById(list, id, factory) {
+  let item = list.find((entry) => entry.id === id);
+  if (!item) {
+    item = factory();
+    list.push(item);
+  }
+  return item;
+}
+
+function buildVisaCatalog() {
+  return countries.map((country) => {
+    const visaTypes = [];
+    country.templates.forEach((template) => {
+      const visaType = upsertById(visaTypes, template.visaType.id, () => ({
+        id: template.visaType.id,
+        name: template.visaType.name,
+        districts: [],
+      }));
+      const district = upsertById(visaType.districts, template.district.id, () => ({
+        id: template.district.id,
+        name: template.district.name,
+        versions: [],
+      }));
+      district.versions.push({
+        id: template.id,
+        name: template.name,
+        version: template.version,
+        publishedAt: template.publishedAt,
+        scope: template.scope,
+        status: template.status,
+        sourcePdf: template.assets && template.assets.sourcePdf,
+      });
+    });
+    return {
+      id: country.id,
+      name: country.name,
+      iso2: country.iso2,
+      continent: country.continent,
+      hot: country.hot,
+      flag: getCountryFlag(country),
+      visaTypes,
+    };
+  });
+}
+
+const visaCatalog = buildVisaCatalog();
 
 const pdfSchemas = {
   'fr-schengen-tourism-2026-01': {
@@ -548,8 +412,6 @@ pdfSchemas['de-schengen-tourism-2026-02'] = pdfSchemas['fr-schengen-tourism-2026
 pdfSchemas['jp-tourism-2026-01'] = pdfSchemas['fr-schengen-tourism-2026-01'];
 pdfSchemas['us-ds160-demo'] = pdfSchemas['fr-schengen-tourism-2026-01'];
 
-const continents = ['欧洲', '亚洲', '北美洲', '南美洲', '非洲', '大洋洲'];
-
 function findCountry(countryId) {
   return visaCatalog.find((country) => country.id === countryId);
 }
@@ -569,6 +431,15 @@ function findTemplate(templateId) {
       ),
     ),
   );
+  if (!result) {
+    const dynamic = findCachedCountryFormVersion(templateId);
+    const country = dynamic && visaCatalog.find((item) => item.id === 'italy');
+    const visaType = country && country.visaTypes.find((item) => item.id === 'tourism');
+    const district = visaType && visaType.districts.find((item) => item.id === 'shanghai');
+    if (dynamic && country && visaType && district) {
+      result = { country, visaType, district, version: dynamic };
+    }
+  }
   return result;
 }
 

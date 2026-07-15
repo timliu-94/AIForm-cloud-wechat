@@ -1,4 +1,4 @@
-const { buildForm, buildPreviewPages, COUNTRY_NAME } = require('../../utils/italyForm');
+const { buildPreviewPages, loadForm, COUNTRY_NAME } = require('../../utils/italyForm');
 const { findTemplate } = require('../../utils/visaData');
 const { buildDefaultApplicationTitle, normalizeTitle } = require('../../utils/applicationTitle');
 const { resolvePreviewImages } = require('../../utils/cloudAssets');
@@ -18,29 +18,50 @@ Page({
   },
 
   onLoad(options) {
+    this._pageActive = true;
+    wx.showLoading({ title: '预览加载中', mask: true });
+    this.initializePreview(options)
+      .catch((err) => {
+        if (!this._pageActive) return;
+        console.error('Load preview resources failed:', err);
+        wx.showModal({
+          title: '预览资源加载失败',
+          content: err.message || String(err),
+          showCancel: false,
+        });
+      })
+      .then(
+        () => wx.hideLoading(),
+        () => wx.hideLoading(),
+      );
+  },
+
+  onUnload() {
+    this._pageActive = false;
+  },
+
+  initializePreview(options) {
     const { applicationId, templateId } = options;
     if (!applicationId && templateId) {
-      this.loadTemplatePreview(templateId);
-      return;
+      return this.loadTemplatePreview(templateId);
     }
 
     const applications = wx.getStorageSync(APPLICATIONS_KEY) || [];
     const application = applications.find((item) => item.id === applicationId);
     if (!application) {
       wx.showToast({ title: '表格不存在', icon: 'none' });
-      return;
+      return Promise.resolve();
     }
 
-    const form = buildForm();
-    const values = application.values || {};
-    const pages = buildPreviewPages(form, values);
-    const pendingCount = pages.reduce(
-      (n, page) => n + page.overlays.filter((o) => !o.filled && !o.manual).length,
-      0,
-    );
-
-    resolvePreviewImages(pages)
-      .then((resolvedPages) => {
+    return loadForm(application.templateId, application.templateVersion).then((form) => {
+      const values = application.values || {};
+      const pages = buildPreviewPages(form, values);
+      const pendingCount = pages.reduce(
+        (n, page) => n + page.overlays.filter((o) => !o.filled && !o.manual).length,
+        0,
+      );
+      return resolvePreviewImages(pages).then((resolvedPages) => {
+        if (!this._pageActive) return;
         this.setData({
           application,
           pages: resolvedPages,
@@ -49,10 +70,8 @@ Page({
           pendingCount,
           isTemplatePreview: false,
         });
-      })
-      .catch(() => {
-        wx.showToast({ title: '预览图加载失败', icon: 'none' });
       });
+    });
   },
 
   onPreviewImageError() {
@@ -65,21 +84,21 @@ Page({
   },
 
   loadTemplatePreview(templateId) {
-    const form = buildForm();
-    const template = findTemplate(templateId);
-    const pages = form.pages.map((page) => ({
-      page: page.page,
-      previewImage: page.previewImage,
-      overlays: [],
-    }));
-    const application = {
-      title: template ? template.version.name : form.title,
-      country: template ? template.country.name : form.country,
-      visaType: template ? template.visaType.name : '原始表格',
-    };
+    return loadForm(templateId).then((form) => {
+      const template = findTemplate(templateId);
+      const pages = form.pages.map((page) => ({
+        page: page.page,
+        previewImage: page.previewImage,
+        overlays: [],
+      }));
+      const application = {
+        title: template ? template.version.name : form.title,
+        country: template ? template.country.name : form.country,
+        visaType: template ? template.visaType.name : '原始表格',
+      };
 
-    resolvePreviewImages(pages)
-      .then((resolvedPages) => {
+      return resolvePreviewImages(pages).then((resolvedPages) => {
+        if (!this._pageActive) return;
         this.setData({
           application,
           pages: resolvedPages,
@@ -88,11 +107,8 @@ Page({
           pendingCount: 0,
           isTemplatePreview: true,
         });
-      })
-      .catch((err) => {
-        console.error('Resolve preview images failed:', err);
-        wx.showToast({ title: '预览图加载失败', icon: 'none' });
       });
+    });
   },
 
   switchPage(e) {

@@ -1,5 +1,6 @@
 const cloud = require("wx-server-sdk");
 const fillPdfAcroForm = require("./pdf/fillPdfAcroForm");
+const { listCountryFormVersions } = require('./catalog/countryFormCatalog');
 cloud.init({
   env: cloud.DYNAMIC_CURRENT_ENV,
 });
@@ -184,5 +185,13 @@ exports.main = async (event, context) => {
       return await deleteRecord(event);
     case "fillPdfAcroForm":
       return await fillPdfAcroForm(event);
+    case "listCountryFormVersions":
+      return await listCountryFormVersions(event);
+    default:
+      return {
+        success: false,
+        errCode: 'UNSUPPORTED_FUNCTION_TYPE',
+        errMsg: `Unsupported function type: ${event.type || '(empty)'}`,
+      };
   }
 };

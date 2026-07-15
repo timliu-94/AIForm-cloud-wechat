@@ -2,7 +2,7 @@
 
 .my {
   min-height: 100vh;
-  padding: 24rpx 32rpx calc(112rpx + 36rpx);
+  padding: 28rpx 32rpx calc(@tab-bar-height + env(safe-area-inset-bottom) + 40rpx);
   box-sizing: border-box;
   overflow-y: auto;
   background: @surface;
@@ -13,23 +13,23 @@
 .profile-card {
   display: flex;
   align-items: center;
-  gap: 24rpx;
-  padding: 28rpx;
+  gap: 22rpx;
+  padding: 30rpx 28rpx;
   border: 1rpx solid @outline-variant;
-  border-radius: 24rpx;
+  border-radius: 20rpx;
   background: @surface-lowest;
-  box-shadow: 0 2rpx 8rpx rgba(25, 28, 30, 0.04);
+  box-shadow: @card-shadow;
 
   &__avatar {
-    width: 128rpx;
-    height: 128rpx;
+    width: 112rpx;
+    height: 112rpx;
     flex: none;
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 4rpx solid @primary-fixed;
-    border-radius: 999rpx;
-    background: @surface-low;
+    border: 1rpx solid rgba(0, 61, 166, 0.16);
+    border-radius: 20rpx;
+    background: @primary-fixed;
   }
 
   &__body {
@@ -39,32 +39,30 @@
 
   &__name {
     color: @text-primary;
-    font-size: 42rpx;
+    font-size: 36rpx;
     font-weight: 700;
-    line-height: 54rpx;
+    line-height: 48rpx;
   }
 
   &__verified {
     display: flex;
     align-items: center;
     gap: 8rpx;
-    margin-top: 8rpx;
+    margin-top: 6rpx;
     color: @text-secondary;
-    font-size: 26rpx;
-    line-height: 36rpx;
+    font-size: 24rpx;
+    line-height: 34rpx;
   }
 
   &__tier {
     display: inline-flex;
-    margin-top: 16rpx;
-    padding: 8rpx 16rpx;
-    border: 1rpx solid @outline-variant;
-    border-radius: 999rpx;
+    margin-top: 14rpx;
+    padding: 4rpx 14rpx;
+    border-radius: 8rpx;
     color: @text-secondary;
-    font-size: 22rpx;
-    letter-spacing: 1rpx;
-    line-height: 28rpx;
-    background: @surface-container-high;
+    font-size: 23rpx;
+    line-height: 32rpx;
+    background: @surface-container;
   }
 }
 
@@ -73,34 +71,34 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 28rpx;
-  padding: 30rpx 32rpx;
+  margin-top: 24rpx;
+  padding: 28rpx;
   overflow: hidden;
   border: 1rpx solid @outline-variant;
-  border-radius: 24rpx;
+  border-radius: 20rpx;
   background: @surface-lowest;
-  box-shadow: 0 2rpx 8rpx rgba(25, 28, 30, 0.04);
+  box-shadow: @card-shadow;
 
   &::after {
     position: absolute;
     inset: 0;
     content: '';
     pointer-events: none;
-    background: radial-gradient(circle at 100% 50%, rgba(0, 82, 217, 0.08), transparent 48%);
+    background: linear-gradient(90deg, rgba(219, 225, 255, 0) 0%, rgba(219, 225, 255, 0.42) 100%);
   }
 
   &__label {
     color: @text-secondary;
-    font-size: 26rpx;
+    font-size: 24rpx;
     line-height: 36rpx;
   }
 
   &__value {
-    margin-top: 8rpx;
-    color: @primary-strong;
-    font-size: 64rpx;
+    margin-top: 6rpx;
+    color: @primary;
+    font-size: 56rpx;
     font-weight: 700;
-    line-height: 72rpx;
+    line-height: 64rpx;
 
     text {
       margin-left: 8rpx;
@@ -111,28 +109,30 @@
   }
 
   &__icon {
-    width: 88rpx;
-    height: 88rpx;
+    position: relative;
+    z-index: 1;
+    width: 76rpx;
+    height: 76rpx;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 999rpx;
+    border-radius: 16rpx;
     background: @primary;
   }
 }
 
 .action-list {
-  margin-top: 28rpx;
+  margin-top: 24rpx;
   overflow: hidden;
   border: 1rpx solid @outline-variant;
-  border-radius: 24rpx;
+  border-radius: 20rpx;
   background: @surface-lowest;
-  box-shadow: 0 2rpx 8rpx rgba(25, 28, 30, 0.04);
+  box-shadow: @card-shadow;
 }
 
 .action-item {
   width: 100%;
-  min-height: 104rpx;
+  min-height: 100rpx;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -163,15 +163,15 @@
   }
 
   &__icon {
-    width: 64rpx;
-    height: 64rpx;
+    width: 60rpx;
+    height: 60rpx;
     flex: none;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 999rpx;
-    color: @primary-strong;
-    background: @outline-variant;
+    border-radius: 14rpx;
+    color: @primary;
+    background: @primary-fixed;
   }
 
   &__title {
@@ -197,7 +197,7 @@
   }
 
   .action-item__icon {
-    background: @surface-container;
+    background: @error-container;
   }
 }
 
@@ -205,15 +205,15 @@
   margin-top: 24rpx;
   padding: 28rpx;
   border: 1rpx solid @outline-variant;
-  border-radius: 24rpx;
+  border-radius: 20rpx;
   background: @surface-lowest;
-  box-shadow: 0 2rpx 8rpx rgba(25, 28, 30, 0.04);
+  box-shadow: @card-shadow;
 
   &__title {
     color: @text-primary;
-    font-size: 32rpx;
+    font-size: 34rpx;
     font-weight: 700;
-    line-height: 42rpx;
+    line-height: 44rpx;
   }
 
   &__actions {
@@ -240,7 +240,7 @@
     justify-content: space-between;
     padding: 0 22rpx;
     border: 1rpx solid @outline-variant;
-    border-radius: 12rpx;
+    border-radius: 16rpx;
     color: @text-primary;
     font-size: 28rpx;
     background: @surface;
@@ -258,7 +258,7 @@
     min-height: 220rpx;
     padding: 20rpx 22rpx;
     border: 1rpx solid @outline-variant;
-    border-radius: 12rpx;
+    border-radius: 16rpx;
     color: @text-primary;
     font-size: 28rpx;
     line-height: 40rpx;
@@ -279,30 +279,23 @@
   flex: 1;
   height: 84rpx;
   margin: 0;
-  border-radius: 12rpx;
+  border-radius: 999rpx;
   font-size: 28rpx;
+  font-weight: 700;
   line-height: 84rpx;
 
   &::after {
-    border-radius: 12rpx;
+    border: 0;
   }
 
   &--plain {
     color: @text-secondary;
     background: @surface-low;
-
-    &::after {
-      border-color: @outline-variant;
-    }
   }
 
   &--primary {
     color: @surface-lowest;
     background: @primary;
-
-    &::after {
-      border-color: @primary;
-    }
   }
 }
 
@@ -343,8 +336,8 @@
     height: 64rpx;
     margin: 0;
     padding: 0 22rpx;
-    border-radius: 10rpx;
-    color: @primary-strong;
+    border-radius: 999rpx;
+    color: @primary;
     font-size: 26rpx;
     line-height: 64rpx;
     background: @primary-fixed;
@@ -401,7 +394,7 @@
     max-width: 640rpx;
     padding: 42rpx 36rpx 34rpx;
     border: 1rpx solid @outline-variant;
-    border-radius: 16rpx;
+    border-radius: 20rpx;
     background: @surface-lowest;
     box-shadow: 0 18rpx 42rpx rgba(25, 28, 30, 0.18);
     box-sizing: border-box;
@@ -413,7 +406,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 12rpx;
+    border-radius: 16rpx;
     background: @primary-fixed;
   }
 
@@ -448,89 +441,4 @@
       border: 0;
     }
   }
-}
-
-/* Design refresh: unify profile and settings pages with the visa form style. */
-.my {
-  background: @surface;
-}
-
-.profile-card,
-.points-card,
-.action-list,
-.panel,
-.feedback-success-modal__panel {
-  border-color: @outline-variant;
-  border-radius: 24rpx;
-  background: @surface-lowest;
-  box-shadow: 0 2rpx 8rpx rgba(25, 28, 30, 0.04);
-}
-
-.profile-card__avatar {
-  border-color: @primary-fixed;
-  background: @surface-low;
-}
-
-.profile-card__tier {
-  border-color: @outline-variant;
-  border-radius: 8rpx;
-  background: @surface-container;
-}
-
-.points-card::after {
-  background: linear-gradient(90deg, rgba(219, 225, 255, 0) 0%, rgba(219, 225, 255, 0.58) 100%);
-}
-
-.points-card__value {
-  color: @primary;
-}
-
-.points-card__icon {
-  background: @primary;
-}
-
-.action-item {
-  background: @surface-lowest;
-
-  &:active {
-    background: @surface-low;
-  }
-}
-
-.action-item__icon {
-  color: @primary;
-  background: @outline-variant;
-}
-
-.form-row__control,
-.feedback-panel__textarea {
-  border-color: @outline-variant;
-  border-radius: 12rpx;
-  background: @surface;
-}
-
-.panel-btn {
-  border-radius: 12rpx;
-
-  &--plain {
-    color: @text-secondary;
-    background: @surface-low;
-  }
-
-  &--primary {
-    background: @primary;
-  }
-}
-
-.contact-row__copy {
-  color: @primary;
-  background: @primary-fixed;
-}
-
-.feedback-success-modal__icon {
-  background: @primary-fixed;
-}
-
-.feedback-success-modal__button {
-  background: @primary;
 }
