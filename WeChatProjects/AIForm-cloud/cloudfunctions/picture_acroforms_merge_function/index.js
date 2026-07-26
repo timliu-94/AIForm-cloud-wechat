@@ -1,6 +1,7 @@
 const cloud = require("wx-server-sdk");
 const fillPdfAcroForm = require("./pdf/fillPdfAcroForm");
 const { listCountryFormVersions } = require('./catalog/countryFormCatalog');
+const { createInvite, getInvite } = require('./invites');
 cloud.init({
   env: cloud.DYNAMIC_CURRENT_ENV,
 });
@@ -187,6 +188,10 @@ exports.main = async (event, context) => {
       return await fillPdfAcroForm(event);
     case "listCountryFormVersions":
       return await listCountryFormVersions(event);
+    case "createInvite":
+      return await createInvite(event);
+    case "getInvite":
+      return await getInvite(event);
     default:
       return {
         success: false,

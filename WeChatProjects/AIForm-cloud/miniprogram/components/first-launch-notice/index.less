@@ -1,0 +1,109 @@
+@import '/variable.less';
+
+@ink: @text-primary;
+@ink-soft: @text-secondary;
+
+.notice-modal {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48rpx;
+  background: rgba(25, 28, 30, 0.42);
+  box-sizing: border-box;
+
+  &__panel {
+    width: 100%;
+    max-width: 640rpx;
+    max-height: 82vh;
+    padding: 40rpx 36rpx 34rpx;
+    border: 1rpx solid @outline-variant;
+    border-radius: 16rpx;
+    background: @surface-lowest;
+    box-shadow: 0 18rpx 42rpx rgba(25, 28, 30, 0.18);
+    box-sizing: border-box;
+  }
+
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: 18rpx;
+  }
+
+  &__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 72rpx;
+    height: 72rpx;
+    border-radius: 8rpx;
+    color: @primary;
+    font-size: 40rpx;
+    font-weight: 700;
+    line-height: 72rpx;
+    background: @primary-fixed;
+  }
+
+  &__title {
+    flex: 1;
+    min-width: 0;
+    color: @ink;
+    font-size: 36rpx;
+    font-weight: 700;
+    line-height: 48rpx;
+  }
+
+  &__content {
+    height: 58vh;
+    margin-top: 18rpx;
+  }
+
+  &__section {
+    padding: 24rpx 0;
+    border-top: 1rpx solid @surface-variant;
+
+    &:first-child {
+      padding-top: 0;
+      border-top: 0;
+    }
+  }
+
+  &__section-title {
+    color: @ink;
+    font-size: 30rpx;
+    font-weight: 700;
+    line-height: 42rpx;
+  }
+
+  &__updated {
+    margin-top: 6rpx;
+    color: @outline;
+    font-size: 23rpx;
+    line-height: 32rpx;
+  }
+
+  &__paragraph {
+    margin-top: 14rpx;
+    color: @ink-soft;
+    font-size: 27rpx;
+    line-height: 42rpx;
+  }
+
+  &__button {
+    width: 100%;
+    height: 88rpx;
+    margin: 18rpx 0 0;
+    border-radius: 999rpx;
+    color: @surface-lowest;
+    font-size: 29rpx;
+    font-weight: 700;
+    line-height: 88rpx;
+    background: @primary;
+    box-shadow: 0 4rpx 10rpx rgba(0, 61, 166, 0.16);
+  }
+}

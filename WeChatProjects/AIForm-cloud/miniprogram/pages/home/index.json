@@ -3,6 +3,7 @@
   "enablePullDownRefresh": true,
   "usingComponents": {
     "t-icon": "tdesign-miniprogram/icon/icon",
-    "nav": "/components/nav"
+    "nav": "/components/nav",
+    "first-launch-notice": "/components/first-launch-notice/index"
   }
 }

@@ -1,6 +1,8 @@
 const { loadForm, COUNTRY_NAME } = require('../../utils/italyForm');
 const { buildDefaultApplicationTitle, normalizeTitle } = require('../../utils/applicationTitle');
 const { resolvePreviewImages } = require('../../utils/cloudAssets');
+const { fetchInvite } = require('../../utils/invite');
+const { firstLaunchNotice } = require('../../config/firstLaunchNotice');
 
 const APPLICATIONS_KEY = 'visa_applications';
 const PREVIEW_PANE_RPX = 760; // 顶部预览区高度
@@ -112,18 +114,21 @@ Page({
     draftTitle: '',
     splitHeight: 0,
     hasNextPage: false,
+    showFirstLaunchNotice: false,
   },
 
   onLoad(options) {
     this._pageActive = true;
+    // 被邀请人经分享链接直达填写页：首次访问需先完成隐私条款确认。
+    if (options.inviteId && !wx.getStorageSync(firstLaunchNotice.storageKey)) {
+      this.setData({ showFirstLaunchNotice: true });
+    }
     wx.showLoading({ title: '表单加载中', mask: true });
-    const applicationId = options.applicationId || '';
-    const record = applicationId
-      ? this.getApplications().find((item) => item.id === applicationId)
-      : null;
-    const templateId = options.templateId || (record && record.templateId) || undefined;
-    loadForm(templateId, record && record.templateVersion)
-      .then((form) => (this._pageActive ? this.initializeForm(options, form) : null))
+    this.resolveLoadContext(options)
+      .then(({ templateId, templateVersion }) => (
+        this._pageActive ? loadForm(templateId, templateVersion) : null
+      ))
+      .then((form) => (this._pageActive && form ? this.initializeForm(options, form) : null))
       .catch((err) => {
         if (!this._pageActive) return;
         console.error('Load form resources failed:', err);
@@ -139,6 +144,31 @@ Page({
       );
   },
 
+  // 解析本次加载所需的模板与预填值：邀请链接从云端邀请单取，否则走本地记录。
+  resolveLoadContext(options) {
+    if (options.inviteId) {
+      return fetchInvite(options.inviteId).then((invite) => {
+        this._inviteValues = (invite && invite.values) || {};
+        return {
+          templateId: invite.templateId,
+          templateVersion: invite.templateVersion || null,
+        };
+      });
+    }
+    this._inviteValues = null;
+    const record = options.applicationId
+      ? this.getApplications().find((item) => item.id === options.applicationId)
+      : null;
+    return Promise.resolve({
+      templateId: options.templateId || (record && record.templateId) || undefined,
+      templateVersion: record && record.templateVersion,
+    });
+  },
+
+  onFirstLaunchAcknowledge() {
+    this.setData({ showFirstLaunchNotice: false });
+  },
+
   onUnload() {
     this._pageActive = false;
   },
@@ -151,7 +181,10 @@ Page({
 
     let draftTitle = buildDefaultApplicationTitle(COUNTRY_NAME);
     const applicationId = options.applicationId || '';
-    if (applicationId) {
+    if (this._inviteValues) {
+      // 邀请填写：用邀请人分享的字段值预填，被邀请人保存时生成自己的本地副本。
+      Object.assign(values, this._inviteValues);
+    } else if (applicationId) {
       const record = this.getApplications().find((item) => item.id === applicationId);
       if (record) {
         draftTitle = record.title || draftTitle;

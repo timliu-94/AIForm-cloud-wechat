@@ -1,0 +1,29 @@
+<view wx:if="{{visible}}" class="notice-modal" catchtouchmove="noop">
+  <view class="notice-modal__panel">
+    <view class="notice-modal__head">
+      <view class="notice-modal__icon">
+        <text>{{firstLaunchNotice.iconText}}</text>
+      </view>
+      <view class="notice-modal__title">{{firstLaunchNotice.title}}</view>
+    </view>
+    <scroll-view class="notice-modal__content" scroll-y>
+      <view
+        wx:for="{{firstLaunchNotice.sections}}"
+        wx:key="title"
+        class="notice-modal__section"
+      >
+        <view class="notice-modal__section-title">{{item.title}}</view>
+        <view wx:if="{{item.updatedAt}}" class="notice-modal__updated">更新日期：{{item.updatedAt}}</view>
+        <view
+          wx:for="{{item.paragraphs}}"
+          wx:for-item="paragraph"
+          wx:key="*this"
+          class="notice-modal__paragraph"
+        >
+          {{paragraph}}
+        </view>
+      </view>
+    </scroll-view>
+    <button class="notice-modal__button" bindtap="acknowledge">{{firstLaunchNotice.confirmText}}</button>
+  </view>
+</view>

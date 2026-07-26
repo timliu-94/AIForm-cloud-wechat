@@ -1,5 +1,11 @@
 <nav title-text="辅助填写" />
 
+<first-launch-notice
+  wx:if="{{showFirstLaunchNotice}}"
+  auto="{{false}}"
+  bind:acknowledge="onFirstLaunchAcknowledge"
+/>
+
 <view class="split" style="{{splitHeight ? 'height:' + splitHeight + 'px;' : ''}}">
   <!-- 顶部图片预览（与下方表单上下分屏），突出当前填写位置 -->
   <view class="preview-pane">

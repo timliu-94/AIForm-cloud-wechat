@@ -3,6 +3,7 @@ const { buildCopyApplicationTitle, normalizeTitle } = require('../../utils/appli
 const { findTemplate, visaCatalog } = require('../../utils/visaData');
 const { loadForm } = require('../../utils/italyForm');
 const { exportApplicationPdf, getPdfExportErrorMessage, getPdfExportErrorTitle } = require('../../utils/pdfExport');
+const { createInvite } = require('../../utils/invite');
 
 function padTime(value) {
   return String(value).padStart(2, '0');
@@ -125,6 +126,16 @@ Page({
     companionFields: [],
     companionSelectedCount: 0,
     companionAllSelected: false,
+    inviteDialogVisible: false,
+    inviteSourceId: '',
+    inviteSourceTitle: '',
+    inviteMode: 'content',
+    inviteFields: [],
+    inviteSelectedCount: 0,
+    inviteAllSelected: false,
+    inviteCreating: false,
+    invitePath: '',
+    inviteShareTitle: '',
   },
 
   onShow() {
@@ -254,6 +265,147 @@ Page({
     this.closeCompanionDialog();
     this.setApplications(storedApplications);
     wx.showToast({ title: '已创建副本', icon: 'success' });
+  },
+
+  openInviteDialog(e) {
+    const source = this.data.applications[Number(e.currentTarget.dataset.index)];
+    if (!source) return;
+    wx.showLoading({ title: '表单加载中', mask: true });
+    loadForm(source.templateId, source.templateVersion)
+      .then((form) => {
+        const inviteFields = buildCompanionBlockOptions(form);
+        const inviteSelectedCount = inviteFields.filter((field) => field.selected).length;
+        this.setData({
+          inviteDialogVisible: true,
+          inviteSourceId: source.id,
+          inviteSourceTitle: source.title || '',
+          inviteMode: 'content',
+          inviteFields,
+          inviteSelectedCount,
+          inviteAllSelected: inviteFields.length > 0 && inviteSelectedCount === inviteFields.length,
+          inviteCreating: false,
+          invitePath: '',
+          inviteShareTitle: '',
+        });
+      })
+      .catch((err) => {
+        console.error('Load invite form resources failed:', err);
+        wx.showModal({
+          title: '表单资源加载失败',
+          content: err.message || String(err),
+          showCancel: false,
+        });
+      })
+      .then(
+        () => wx.hideLoading(),
+        () => wx.hideLoading(),
+      );
+  },
+
+  closeInviteDialog() {
+    this.setData({
+      inviteDialogVisible: false,
+      inviteSourceId: '',
+      inviteSourceTitle: '',
+      inviteFields: [],
+      inviteSelectedCount: 0,
+      inviteAllSelected: false,
+      inviteCreating: false,
+      invitePath: '',
+      inviteShareTitle: '',
+    });
+  },
+
+  selectInviteMode(e) {
+    const { mode } = e.currentTarget.dataset;
+    // 切换模式即视为重新配置，清空已生成的分享链接。
+    this.setData({ inviteMode: mode === 'blank' ? 'blank' : 'content', invitePath: '' });
+  },
+
+  toggleInviteField(e) {
+    const { name } = e.currentTarget.dataset;
+    const inviteFields = this.data.inviteFields.map((field) => (
+      field.name === name ? { ...field, selected: !field.selected } : field
+    ));
+    this.updateInviteSelection(inviteFields);
+  },
+
+  toggleInviteAll() {
+    const selected = !this.data.inviteAllSelected;
+    const inviteFields = this.data.inviteFields.map((field) => ({ ...field, selected }));
+    this.updateInviteSelection(inviteFields);
+  },
+
+  updateInviteSelection(inviteFields) {
+    const inviteSelectedCount = inviteFields.filter((field) => field.selected).length;
+    this.setData({
+      inviteFields,
+      inviteSelectedCount,
+      inviteAllSelected: inviteFields.length > 0 && inviteSelectedCount === inviteFields.length,
+      // 内容变动使旧链接失效，需重新生成。
+      invitePath: '',
+    });
+  },
+
+  confirmInvite() {
+    const source = this.data.allApplications.find((item) => item.id === this.data.inviteSourceId);
+    if (!source) {
+      this.closeInviteDialog();
+      return;
+    }
+    const mode = this.data.inviteMode === 'blank' ? 'blank' : 'content';
+    const values = {};
+    if (mode === 'content') {
+      const selectedBlocks = this.data.inviteFields.filter((field) => field.selected);
+      if (!selectedBlocks.length) {
+        wx.showToast({ title: '请至少选择一项', icon: 'none' });
+        return;
+      }
+      selectedBlocks.forEach((block) => {
+        (block.fieldNames || []).forEach((fieldName) => {
+          const value = (source.values || {})[fieldName];
+          if (value !== undefined) values[fieldName] = value;
+        });
+      });
+    }
+
+    this.setData({ inviteCreating: true });
+    createInvite({
+      templateId: source.templateId,
+      templateVersion: source.templateVersion,
+      mode,
+      values,
+    })
+      .then((inviteId) => {
+        this.setData({
+          inviteCreating: false,
+          invitePath: `/pages/visa-form/index?inviteId=${inviteId}`,
+          inviteShareTitle: source.title ? `请帮我填写：${source.title}` : '请帮我填写签证申请表',
+        });
+        wx.showToast({ title: '邀请已生成', icon: 'success' });
+      })
+      .catch((err) => {
+        console.error('Create invite failed:', err);
+        this.setData({ inviteCreating: false });
+        wx.showModal({
+          title: err.code === 'FUNCTION_NOT_FOUND' ? '请先部署云函数' : '生成邀请失败',
+          content: err.message || String(err),
+          showCancel: false,
+        });
+      });
+  },
+
+  onShareAppMessage() {
+    if (this.data.invitePath) {
+      return {
+        title: this.data.inviteShareTitle || '请帮我填写签证申请表',
+        path: this.data.invitePath,
+      };
+    }
+    return {
+      title: '签证申请表辅助填写',
+      path: '/pages/home/index',
+    };
   },
 
   renameApplication(e) {

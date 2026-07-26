@@ -87,6 +87,10 @@
         <t-icon name="copy" size="30rpx" />
         <text>为同行人创建</text>
       </button>
+      <button data-index="{{index}}" bindtap="openInviteDialog">
+        <t-icon name="usergroup-add" size="30rpx" />
+        <text>邀请填写</text>
+      </button>
       <button data-index="{{index}}" bindtap="exportApplication">
         <t-icon name="download" size="30rpx" />
         <text>导出</text>
@@ -150,6 +154,82 @@
         disabled="{{companionSelectedCount === 0}}"
         bindtap="createCompanionApplication"
       >创建</button>
+    </view>
+  </view>
+</view>
+
+<view wx:if="{{inviteDialogVisible}}" class="companion-dialog" catchtap="closeInviteDialog">
+  <view class="companion-dialog__panel" catchtap="stopCompanionDialogTap">
+    <view class="companion-dialog__head">
+      <view class="companion-dialog__title">邀请他人填写</view>
+      <button class="companion-dialog__close" bindtap="closeInviteDialog" aria-label="关闭">
+        <t-icon name="close" size="32rpx" color="#434654" />
+      </button>
+    </view>
+    <view class="companion-dialog__source">{{inviteSourceTitle}}</view>
+
+    <view class="invite-modes">
+      <button
+        class="invite-mode {{inviteMode === 'blank' ? 'invite-mode--active' : ''}}"
+        data-mode="blank"
+        bindtap="selectInviteMode"
+      >
+        <view class="radio {{inviteMode === 'blank' ? 'radio--active' : ''}}"></view>
+        <view class="invite-mode__body">
+          <view class="invite-mode__name">分享空白表单</view>
+          <view class="invite-mode__desc">被邀请人从空白开始填写</view>
+        </view>
+      </button>
+      <button
+        class="invite-mode {{inviteMode === 'content' ? 'invite-mode--active' : ''}}"
+        data-mode="content"
+        bindtap="selectInviteMode"
+      >
+        <view class="radio {{inviteMode === 'content' ? 'radio--active' : ''}}"></view>
+        <view class="invite-mode__body">
+          <view class="invite-mode__name">分享带内容表单</view>
+          <view class="invite-mode__desc">默认只分享非隐私内容，可自行勾选</view>
+        </view>
+      </button>
+    </view>
+
+    <block wx:if="{{inviteMode === 'content'}}">
+      <button class="companion-dialog__select-all" bindtap="toggleInviteAll">
+        <view class="select-box {{inviteAllSelected ? 'select-box--checked' : ''}}">
+          <t-icon wx:if="{{inviteAllSelected}}" name="check" size="24rpx" color="#ffffff" />
+        </view>
+        <text>全选分享内容</text>
+      </button>
+      <scroll-view class="companion-dialog__list" scroll-y>
+        <button
+          wx:for="{{inviteFields}}"
+          wx:key="name"
+          class="companion-field"
+          data-name="{{item.name}}"
+          bindtap="toggleInviteField"
+        >
+          <view class="select-box {{item.selected ? 'select-box--checked' : ''}}">
+            <t-icon wx:if="{{item.selected}}" name="check" size="24rpx" color="#ffffff" />
+          </view>
+          <text>{{item.title}}</text>
+        </button>
+      </scroll-view>
+    </block>
+
+    <view class="companion-dialog__actions">
+      <button class="companion-dialog__cancel" bindtap="closeInviteDialog">取消</button>
+      <button
+        wx:if="{{invitePath}}"
+        class="companion-dialog__confirm"
+        open-type="share"
+      >分享给好友</button>
+      <button
+        wx:else
+        class="companion-dialog__confirm"
+        loading="{{inviteCreating}}"
+        disabled="{{inviteCreating || (inviteMode === 'content' && inviteSelectedCount === 0)}}"
+        bindtap="confirmInvite"
+      >生成邀请</button>
     </view>
   </view>
 </view>

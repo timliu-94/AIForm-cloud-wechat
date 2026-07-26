@@ -2,7 +2,6 @@ const {
   continents,
   visaCatalog,
 } = require('../../utils/visaData');
-const { firstLaunchNotice } = require('../../config/firstLaunchNotice');
 const { listCountryFormVersions, openCloudPdf } = require('../../utils/countryFormCatalog');
 
 const HOT_FILTER = '热门';
@@ -71,8 +70,6 @@ Page({
     selectedDistrict: null,
     selectedVersion: null,
     selectedVersionId: '',
-    firstLaunchNotice,
-    showFirstLaunchNotice: false,
     catalogLoading: false,
     catalogError: '',
   },
@@ -81,9 +78,6 @@ Page({
     this.runtimeVisaCatalog = visaCatalog;
     this.refreshCountries();
     this.loadCountryFormCatalog();
-    this.setData({
-      showFirstLaunchNotice: !wx.getStorageSync(firstLaunchNotice.storageKey),
-    });
   },
 
   onPullDownRefresh() {
@@ -105,13 +99,6 @@ Page({
           catalogError: err.message || String(err),
         });
       });
-  },
-
-  noop() {},
-
-  acknowledgeFirstLaunchNotice() {
-    wx.setStorageSync(firstLaunchNotice.storageKey, true);
-    this.setData({ showFirstLaunchNotice: false });
   },
 
   onSearch(e) {

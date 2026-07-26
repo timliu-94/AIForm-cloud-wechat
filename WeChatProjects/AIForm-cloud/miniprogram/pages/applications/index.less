@@ -584,6 +584,67 @@
   }
 }
 
+.radio {
+  flex: none;
+  width: 36rpx;
+  height: 36rpx;
+  border: 3rpx solid @outline-variant;
+  border-radius: 999rpx;
+  background: @surface-lowest;
+  box-sizing: border-box;
+}
+
+.radio--active {
+  border: 10rpx solid @primary-container;
+}
+
+.invite-modes {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+  margin: 0 28rpx 12rpx;
+}
+
+.invite-mode {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin: 0;
+  padding: 20rpx 22rpx;
+  border: 1rpx solid @outline-variant;
+  border-radius: 16rpx;
+  background: @surface-lowest;
+  text-align: left;
+
+  &::after {
+    border: 0;
+  }
+
+  &--active {
+    border-color: @primary-container;
+    background: fade(@primary-fixed, 40%);
+  }
+
+  &__body {
+    min-width: 0;
+    flex: 1;
+  }
+
+  &__name {
+    color: @text;
+    font-size: 28rpx;
+    font-weight: 600;
+    line-height: 38rpx;
+  }
+
+  &__desc {
+    margin-top: 4rpx;
+    color: @muted;
+    font-size: 22rpx;
+    line-height: 30rpx;
+  }
+}
+
 /* Design refresh: consistent surfaces, cards, and controls. */
 .applications {
   background: @surface;
