@@ -4,6 +4,8 @@ const { findTemplate, visaCatalog } = require('../../utils/visaData');
 const { loadForm } = require('../../utils/italyForm');
 const { exportApplicationPdf, getPdfExportErrorMessage, getPdfExportErrorTitle } = require('../../utils/pdfExport');
 const { createInvite } = require('../../utils/invite');
+const { shareFillNotice } = require('../../config/shareFillNotice');
+const { companionCreateNotice } = require('../../config/companionCreateNotice');
 
 function padTime(value) {
   return String(value).padStart(2, '0');
@@ -126,16 +128,24 @@ Page({
     companionFields: [],
     companionSelectedCount: 0,
     companionAllSelected: false,
+    companionCreateNotice,
+    companionNoticeVisible: false,
+    companionDontRemind: false,
+    pendingCompanionIndex: -1,
     inviteDialogVisible: false,
     inviteSourceId: '',
     inviteSourceTitle: '',
-    inviteMode: 'content',
+    inviteMode: '',
     inviteFields: [],
     inviteSelectedCount: 0,
     inviteAllSelected: false,
     inviteCreating: false,
     invitePath: '',
     inviteShareTitle: '',
+    shareFillNotice,
+    shareFillNoticeVisible: false,
+    shareFillDontRemind: false,
+    pendingShareIndex: -1,
   },
 
   onShow() {
@@ -163,7 +173,39 @@ Page({
   },
 
   copyForCompanion(e) {
-    const source = this.data.applications[Number(e.currentTarget.dataset.index)];
+    const index = Number(e.currentTarget.dataset.index);
+    if (!this.data.applications[index]) return;
+    // 首次使用「为同行人创建」先弹出功能说明，用户勾选「不再提示」后不再弹出。
+    if (!wx.getStorageSync(companionCreateNotice.storageKey)) {
+      this.setData({
+        companionNoticeVisible: true,
+        companionDontRemind: false,
+        pendingCompanionIndex: index,
+      });
+      return;
+    }
+    this.openCompanionDialog(index);
+  },
+
+  // 取消：仅关闭说明弹窗，不进入复制设置。
+  cancelCompanionNotice() {
+    this.setData({ companionNoticeVisible: false, pendingCompanionIndex: -1 });
+  },
+
+  toggleCompanionRemind() {
+    this.setData({ companionDontRemind: !this.data.companionDontRemind });
+  },
+
+  // 确认：勾选「不再提示」则记住，随后进入复制设置。
+  confirmCompanionNotice() {
+    if (this.data.companionDontRemind) wx.setStorageSync(companionCreateNotice.storageKey, true);
+    const index = this.data.pendingCompanionIndex;
+    this.setData({ companionNoticeVisible: false, pendingCompanionIndex: -1 });
+    if (index >= 0) this.openCompanionDialog(index);
+  },
+
+  openCompanionDialog(index) {
+    const source = this.data.applications[index];
     if (!source) return;
     wx.showLoading({ title: '表单加载中', mask: true });
     loadForm(source.templateId, source.templateVersion)
@@ -267,8 +309,40 @@ Page({
     wx.showToast({ title: '已创建副本', icon: 'success' });
   },
 
-  openInviteDialog(e) {
-    const source = this.data.applications[Number(e.currentTarget.dataset.index)];
+  openShareFill(e) {
+    const index = Number(e.currentTarget.dataset.index);
+    if (!this.data.applications[index]) return;
+    // 首次使用「分享填写」先弹出功能说明，用户勾选「不再提示」后不再弹出。
+    if (!wx.getStorageSync(shareFillNotice.storageKey)) {
+      this.setData({
+        shareFillNoticeVisible: true,
+        shareFillDontRemind: false,
+        pendingShareIndex: index,
+      });
+      return;
+    }
+    this.openInviteDialog(index);
+  },
+
+  // 取消：仅关闭说明弹窗，不进入分享设置。
+  cancelShareFillNotice() {
+    this.setData({ shareFillNoticeVisible: false, pendingShareIndex: -1 });
+  },
+
+  toggleShareFillRemind() {
+    this.setData({ shareFillDontRemind: !this.data.shareFillDontRemind });
+  },
+
+  // 确认：勾选「不再提示」则记住，随后进入分享设置。
+  confirmShareFillNotice() {
+    if (this.data.shareFillDontRemind) wx.setStorageSync(shareFillNotice.storageKey, true);
+    const index = this.data.pendingShareIndex;
+    this.setData({ shareFillNoticeVisible: false, pendingShareIndex: -1 });
+    if (index >= 0) this.openInviteDialog(index);
+  },
+
+  openInviteDialog(index) {
+    const source = this.data.applications[index];
     if (!source) return;
     wx.showLoading({ title: '表单加载中', mask: true });
     loadForm(source.templateId, source.templateVersion)
@@ -279,7 +353,7 @@ Page({
           inviteDialogVisible: true,
           inviteSourceId: source.id,
           inviteSourceTitle: source.title || '',
-          inviteMode: 'content',
+          inviteMode: '',
           inviteFields,
           inviteSelectedCount,
           inviteAllSelected: inviteFields.length > 0 && inviteSelectedCount === inviteFields.length,
@@ -303,10 +377,12 @@ Page({
   },
 
   closeInviteDialog() {
+    this._invitePrepareToken = (this._invitePrepareToken || 0) + 1;
     this.setData({
       inviteDialogVisible: false,
       inviteSourceId: '',
       inviteSourceTitle: '',
+      inviteMode: '',
       inviteFields: [],
       inviteSelectedCount: 0,
       inviteAllSelected: false,
@@ -318,8 +394,16 @@ Page({
 
   selectInviteMode(e) {
     const { mode } = e.currentTarget.dataset;
-    // 切换模式即视为重新配置，清空已生成的分享链接。
-    this.setData({ inviteMode: mode === 'blank' ? 'blank' : 'content', invitePath: '' });
+    const inviteMode = mode === 'blank' ? 'blank' : 'content';
+    if (inviteMode === this.data.inviteMode) return;
+    // 配置阶段只更新本地状态；用户点击「确认」前不创建分享邀请。
+    this._invitePrepareToken = (this._invitePrepareToken || 0) + 1;
+    this.setData({
+      inviteMode,
+      inviteCreating: false,
+      invitePath: '',
+      inviteShareTitle: '',
+    });
   },
 
   toggleInviteField(e) {
@@ -338,29 +422,27 @@ Page({
 
   updateInviteSelection(inviteFields) {
     const inviteSelectedCount = inviteFields.filter((field) => field.selected).length;
+    // 内容变化后使已生成或正在生成的邀请失效，等待用户再次确认。
+    this._invitePrepareToken = (this._invitePrepareToken || 0) + 1;
     this.setData({
       inviteFields,
       inviteSelectedCount,
       inviteAllSelected: inviteFields.length > 0 && inviteSelectedCount === inviteFields.length,
-      // 内容变动使旧链接失效，需重新生成。
+      inviteCreating: false,
       invitePath: '',
+      inviteShareTitle: '',
     });
   },
 
-  confirmInvite() {
+  buildInvitePayload() {
     const source = this.data.allApplications.find((item) => item.id === this.data.inviteSourceId);
-    if (!source) {
-      this.closeInviteDialog();
-      return;
-    }
+    if (!source) return null;
+    if (this.data.inviteMode !== 'blank' && this.data.inviteMode !== 'content') return null;
     const mode = this.data.inviteMode === 'blank' ? 'blank' : 'content';
     const values = {};
     if (mode === 'content') {
       const selectedBlocks = this.data.inviteFields.filter((field) => field.selected);
-      if (!selectedBlocks.length) {
-        wx.showToast({ title: '请至少选择一项', icon: 'none' });
-        return;
-      }
+      if (!selectedBlocks.length) return null;
       selectedBlocks.forEach((block) => {
         (block.fieldNames || []).forEach((fieldName) => {
           const value = (source.values || {})[fieldName];
@@ -368,31 +450,55 @@ Page({
         });
       });
     }
-
-    this.setData({ inviteCreating: true });
-    createInvite({
-      templateId: source.templateId,
-      templateVersion: source.templateVersion,
+    return {
+      source,
       mode,
       values,
+    };
+  },
+
+  prepareInviteShare() {
+    const payload = this.buildInvitePayload();
+    if (!payload) {
+      this._invitePrepareToken = (this._invitePrepareToken || 0) + 1;
+      this.setData({ inviteCreating: false, invitePath: '' });
+      return Promise.resolve('');
+    }
+
+    const token = (this._invitePrepareToken || 0) + 1;
+    this._invitePrepareToken = token;
+    this.setData({ inviteCreating: true });
+    return createInvite({
+      templateId: payload.source.templateId,
+      templateVersion: payload.source.templateVersion,
+      mode: payload.mode,
+      values: payload.values,
     })
       .then((inviteId) => {
+        if (token !== this._invitePrepareToken || !this.data.inviteDialogVisible) return;
         this.setData({
           inviteCreating: false,
           invitePath: `/pages/visa-form/index?inviteId=${inviteId}`,
-          inviteShareTitle: source.title ? `请帮我填写：${source.title}` : '请帮我填写签证申请表',
+          inviteShareTitle: payload.source.title
+            ? `请帮我填写：${payload.source.title}`
+            : '请帮我填写签证申请表',
         });
-        wx.showToast({ title: '邀请已生成', icon: 'success' });
       })
       .catch((err) => {
+        if (token !== this._invitePrepareToken || !this.data.inviteDialogVisible) return;
         console.error('Create invite failed:', err);
-        this.setData({ inviteCreating: false });
+        this.setData({ inviteCreating: false, invitePath: '' });
         wx.showModal({
-          title: err.code === 'FUNCTION_NOT_FOUND' ? '请先部署云函数' : '生成邀请失败',
+          title: err.code === 'FUNCTION_NOT_FOUND' ? '请先部署云函数' : '生成分享失败',
           content: err.message || String(err),
           showCancel: false,
         });
       });
+  },
+
+  // 只有用户主动确认后才创建分享邀请。
+  confirmInvite() {
+    return this.prepareInviteShare();
   },
 
   onShareAppMessage() {

@@ -65,6 +65,16 @@ function elapsed(start) {
   return `${Date.now() - start}ms`;
 }
 
+function moveLastPageToFront(pdfDoc) {
+  const pageCount = pdfDoc.getPageCount();
+  if (pageCount < 2) return false;
+
+  const lastPage = pdfDoc.getPage(pageCount - 1);
+  pdfDoc.removePage(pageCount - 1);
+  pdfDoc.insertPage(0, lastPage);
+  return true;
+}
+
 async function fillPdfAcroForm(event) {
   const startedAt = Date.now();
   const wxContext = cloud.getWXContext();
@@ -155,6 +165,10 @@ async function fillPdfAcroForm(event) {
     markNeedAppearances(form);
   }
 
+  const pageOrderAdjusted = options.a3PrintOrder === true
+    ? moveLastPageToFront(pdfDoc)
+    : false;
+
   const saveStartedAt = Date.now();
   const pdfBytes = await pdfDoc.save({
     updateFieldAppearances: options.updateAppearances === true,
@@ -175,6 +189,7 @@ async function fillPdfAcroForm(event) {
     templateId,
     pdfBytes: pdfBytes.length,
     cloudPath,
+    pageOrderAdjusted,
     timing: {
       save: elapsed(saveStartedAt),
       upload: elapsed(uploadStartedAt),
@@ -186,6 +201,7 @@ async function fillPdfAcroForm(event) {
     success: true,
     fileID: upload.fileID,
     cloudPath,
+    pageOrderAdjusted,
     filledFields,
     missingFields,
     failedFields,

@@ -1,3 +1,16 @@
+function confirmA3PrintOrder() {
+  return new Promise((resolve) => {
+    wx.showModal({
+      title: 'A3 打印顺序',
+      content: '是否把 PDF 调整成 A3 打印顺序？',
+      confirmText: '是',
+      cancelText: '否',
+      success: (res) => resolve(Boolean(res.confirm)),
+      fail: () => resolve(false),
+    });
+  });
+}
+
 function exportApplicationPdf(application, title) {
   if (!application) {
     return Promise.reject(new Error('Application is required'));
@@ -6,28 +19,31 @@ function exportApplicationPdf(application, title) {
     return Promise.reject(new Error('Cloud is unavailable'));
   }
 
-  wx.showLoading({
-    title: '生成中',
-    mask: true,
-  });
+  return confirmA3PrintOrder().then((a3PrintOrder) => {
+    wx.showLoading({
+      title: '生成中',
+      mask: true,
+    });
 
-  return wx.cloud.callFunction({
-    name: 'picture_acroforms_merge_function',
-    data: {
-      type: 'fillPdfAcroForm',
-      templateId: application.templateId || 'italy',
-      templateAsset: application.templateVersion ? {
-        country: application.templateVersion.country,
-        versionDir: application.templateVersion.versionDir,
-        pdfFilename: application.templateVersion.pdfFilename,
-      } : null,
-      title,
-      values: application.values || {},
-      options: {
-        flatten: false,
-        updateAppearances: false,
+    return wx.cloud.callFunction({
+      name: 'picture_acroforms_merge_function',
+      data: {
+        type: 'fillPdfAcroForm',
+        templateId: application.templateId || 'italy',
+        templateAsset: application.templateVersion ? {
+          country: application.templateVersion.country,
+          versionDir: application.templateVersion.versionDir,
+          pdfFilename: application.templateVersion.pdfFilename,
+        } : null,
+        title,
+        values: application.values || {},
+        options: {
+          flatten: false,
+          updateAppearances: false,
+          a3PrintOrder,
+        },
       },
-    },
+    });
   }).then((res) => {
     const result = res.result || {};
     if (!result.success || !result.fileID) {

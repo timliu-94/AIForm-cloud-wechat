@@ -29,6 +29,17 @@ function countryFormAsset(country, versionDir, assetDir, filename) {
   ].map(normalizeCloudPath).filter(Boolean).join('/'));
 }
 
+// 依据版本目录约定推导 AcroForm schema 的云路径：
+//   country_forms/<country>/<versionDir>/outputs/<pdfBaseName>.parsed.simple.json
+// 与云函数 catalog/countryFormCatalog.js 的命名保持一致，用于版本对象缺失
+// acroformSchema 字段时的兜底（不同版本文件夹即不同表格版本）。
+function countryFormSchemaAsset(country, versionDir, pdfFilename) {
+  if (!country || !versionDir || !pdfFilename) return '';
+  const baseName = String(pdfFilename).replace(/\.pdf$/i, '');
+  if (!baseName) return '';
+  return countryFormAsset(country, versionDir, 'outputs', `${baseName}.parsed.simple.json`);
+}
+
 function isCloudFileID(fileID) {
   return typeof fileID === 'string' && fileID.indexOf('cloud://') === 0;
 }
@@ -123,6 +134,7 @@ module.exports = {
   countryFlagFile,
   countryFormAsset,
   countryFormFile,
+  countryFormSchemaAsset,
   downloadCloudJSON,
   getTempFileURLs,
   isCloudFileID,

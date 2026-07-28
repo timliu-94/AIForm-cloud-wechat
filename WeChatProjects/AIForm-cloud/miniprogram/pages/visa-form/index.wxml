@@ -29,6 +29,7 @@
         class="preview-mover"
         direction="all"
         scale
+        animation="{{false}}"
         scale-min="1"
         scale-max="3"
         scale-value="{{previewScale}}"
@@ -36,6 +37,7 @@
         y="{{previewY}}"
         bindchange="onPreviewMove"
         bindscale="onPreviewScale"
+        bindtap="onPreviewTap"
         style="width:{{previewCanvasWidth}}px;height:{{previewCanvasHeight}}px;"
       >
         <view class="pdf-canvas">
@@ -54,6 +56,7 @@
         </view>
       </movable-view>
     </movable-area>
+    <view class="preview-gesture-hint">双指缩放 · 双击切换</view>
   </view>
 
   <scroll-view

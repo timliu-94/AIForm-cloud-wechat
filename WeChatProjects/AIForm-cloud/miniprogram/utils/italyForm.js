@@ -3,7 +3,7 @@
 // 小程序表单/预览所需的视图模型。核心约束：按 JSON 叶子节点顺序展示，每个叶子
 // 是一个不可分割的文字块，里面的若干 acroforms 以「包含」关系嵌套在该文字块下。
 const { getPreviewImage, getTemplateAsset, loadTemplateSchema } = require('../config/countryConfig');
-const { downloadCloudJSON } = require('./cloudAssets');
+const { countryFormSchemaAsset, downloadCloudJSON } = require('./cloudAssets');
 const { findCachedCountryFormVersion } = require('./countryFormCatalog');
 
 const TEMPLATE_ID = 'it-schengen-tourism-shanghai-demo';
@@ -203,10 +203,22 @@ function buildForm(schema, templateId = TEMPLATE_ID, versionOverride) {
   };
 }
 
+// 解析版本对应的 AcroForm schema 云路径：优先用版本自带的 acroformSchema；
+// 缺失时按版本目录约定（country/versionDir/pdfFilename）推导，兼容不同版本文件夹。
+function resolveSchemaFileID(templateVersion) {
+  if (templateVersion.acroformSchema) return templateVersion.acroformSchema;
+  return countryFormSchemaAsset(
+    templateVersion.country,
+    templateVersion.versionDir,
+    templateVersion.pdfFilename || templateVersion.editableFilename,
+  );
+}
+
 function loadForm(templateId = TEMPLATE_ID, versionOverride) {
   const templateVersion = normalizeTemplateVersion(templateId, versionOverride);
-  const schemaPromise = templateVersion.acroformSchema
-    ? downloadCloudJSON(templateVersion.acroformSchema)
+  const schemaFileID = resolveSchemaFileID(templateVersion);
+  const schemaPromise = schemaFileID
+    ? downloadCloudJSON(schemaFileID)
     : loadTemplateSchema(templateId);
   return schemaPromise.then((schema) => buildForm(schema, templateId, templateVersion));
 }

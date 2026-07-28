@@ -7,6 +7,10 @@ const { firstLaunchNotice } = require('../../config/firstLaunchNotice');
 const APPLICATIONS_KEY = 'visa_applications';
 const PREVIEW_PANE_RPX = 760; // 顶部预览区高度
 const PREVIEW_MIN_SCALE = 1;
+const PREVIEW_PADDING_RPX = 24;
+const PREVIEW_DOUBLE_TAP_SCALE = 2;
+const PREVIEW_DOUBLE_TAP_MS = 320;
+const PREVIEW_DOUBLE_TAP_DISTANCE_RPX = 64;
 const DATE_START_YEAR = 1900;
 const DATE_END_YEAR = 2100;
 
@@ -171,6 +175,7 @@ Page({
 
   onUnload() {
     this._pageActive = false;
+    if (this._previewScaleTimer) clearTimeout(this._previewScaleTimer);
   },
 
   initializeForm(options, form) {
@@ -193,12 +198,13 @@ Page({
     }
     this.normalizeDateValues(form, values);
 
-    // 预览区几何换算需要的像素尺寸（用窗口宽度，按 A4 比例算出整页图高度）。
+    // 预览区默认按 contain 方式展示整页，放大后再由用户拖拽查看细节。
     const info = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
     const rpxToPx = info.windowWidth / 750;
-    this.canvasWidthPx = info.windowWidth;
-    this.imageHeightPx = this.canvasWidthPx * (form.pages[0].height / form.pages[0].width);
+    this.previewAreaWidthPx = info.windowWidth;
     this.paneHeightPx = PREVIEW_PANE_RPX * rpxToPx;
+    this.previewPaddingPx = PREVIEW_PADDING_RPX * rpxToPx;
+    this.previewDoubleTapDistancePx = PREVIEW_DOUBLE_TAP_DISTANCE_RPX * rpxToPx;
     this._previewScale = PREVIEW_MIN_SCALE;
 
     this.form = form;
@@ -213,6 +219,7 @@ Page({
       .then((pages) => {
         if (!this._pageActive) return;
         const firstPage = pages[0];
+        const geometry = this.getPreviewGeometry(firstPage);
         this.setData({
           title: form.title,
           country: form.country,
@@ -223,8 +230,10 @@ Page({
           activeFormLeaves: this.filterFormLeaves(firstPage.leaves),
           previewImage: firstPage.previewImage,
           previewFields: this.buildPreviewFields(firstPage.leaves, values, ''),
-          previewCanvasWidth: this.canvasWidthPx,
-          previewCanvasHeight: this.imageHeightPx,
+          previewCanvasWidth: geometry.width,
+          previewCanvasHeight: geometry.height,
+          previewX: geometry.x,
+          previewY: geometry.y,
           values,
           ...this.buildDatePickerData(values),
           phoneInputValues: this.buildPhoneInputValues(values),
@@ -246,17 +255,74 @@ Page({
     console.log('Preview image loaded:', this.data.previewImage);
   },
 
+  getPreviewGeometry(page) {
+    const pageWidth = Number(page && page.width) || 595;
+    const pageHeight = Number(page && page.height) || 842;
+    const availableWidth = Math.max(1, this.previewAreaWidthPx - this.previewPaddingPx * 2);
+    const availableHeight = Math.max(1, this.paneHeightPx - this.previewPaddingPx * 2);
+    const fitScale = Math.min(availableWidth / pageWidth, availableHeight / pageHeight);
+    const width = pageWidth * fitScale;
+    const height = pageHeight * fitScale;
+    return {
+      width,
+      height,
+      x: (this.previewAreaWidthPx - width) / 2,
+      y: (this.paneHeightPx - height) / 2,
+    };
+  },
+
   onPreviewMove(e) {
-    const { x = 0, y = 0 } = e.detail || {};
+    const { x = 0, y = 0, source = '' } = e.detail || {};
+    // setData 触发的聚焦动画也会持续派发 change。此时若把动画中间值写回，
+    // 会打断下一次受控位移；只记录用户拖拽/惯性产生的位置。
+    if (!source) return;
     this.setData({ previewX: x, previewY: y });
   },
 
   onPreviewScale(e) {
     const scale = e.detail && e.detail.scale ? e.detail.scale : PREVIEW_MIN_SCALE;
     this._previewScale = scale;
-    if (Math.abs(scale - this.data.previewScale) > 0.01) {
-      this.setData({ previewScale: scale });
+    // 双指缩放期间不逐帧 setData，避免受控属性反复渲染拖慢手势；
+    // 手指停止后再同步一次最终比例，供双击切换继续使用。
+    if (this._previewScaleTimer) clearTimeout(this._previewScaleTimer);
+    this._previewScaleTimer = setTimeout(() => {
+      this._previewScaleTimer = null;
+      if (!this._pageActive) return;
+      if (Math.abs(scale - this.data.previewScale) > 0.01) {
+        this.setData({ previewScale: scale });
+      }
+    }, 120);
+  },
+
+  onPreviewTap(e) {
+    const touch = (e.changedTouches && e.changedTouches[0]) || {};
+    const point = {
+      time: Date.now(),
+      x: Number(touch.clientX) || 0,
+      y: Number(touch.clientY) || 0,
+    };
+    const previous = this._lastPreviewTap;
+    this._lastPreviewTap = point;
+    if (!previous || point.time - previous.time > PREVIEW_DOUBLE_TAP_MS) return;
+
+    const distance = Math.hypot(point.x - previous.x, point.y - previous.y);
+    if (distance > this.previewDoubleTapDistancePx) return;
+
+    this._lastPreviewTap = null;
+    if (this._previewScaleTimer) {
+      clearTimeout(this._previewScaleTimer);
+      this._previewScaleTimer = null;
     }
+    const isZoomed = (this._previewScale || this.data.previewScale) > PREVIEW_MIN_SCALE + 0.05;
+    const scale = isZoomed ? PREVIEW_MIN_SCALE : PREVIEW_DOUBLE_TAP_SCALE;
+    const width = this.data.previewCanvasWidth;
+    const height = this.data.previewCanvasHeight;
+    this._previewScale = scale;
+    this.setData({
+      previewScale: scale,
+      previewX: (this.previewAreaWidthPx - width * scale) / 2,
+      previewY: (this.paneHeightPx - height * scale) / 2,
+    });
   },
 
   filterFormLeaves(leaves) {
@@ -322,6 +388,11 @@ Page({
   goToPage(page) {
     const target = this.data.pages.find((p) => p.page === page);
     if (!target) return;
+    if (this._previewScaleTimer) {
+      clearTimeout(this._previewScaleTimer);
+      this._previewScaleTimer = null;
+    }
+    const geometry = this.getPreviewGeometry(target);
     // 优先定位到首个需线上录入的叶子节点；若整页只有手写块，则退回到首个手写块，
     // 使其红框照常高亮联动。
     const firstLeaf = target.leaves.find((leaf) => leaf.needInput && leaf.fields && leaf.fields.length)
@@ -336,9 +407,11 @@ Page({
       previewFields: this.buildPreviewFields(target.leaves, this.data.values, firstField ? firstField.name : ''),
       activeFieldName: firstField ? firstField.name : '',
       activeFieldLabel: firstField ? firstField.label : '',
+      previewCanvasWidth: geometry.width,
+      previewCanvasHeight: geometry.height,
       previewScale: PREVIEW_MIN_SCALE,
-      previewX: 0,
-      previewY: 0,
+      previewX: geometry.x,
+      previewY: geometry.y,
       formScrollIntoView: '',
       hasNextPage: this.hasNextPage(page),
     });
@@ -492,26 +565,32 @@ Page({
     }
   },
 
-  // 高亮某字段：更新红框 + 把顶部预览移动到该字段处。
+  // 高亮对应字段；预览位置完全交给用户通过拖拽、双指或双击控制。
   setActiveField(name, fromForm) {
     const field = this.findField(name);
     if (!field) return;
-    const center = (field.pCenterY / 100) * this.imageHeightPx;
-    const scale = this._previewScale || this.data.previewScale || PREVIEW_MIN_SCALE;
-    const minY = Math.min(0, this.paneHeightPx - this.imageHeightPx * scale);
-    const previewY = Math.min(0, Math.max(minY, this.paneHeightPx / 2 - center * scale));
+    const target = this.data.activePage === field.page
+      ? null
+      : this.data.pages.find((p) => p.page === field.page);
+    const activeLeaves = target ? target.leaves : this.data.activeLeaves;
     const patch = {
       activeFieldName: name,
       activeFieldLabel: field.label,
-      previewY,
-      previewFields: this.buildPreviewFields(this.data.activeLeaves, this.data.values, name),
+      previewFields: this.buildPreviewFields(activeLeaves, this.data.values, name),
     };
-    if (this.data.activePage !== field.page) {
-      const target = this.data.pages.find((p) => p.page === field.page);
+    if (target) {
+      const geometry = this.getPreviewGeometry(target);
       patch.activePage = field.page;
       patch.activeLeaves = target.leaves;
       patch.activeFormLeaves = this.filterFormLeaves(target.leaves);
       patch.previewImage = target.previewImage;
+      patch.hasNextPage = this.hasNextPage(field.page);
+      patch.previewCanvasWidth = geometry.width;
+      patch.previewCanvasHeight = geometry.height;
+      patch.previewScale = PREVIEW_MIN_SCALE;
+      patch.previewX = geometry.x;
+      patch.previewY = geometry.y;
+      this._previewScale = PREVIEW_MIN_SCALE;
     }
     this.setData(patch);
   },

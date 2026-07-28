@@ -2,6 +2,7 @@ const {
   countryFlagFile,
   countryFormAsset,
   countryFormFile,
+  countryFormSchemaAsset,
   downloadCloudJSON,
 } = require('../utils/cloudAssets');
 const { findCachedCountryFormVersion } = require('../utils/countryFormCatalog');
@@ -10,6 +11,12 @@ const ITALY_COUNTRY_DIR = 'Italy';
 const ITALY_VERSION_DIR = '上海_申根签证申请表（90天以内）';
 const ITALY_PDF_FILENAME = '上海_申根签证申请表（90天以内）.pdf';
 const ITALY_SCHEMA_FILENAME = '上海_申根签证申请表（90天以内）.parsed.simple.json';
+
+// 历史遗留的模板 ID（早期记录里 templateId 存成了国家名），统一映射到当前的示范模板，
+// 避免旧「我的表格」记录在分享填写 / 导出时因找不到模板而报「未配置 AcroForm JSON」。
+const LEGACY_TEMPLATE_ALIASES = {
+  italy: 'it-schengen-tourism-shanghai-demo',
+};
 
 const continents = ['欧洲', '亚洲', '北美洲', '南美洲', '非洲', '大洋洲'];
 
@@ -209,11 +216,16 @@ function getCountryConfig(countryId) {
   return countries.find((country) => country.id === countryId) || null;
 }
 
+function resolveTemplateId(templateId) {
+  return LEGACY_TEMPLATE_ALIASES[templateId] || templateId;
+}
+
 function getTemplateConfig(templateId) {
+  const resolvedId = resolveTemplateId(templateId);
   let result = null;
   countries.some((country) => (
     country.templates.some((template) => {
-      if (template.id === templateId) {
+      if (template.id === resolvedId) {
         result = { country, template };
         return true;
       }
@@ -223,13 +235,24 @@ function getTemplateConfig(templateId) {
   return result;
 }
 
+// 版本对象可能缺失 acroformSchema（例如仅存 PDF 元信息的旧缓存），此时按
+// country_forms/<country>/<versionDir>/outputs/<pdf>.parsed.simple.json 约定兜底推导。
+function dynamicAssetValue(dynamic, assetName) {
+  const direct = (dynamic.assets && dynamic.assets[assetName]) || dynamic[assetName] || '';
+  if (direct) return direct;
+  if (assetName === 'acroformSchema') {
+    return countryFormSchemaAsset(dynamic.country, dynamic.versionDir, dynamic.pdfFilename);
+  }
+  return '';
+}
+
 function getTemplateAsset(templateId, assetName) {
-  const matched = getTemplateConfig(templateId);
+  const resolvedId = resolveTemplateId(templateId);
+  const matched = getTemplateConfig(resolvedId);
   if (matched && matched.template.assets) return matched.template.assets[assetName];
-  const dynamic = findCachedCountryFormVersion(templateId);
+  const dynamic = findCachedCountryFormVersion(resolvedId);
   if (!dynamic) return '';
-  if (dynamic.assets && dynamic.assets[assetName]) return dynamic.assets[assetName];
-  return dynamic[assetName] || '';
+  return dynamicAssetValue(dynamic, assetName);
 }
 
 function getTemplateSchema(templateId) {

@@ -87,9 +87,9 @@
         <t-icon name="copy" size="30rpx" />
         <text>为同行人创建</text>
       </button>
-      <button data-index="{{index}}" bindtap="openInviteDialog">
-        <t-icon name="usergroup-add" size="30rpx" />
-        <text>邀请填写</text>
+      <button data-index="{{index}}" bindtap="openShareFill">
+        <t-icon name="share" size="30rpx" />
+        <text>分享填写</text>
       </button>
       <button data-index="{{index}}" bindtap="exportApplication">
         <t-icon name="download" size="30rpx" />
@@ -119,117 +119,350 @@
 </scroll-view>
 
 <view wx:if="{{companionDialogVisible}}" class="companion-dialog" catchtap="closeCompanionDialog">
-  <view class="companion-dialog__panel" catchtap="stopCompanionDialogTap">
-    <view class="companion-dialog__head">
-      <view class="companion-dialog__title">为同行人创建</view>
-      <button class="companion-dialog__close" bindtap="closeCompanionDialog" aria-label="关闭">
+  <view class="companion-dialog__panel tool-dialog" catchtap="stopCompanionDialogTap">
+    <view class="tool-dialog__head">
+      <view class="tool-dialog__identity">
+        <view class="tool-dialog__icon">
+          <t-icon name="copy" size="34rpx" color="#0052d9" />
+        </view>
+        <view class="tool-dialog__heading">
+          <view class="tool-dialog__eyebrow">同行人代填工具</view>
+          <view class="tool-dialog__title">为同行人创建</view>
+        </view>
+      </view>
+      <button class="tool-dialog__close" bindtap="closeCompanionDialog" aria-label="关闭">
         <t-icon name="close" size="32rpx" color="#434654" />
       </button>
     </view>
-    <view class="companion-dialog__source">{{companionSourceTitle}}</view>
-    <button class="companion-dialog__select-all" bindtap="toggleCompanionAll">
-      <view class="select-box {{companionAllSelected ? 'select-box--checked' : ''}}">
-        <t-icon wx:if="{{companionAllSelected}}" name="check" size="24rpx" color="#ffffff" />
-      </view>
-      <text>全选 PDF 文本块</text>
-    </button>
-    <scroll-view class="companion-dialog__list" scroll-y>
-      <button
-        wx:for="{{companionFields}}"
-        wx:key="name"
-        class="companion-field"
-        data-name="{{item.name}}"
-        bindtap="toggleCompanionField"
-      >
-        <view class="select-box {{item.selected ? 'select-box--checked' : ''}}">
-          <t-icon wx:if="{{item.selected}}" name="check" size="24rpx" color="#ffffff" />
+
+    <scroll-view class="tool-dialog__content" scroll-y enhanced show-scrollbar="{{false}}">
+      <view class="tool-purpose tool-purpose--companion">
+        <view class="tool-purpose__icon">
+          <t-icon name="usergroup-add" size="34rpx" color="#0052d9" />
         </view>
-        <text>{{item.title}}</text>
-      </button>
+        <view class="tool-purpose__body">
+          <view class="tool-purpose__title">复用签证信息，快速创建新表格</view>
+          <view class="tool-purpose__desc">适合你帮家人或朋友填写。新表格创建后，由你继续完善和管理。</view>
+        </view>
+      </view>
+
+      <view class="tool-source">
+        <view class="tool-source__icon">
+          <t-icon name="file" size="30rpx" color="#0052d9" />
+        </view>
+        <view class="tool-source__body">
+          <view class="tool-source__label">复用信息来源</view>
+          <view class="tool-source__title">{{companionSourceTitle}}</view>
+        </view>
+        <view class="tool-source__tag">当前表格</view>
+      </view>
+
+      <view class="tool-section">
+        <view class="tool-section__head">
+          <view class="tool-section__heading">
+            <view>
+              <view class="tool-section__title">选择要带入的内容</view>
+              <view class="tool-section__desc">已选 {{companionSelectedCount}} / {{companionFields.length}} 项</view>
+            </view>
+          </view>
+          <button class="tool-select-all" bindtap="toggleCompanionAll">
+            <view class="select-box {{companionAllSelected ? 'select-box--checked' : ''}}">
+              <t-icon wx:if="{{companionAllSelected}}" name="check" size="24rpx" color="#ffffff" />
+            </view>
+            <text>{{companionAllSelected ? '取消全选' : '全选'}}</text>
+          </button>
+        </view>
+
+        <view class="tool-tip">
+          <t-icon name="secured" size="27rpx" color="#737686" />
+          <text>系统默认带入适合同行人共用的信息，姓名、证件号码等个人信息需重新填写。</text>
+        </view>
+
+        <view class="tool-field-list">
+          <button
+            wx:for="{{companionFields}}"
+            wx:key="name"
+            class="tool-field {{item.selected ? 'tool-field--selected' : ''}}"
+            data-name="{{item.name}}"
+            bindtap="toggleCompanionField"
+          >
+            <view class="select-box {{item.selected ? 'select-box--checked' : ''}}">
+              <t-icon wx:if="{{item.selected}}" name="check" size="24rpx" color="#ffffff" />
+            </view>
+            <text>{{item.title}}</text>
+          </button>
+        </view>
+      </view>
     </scroll-view>
-    <view class="companion-dialog__actions">
-      <button class="companion-dialog__cancel" bindtap="closeCompanionDialog">取消</button>
+
+    <view class="tool-dialog__footer">
+      <view class="tool-dialog__result">
+        <view class="tool-dialog__result-label">新表格</view>
+        <view class="tool-dialog__result-text">创建后由你继续填写</view>
+      </view>
+      <button class="tool-dialog__secondary" bindtap="closeCompanionDialog">取消</button>
       <button
-        class="companion-dialog__confirm"
+        class="tool-dialog__primary"
         disabled="{{companionSelectedCount === 0}}"
         bindtap="createCompanionApplication"
-      >创建</button>
+      >创建新表格</button>
     </view>
   </view>
 </view>
 
-<view wx:if="{{inviteDialogVisible}}" class="companion-dialog" catchtap="closeInviteDialog">
-  <view class="companion-dialog__panel" catchtap="stopCompanionDialogTap">
-    <view class="companion-dialog__head">
-      <view class="companion-dialog__title">邀请他人填写</view>
-      <button class="companion-dialog__close" bindtap="closeInviteDialog" aria-label="关闭">
+<view
+  wx:if="{{inviteDialogVisible}}"
+  class="companion-dialog companion-dialog--invite"
+  catchtap="closeInviteDialog"
+>
+  <view
+    class="companion-dialog__panel companion-dialog__panel--invite tool-dialog"
+    catchtap="stopCompanionDialogTap"
+  >
+    <view class="tool-dialog__head">
+      <view class="tool-dialog__identity">
+        <view class="tool-dialog__icon">
+          <t-icon name="share" size="34rpx" color="#0052d9" />
+        </view>
+        <view class="tool-dialog__heading">
+          <view class="tool-dialog__eyebrow">邀请他人填写</view>
+          <view class="tool-dialog__title">分享填写</view>
+        </view>
+      </view>
+      <button class="tool-dialog__close" bindtap="closeInviteDialog" aria-label="关闭">
         <t-icon name="close" size="32rpx" color="#434654" />
       </button>
     </view>
-    <view class="companion-dialog__source">{{inviteSourceTitle}}</view>
 
-    <view class="invite-modes">
-      <button
-        class="invite-mode {{inviteMode === 'blank' ? 'invite-mode--active' : ''}}"
-        data-mode="blank"
-        bindtap="selectInviteMode"
-      >
-        <view class="radio {{inviteMode === 'blank' ? 'radio--active' : ''}}"></view>
-        <view class="invite-mode__body">
-          <view class="invite-mode__name">分享空白表单</view>
-          <view class="invite-mode__desc">被邀请人从空白开始填写</view>
+    <scroll-view
+      class="invite-dialog__content"
+      scroll-y
+      enhanced
+      show-scrollbar="{{false}}"
+    >
+      <view class="tool-purpose tool-purpose--share">
+        <view class="tool-purpose__icon">
+          <t-icon name="share" size="34rpx" color="#0052d9" />
         </view>
-      </button>
-      <button
-        class="invite-mode {{inviteMode === 'content' ? 'invite-mode--active' : ''}}"
-        data-mode="content"
-        bindtap="selectInviteMode"
-      >
-        <view class="radio {{inviteMode === 'content' ? 'radio--active' : ''}}"></view>
-        <view class="invite-mode__body">
-          <view class="invite-mode__name">分享带内容表单</view>
-          <view class="invite-mode__desc">默认只分享非隐私内容，可自行勾选</view>
+        <view class="tool-purpose__body">
+          <view class="tool-purpose__title">分享可复用信息，让对方自己填写</view>
+          <view class="tool-purpose__desc">你选择要分享的信息，对方收到后在自己的微信中继续完成签证表格。</view>
         </view>
-      </button>
-    </view>
+      </view>
 
-    <block wx:if="{{inviteMode === 'content'}}">
-      <button class="companion-dialog__select-all" bindtap="toggleInviteAll">
-        <view class="select-box {{inviteAllSelected ? 'select-box--checked' : ''}}">
-          <t-icon wx:if="{{inviteAllSelected}}" name="check" size="24rpx" color="#ffffff" />
+      <view class="tool-source">
+        <view class="tool-source__icon">
+          <t-icon name="file" size="30rpx" color="#0052d9" />
         </view>
-        <text>全选分享内容</text>
-      </button>
-      <scroll-view class="companion-dialog__list" scroll-y>
-        <button
-          wx:for="{{inviteFields}}"
-          wx:key="name"
-          class="companion-field"
-          data-name="{{item.name}}"
-          bindtap="toggleInviteField"
-        >
-          <view class="select-box {{item.selected ? 'select-box--checked' : ''}}">
-            <t-icon wx:if="{{item.selected}}" name="check" size="24rpx" color="#ffffff" />
+        <view class="tool-source__body">
+          <view class="tool-source__label">分享信息来源</view>
+          <view class="tool-source__title">{{inviteSourceTitle}}</view>
+        </view>
+        <view class="tool-source__tag">当前表格</view>
+      </view>
+
+      <view class="tool-section">
+        <view class="tool-section__heading">
+          <view class="tool-step">1</view>
+          <view>
+            <view class="tool-section__title">选择如何分享</view>
+            <view class="tool-section__desc">决定是否把已有信息分享给对方</view>
           </view>
-          <text>{{item.title}}</text>
-        </button>
-      </scroll-view>
-    </block>
+        </view>
+        <view class="invite-modes">
+          <button
+            class="invite-mode {{inviteMode === 'blank' ? 'invite-mode--active' : ''}}"
+            data-mode="blank"
+            bindtap="selectInviteMode"
+          >
+            <view class="invite-mode__icon">
+              <t-icon name="file" size="31rpx" color="{{inviteMode === 'blank' ? '#0052d9' : '#737686'}}" />
+            </view>
+            <view class="invite-mode__body">
+              <view class="invite-mode__name">不分享已有信息</view>
+              <view class="invite-mode__desc">对方从空白签证表格开始填写</view>
+            </view>
+            <view class="radio {{inviteMode === 'blank' ? 'radio--active' : ''}}"></view>
+          </button>
+          <button
+            class="invite-mode {{inviteMode === 'content' ? 'invite-mode--active' : ''}}"
+            data-mode="content"
+            bindtap="selectInviteMode"
+          >
+            <view class="invite-mode__icon">
+              <t-icon name="copy" size="31rpx" color="{{inviteMode === 'content' ? '#0052d9' : '#737686'}}" />
+            </view>
+            <view class="invite-mode__body">
+              <view class="invite-mode__name">分享可复用信息</view>
+              <view class="invite-mode__desc">对方收到所选信息后继续填写</view>
+            </view>
+            <view class="radio {{inviteMode === 'content' ? 'radio--active' : ''}}"></view>
+          </button>
+        </view>
+      </view>
 
-    <view class="companion-dialog__actions">
-      <button class="companion-dialog__cancel" bindtap="closeInviteDialog">取消</button>
+      <view wx:if="{{inviteMode === 'content'}}" class="tool-section tool-section--fields">
+        <view class="tool-section__head">
+          <view class="tool-section__heading">
+            <view class="tool-step">2</view>
+            <view>
+              <view class="tool-section__title">选择要分享的信息</view>
+              <view class="tool-section__desc">已选 {{inviteSelectedCount}} / {{inviteFields.length}} 项</view>
+            </view>
+          </view>
+          <button class="tool-select-all" bindtap="toggleInviteAll">
+            <view class="select-box {{inviteAllSelected ? 'select-box--checked' : ''}}">
+              <t-icon wx:if="{{inviteAllSelected}}" name="check" size="24rpx" color="#ffffff" />
+            </view>
+            <text>{{inviteAllSelected ? '取消全选' : '全选'}}</text>
+          </button>
+        </view>
+
+        <view class="tool-tip">
+          <t-icon name="secured" size="27rpx" color="#737686" />
+          <text>所选信息会发送给对方，请确认内容适合分享。</text>
+        </view>
+
+        <view wx:if="{{inviteFields.length > 0}}" class="tool-field-list">
+          <button
+            wx:for="{{inviteFields}}"
+            wx:key="name"
+            class="tool-field {{item.selected ? 'tool-field--selected' : ''}}"
+            data-name="{{item.name}}"
+            bindtap="toggleInviteField"
+          >
+            <view class="select-box {{item.selected ? 'select-box--checked' : ''}}">
+              <t-icon wx:if="{{item.selected}}" name="check" size="24rpx" color="#ffffff" />
+            </view>
+            <text>{{item.title}}</text>
+          </button>
+        </view>
+        <view wx:if="{{inviteFields.length === 0}}" class="tool-fields-empty">
+          当前表格没有可分享的内容项
+        </view>
+      </view>
+
+      <view wx:if="{{invitePath}}" class="invite-ready">
+        <t-icon name="check-circle" size="34rpx" color="#006c46" />
+        <view>
+          <view class="invite-ready__title">填写入口已就绪</view>
+          <view class="invite-ready__desc">下一步将打开微信好友选择面板</view>
+        </view>
+      </view>
+
+      <view class="invite-privacy">
+        <t-icon name="secured" size="28rpx" color="#737686" />
+        <text>对方会在自己的微信中填写；对方填写的新内容不会回传给你。</text>
+      </view>
+    </scroll-view>
+
+    <view class="tool-dialog__footer tool-dialog__footer--invite">
+      <view class="tool-dialog__result">
+        <view class="tool-dialog__result-label">{{invitePath ? '已生成' : '分享配置'}}</view>
+        <view class="tool-dialog__result-text" wx:if="{{invitePath}}">可发送给微信好友</view>
+        <view class="tool-dialog__result-text" wx:elif="{{inviteMode === 'blank'}}">对方从空白表格填写</view>
+        <view class="tool-dialog__result-text" wx:elif="{{inviteMode === 'content'}}">分享 {{inviteSelectedCount}} 项信息</view>
+        <view class="tool-dialog__result-text" wx:else>请选择一种分享方式</view>
+      </view>
+      <button class="tool-dialog__secondary" bindtap="closeInviteDialog">取消</button>
       <button
         wx:if="{{invitePath}}"
-        class="companion-dialog__confirm"
+        class="tool-dialog__primary"
         open-type="share"
-      >分享给好友</button>
+      >
+        <text>分享给好友</text>
+      </button>
       <button
         wx:else
-        class="companion-dialog__confirm"
+        class="tool-dialog__primary"
         loading="{{inviteCreating}}"
-        disabled="{{inviteCreating || (inviteMode === 'content' && inviteSelectedCount === 0)}}"
+        disabled="{{!inviteMode || inviteCreating || (inviteMode === 'content' && inviteSelectedCount === 0)}}"
         bindtap="confirmInvite"
-      >生成邀请</button>
+      >
+        <text>确认</text>
+      </button>
+    </view>
+  </view>
+</view>
+
+<view
+  wx:if="{{shareFillNoticeVisible}}"
+  class="share-notice"
+  catchtap="cancelShareFillNotice"
+>
+  <view class="share-notice__panel" catchtap="stopCompanionDialogTap">
+    <view class="share-notice__head">
+      <view class="share-notice__icon">
+        <t-icon name="share" size="36rpx" color="#0052d9" />
+      </view>
+      <view class="share-notice__heading">
+        <view class="share-notice__eyebrow">使用前说明</view>
+        <view class="share-notice__title">{{shareFillNotice.title}}</view>
+      </view>
+      <button class="share-notice__close" bindtap="cancelShareFillNotice" aria-label="关闭">
+        <t-icon name="close" size="30rpx" color="#434654" />
+      </button>
+    </view>
+    <scroll-view class="share-notice__body" scroll-y enhanced show-scrollbar="{{false}}">
+      <view
+        wx:for="{{shareFillNotice.paragraphs}}"
+        wx:key="*this"
+        class="share-notice__paragraph"
+      >
+        <view class="share-notice__number">{{index + 1}}</view>
+        <text>{{item}}</text>
+      </view>
+    </scroll-view>
+    <view class="share-notice__footer">
+      <button class="share-notice__remind" bindtap="toggleShareFillRemind">
+        <view class="select-box {{shareFillDontRemind ? 'select-box--checked' : ''}}">
+          <t-icon wx:if="{{shareFillDontRemind}}" name="check" size="24rpx" color="#ffffff" />
+        </view>
+        <text>{{shareFillNotice.remindText}}</text>
+      </button>
+      <view class="share-notice__actions">
+        <button class="share-notice__cancel" bindtap="cancelShareFillNotice">取消</button>
+        <button class="share-notice__confirm" bindtap="confirmShareFillNotice">{{shareFillNotice.confirmText}}</button>
+      </view>
+    </view>
+  </view>
+</view>
+
+<view wx:if="{{companionNoticeVisible}}" class="share-notice" catchtap="cancelCompanionNotice">
+  <view class="share-notice__panel" catchtap="stopCompanionDialogTap">
+    <view class="share-notice__head">
+      <view class="share-notice__icon">
+        <t-icon name="copy" size="36rpx" color="#0052d9" />
+      </view>
+      <view class="share-notice__heading">
+        <view class="share-notice__eyebrow">使用前说明</view>
+        <view class="share-notice__title">{{companionCreateNotice.title}}</view>
+      </view>
+      <button class="share-notice__close" bindtap="cancelCompanionNotice" aria-label="关闭">
+        <t-icon name="close" size="30rpx" color="#434654" />
+      </button>
+    </view>
+    <scroll-view class="share-notice__body" scroll-y enhanced show-scrollbar="{{false}}">
+      <view
+        wx:for="{{companionCreateNotice.paragraphs}}"
+        wx:key="*this"
+        class="share-notice__paragraph"
+      >
+        <view class="share-notice__number">{{index + 1}}</view>
+        <text>{{item}}</text>
+      </view>
+    </scroll-view>
+    <view class="share-notice__footer">
+      <button class="share-notice__remind" bindtap="toggleCompanionRemind">
+        <view class="select-box {{companionDontRemind ? 'select-box--checked' : ''}}">
+          <t-icon wx:if="{{companionDontRemind}}" name="check" size="24rpx" color="#ffffff" />
+        </view>
+        <text>{{companionCreateNotice.remindText}}</text>
+      </button>
+      <view class="share-notice__actions">
+        <button class="share-notice__cancel" bindtap="cancelCompanionNotice">取消</button>
+        <button class="share-notice__confirm" bindtap="confirmCompanionNotice">{{companionCreateNotice.confirmText}}</button>
+      </view>
     </view>
   </view>
 </view>
