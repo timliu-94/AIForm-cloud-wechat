@@ -1282,7 +1282,8 @@
     min-height: 116rpx;
     flex: none;
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    align-items: stretch;
     gap: 12rpx;
     padding: 18rpx 24rpx;
     border-top: 1rpx solid @surface-high;
@@ -1293,7 +1294,13 @@
 
   &__result {
     min-width: 0;
-    flex: 1;
+    width: 100%;
+  }
+
+  &__actions {
+    width: 100%;
+    display: flex;
+    gap: 12rpx;
   }
 
   &__result-label {
@@ -1315,7 +1322,8 @@
 
   &__secondary,
   &__primary {
-    flex: none;
+    min-width: 0;
+    flex: 1;
     height: 72rpx;
     margin: 0;
     padding: 0 22rpx;
@@ -1330,13 +1338,11 @@
   }
 
   &__secondary {
-    min-width: 104rpx;
     color: @text;
     background: @surface-low;
   }
 
   &__primary {
-    min-width: 176rpx;
     color: @surface-lowest;
     background: @primary;
     box-shadow: 0 4rpx 12rpx rgba(0, 82, 217, 0.18);
@@ -1352,8 +1358,8 @@
 .tool-dialog__footer--invite {
   .tool-dialog__secondary,
   .tool-dialog__primary {
-    width: 190rpx;
-    min-width: 190rpx;
+    width: auto;
+    min-width: 0;
     padding-right: 0;
     padding-left: 0;
     box-sizing: border-box;

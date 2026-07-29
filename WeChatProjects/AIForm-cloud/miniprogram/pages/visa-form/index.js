@@ -119,20 +119,32 @@ Page({
     splitHeight: 0,
     hasNextPage: false,
     showFirstLaunchNotice: false,
+    formReady: false,
   },
 
-  onLoad(options) {
+  onLoad(options = {}) {
     this._pageActive = true;
+    this._loadOptions = options;
     // 被邀请人经分享链接直达填写页：首次访问需先完成隐私条款确认。
     if (options.inviteId && !wx.getStorageSync(firstLaunchNotice.storageKey)) {
       this.setData({ showFirstLaunchNotice: true });
+      return;
     }
+    this.startFormLoad(options);
+  },
+
+  startFormLoad(options) {
+    if (this._formLoadStarted || !this._pageActive) return;
+    this._formLoadStarted = true;
     wx.showLoading({ title: '表单加载中', mask: true });
     this.resolveLoadContext(options)
       .then(({ templateId, templateVersion }) => (
         this._pageActive ? loadForm(templateId, templateVersion) : null
       ))
       .then((form) => (this._pageActive && form ? this.initializeForm(options, form) : null))
+      .then(() => {
+        if (this._pageActive && this.form) this.setData({ formReady: true });
+      })
       .catch((err) => {
         if (!this._pageActive) return;
         console.error('Load form resources failed:', err);
@@ -170,11 +182,14 @@ Page({
   },
 
   onFirstLaunchAcknowledge() {
-    this.setData({ showFirstLaunchNotice: false });
+    this.setData({ showFirstLaunchNotice: false }, () => {
+      this.startFormLoad(this._loadOptions || {});
+    });
   },
 
   onUnload() {
     this._pageActive = false;
+    this._loadOptions = null;
     if (this._previewScaleTimer) clearTimeout(this._previewScaleTimer);
   },
 

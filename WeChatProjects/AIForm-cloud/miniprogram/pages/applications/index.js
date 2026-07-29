@@ -7,6 +7,8 @@ const { createInvite } = require('../../utils/invite');
 const { shareFillNotice } = require('../../config/shareFillNotice');
 const { companionCreateNotice } = require('../../config/companionCreateNotice');
 
+const SHARE_FILL_COVER = '/static/share-fill-cover.jpg';
+
 function padTime(value) {
   return String(value).padStart(2, '0');
 }
@@ -140,8 +142,6 @@ Page({
     inviteSelectedCount: 0,
     inviteAllSelected: false,
     inviteCreating: false,
-    invitePath: '',
-    inviteShareTitle: '',
     shareFillNotice,
     shareFillNoticeVisible: false,
     shareFillDontRemind: false,
@@ -358,16 +358,19 @@ Page({
           inviteSelectedCount,
           inviteAllSelected: inviteFields.length > 0 && inviteSelectedCount === inviteFields.length,
           inviteCreating: false,
-          invitePath: '',
-          inviteShareTitle: '',
         });
       })
       .catch((err) => {
         console.error('Load invite form resources failed:', err);
+        const retryable = err && err.code === 'CLOUD_DOWNLOAD_INTERRUPTED';
         wx.showModal({
           title: '表单资源加载失败',
           content: err.message || String(err),
           showCancel: false,
+          confirmText: retryable ? '重试' : '知道了',
+          success: (res) => {
+            if (retryable && res.confirm) this.openInviteDialog(index);
+          },
         });
       })
       .then(
@@ -377,7 +380,6 @@ Page({
   },
 
   closeInviteDialog() {
-    this._invitePrepareToken = (this._invitePrepareToken || 0) + 1;
     this.setData({
       inviteDialogVisible: false,
       inviteSourceId: '',
@@ -387,8 +389,6 @@ Page({
       inviteSelectedCount: 0,
       inviteAllSelected: false,
       inviteCreating: false,
-      invitePath: '',
-      inviteShareTitle: '',
     });
   },
 
@@ -396,13 +396,9 @@ Page({
     const { mode } = e.currentTarget.dataset;
     const inviteMode = mode === 'blank' ? 'blank' : 'content';
     if (inviteMode === this.data.inviteMode) return;
-    // 配置阶段只更新本地状态；用户点击「确认」前不创建分享邀请。
-    this._invitePrepareToken = (this._invitePrepareToken || 0) + 1;
     this.setData({
       inviteMode,
       inviteCreating: false,
-      invitePath: '',
-      inviteShareTitle: '',
     });
   },
 
@@ -422,15 +418,11 @@ Page({
 
   updateInviteSelection(inviteFields) {
     const inviteSelectedCount = inviteFields.filter((field) => field.selected).length;
-    // 内容变化后使已生成或正在生成的邀请失效，等待用户再次确认。
-    this._invitePrepareToken = (this._invitePrepareToken || 0) + 1;
     this.setData({
       inviteFields,
       inviteSelectedCount,
       inviteAllSelected: inviteFields.length > 0 && inviteSelectedCount === inviteFields.length,
       inviteCreating: false,
-      invitePath: '',
-      inviteShareTitle: '',
     });
   },
 
@@ -457,16 +449,10 @@ Page({
     };
   },
 
-  prepareInviteShare() {
-    const payload = this.buildInvitePayload();
-    if (!payload) {
-      this._invitePrepareToken = (this._invitePrepareToken || 0) + 1;
-      this.setData({ inviteCreating: false, invitePath: '' });
-      return Promise.resolve('');
-    }
-
-    const token = (this._invitePrepareToken || 0) + 1;
-    this._invitePrepareToken = token;
+  createInviteShareConfig(payload) {
+    const title = payload.source.title
+      ? `请帮我填写：${payload.source.title}`
+      : '请帮我填写签证申请表';
     this.setData({ inviteCreating: true });
     return createInvite({
       templateId: payload.source.templateId,
@@ -475,42 +461,53 @@ Page({
       values: payload.values,
     })
       .then((inviteId) => {
-        if (token !== this._invitePrepareToken || !this.data.inviteDialogVisible) return;
-        this.setData({
-          inviteCreating: false,
-          invitePath: `/pages/visa-form/index?inviteId=${inviteId}`,
-          inviteShareTitle: payload.source.title
-            ? `请帮我填写：${payload.source.title}`
-            : '请帮我填写签证申请表',
-        });
+        this.closeInviteDialog();
+        return {
+          title,
+          path: `/pages/visa-form/index?inviteId=${inviteId}`,
+          imageUrl: SHARE_FILL_COVER,
+        };
       })
       .catch((err) => {
-        if (token !== this._invitePrepareToken || !this.data.inviteDialogVisible) return;
         console.error('Create invite failed:', err);
-        this.setData({ inviteCreating: false, invitePath: '' });
+        this.setData({ inviteCreating: false });
         wx.showModal({
           title: err.code === 'FUNCTION_NOT_FOUND' ? '请先部署云函数' : '生成分享失败',
           content: err.message || String(err),
           showCancel: false,
         });
+        throw err;
       });
   },
 
-  // 只有用户主动确认后才创建分享邀请。
-  confirmInvite() {
-    return this.prepareInviteShare();
-  },
-
-  onShareAppMessage() {
-    if (this.data.invitePath) {
+  onShareAppMessage(options = {}) {
+    const isInviteShare = options.from === 'button'
+      && options.target
+      && options.target.dataset.shareType === 'invite';
+    if (isInviteShare) {
+      const payload = this.buildInvitePayload();
+      if (!payload) {
+        wx.showToast({ title: '请先完成分享配置', icon: 'none' });
+        return {
+          title: '签证申请表辅助填写',
+          path: '/pages/home/index',
+          imageUrl: SHARE_FILL_COVER,
+        };
+      }
+      const title = payload.source.title
+        ? `请帮我填写：${payload.source.title}`
+        : '请帮我填写签证申请表';
       return {
-        title: this.data.inviteShareTitle || '请帮我填写签证申请表',
-        path: this.data.invitePath,
+        title,
+        path: '/pages/home/index',
+        imageUrl: SHARE_FILL_COVER,
+        promise: this.createInviteShareConfig(payload),
       };
     }
     return {
       title: '签证申请表辅助填写',
       path: '/pages/home/index',
+      imageUrl: SHARE_FILL_COVER,
     };
   },
 

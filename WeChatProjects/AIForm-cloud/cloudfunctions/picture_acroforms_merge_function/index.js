@@ -1,10 +1,15 @@
 const cloud = require("wx-server-sdk");
-const fillPdfAcroForm = require("./pdf/fillPdfAcroForm");
-const { listCountryFormVersions } = require('./catalog/countryFormCatalog');
-const { createInvite, getInvite } = require('./invites');
+
+// 必须先初始化云 SDK，再加载会访问 database/openapi 的业务模块。
+// 否则模块加载阶段调用 cloud.database() 会直接终止云函数进程，
+// 调用端只能收到 -504002 / code exit unexpected。
 cloud.init({
   env: cloud.DYNAMIC_CURRENT_ENV,
 });
+
+const fillPdfAcroForm = require("./pdf/fillPdfAcroForm");
+const { listCountryFormVersions } = require('./catalog/countryFormCatalog');
+const { createInvite, getInvite } = require('./invites');
 
 const db = cloud.database();
 // 获取openid

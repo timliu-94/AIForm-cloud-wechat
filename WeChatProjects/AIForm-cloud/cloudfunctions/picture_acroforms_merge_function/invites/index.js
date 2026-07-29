@@ -4,7 +4,10 @@ const COLLECTION = "visa_invites";
 // 邀请单默认有效期 7 天，写入 expireAt 便于后续按需清理。
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
-const db = cloud.database();
+// 请求执行时再取得数据库实例，避免模块加载顺序导致 SDK 尚未初始化。
+function getDatabase() {
+  return cloud.database();
+}
 
 function sanitizeTemplateVersion(templateVersion) {
   if (!templateVersion || typeof templateVersion !== "object") return null;
@@ -32,6 +35,7 @@ function sanitizeTemplateVersion(templateVersion) {
 }
 
 async function addInvite(doc) {
+  const db = getDatabase();
   const res = await db.collection(COLLECTION).add({ data: doc });
   return res._id;
 }
@@ -65,6 +69,7 @@ const createInvite = async (event) => {
     return { success: true, inviteId };
   } catch (e) {
     try {
+      const db = getDatabase();
       await db.createCollection(COLLECTION);
       const inviteId = await addInvite(doc);
       return { success: true, inviteId };
@@ -90,6 +95,7 @@ const getInvite = async (event) => {
   }
 
   try {
+    const db = getDatabase();
     const res = await db.collection(COLLECTION).doc(inviteId).get();
     const invite = res && res.data;
     if (!invite) {

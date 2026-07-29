@@ -200,12 +200,14 @@
         <view class="tool-dialog__result-label">新表格</view>
         <view class="tool-dialog__result-text">创建后由你继续填写</view>
       </view>
-      <button class="tool-dialog__secondary" bindtap="closeCompanionDialog">取消</button>
-      <button
-        class="tool-dialog__primary"
-        disabled="{{companionSelectedCount === 0}}"
-        bindtap="createCompanionApplication"
-      >创建新表格</button>
+      <view class="tool-dialog__actions">
+        <button class="tool-dialog__secondary" bindtap="closeCompanionDialog">取消</button>
+        <button
+          class="tool-dialog__primary"
+          disabled="{{companionSelectedCount === 0}}"
+          bindtap="createCompanionApplication"
+        >创建新表格</button>
+      </view>
     </view>
   </view>
 </view>
@@ -342,14 +344,6 @@
         </view>
       </view>
 
-      <view wx:if="{{invitePath}}" class="invite-ready">
-        <t-icon name="check-circle" size="34rpx" color="#006c46" />
-        <view>
-          <view class="invite-ready__title">填写入口已就绪</view>
-          <view class="invite-ready__desc">下一步将打开微信好友选择面板</view>
-        </view>
-      </view>
-
       <view class="invite-privacy">
         <t-icon name="secured" size="28rpx" color="#737686" />
         <text>对方会在自己的微信中填写；对方填写的新内容不会回传给你。</text>
@@ -358,29 +352,23 @@
 
     <view class="tool-dialog__footer tool-dialog__footer--invite">
       <view class="tool-dialog__result">
-        <view class="tool-dialog__result-label">{{invitePath ? '已生成' : '分享配置'}}</view>
-        <view class="tool-dialog__result-text" wx:if="{{invitePath}}">可发送给微信好友</view>
-        <view class="tool-dialog__result-text" wx:elif="{{inviteMode === 'blank'}}">对方从空白表格填写</view>
+        <view class="tool-dialog__result-label">分享配置</view>
+        <view class="tool-dialog__result-text" wx:if="{{inviteMode === 'blank'}}">对方从空白表格填写</view>
         <view class="tool-dialog__result-text" wx:elif="{{inviteMode === 'content'}}">分享 {{inviteSelectedCount}} 项信息</view>
         <view class="tool-dialog__result-text" wx:else>请选择一种分享方式</view>
       </view>
-      <button class="tool-dialog__secondary" bindtap="closeInviteDialog">取消</button>
-      <button
-        wx:if="{{invitePath}}"
-        class="tool-dialog__primary"
-        open-type="share"
-      >
-        <text>分享给好友</text>
-      </button>
-      <button
-        wx:else
-        class="tool-dialog__primary"
-        loading="{{inviteCreating}}"
-        disabled="{{!inviteMode || inviteCreating || (inviteMode === 'content' && inviteSelectedCount === 0)}}"
-        bindtap="confirmInvite"
-      >
-        <text>确认</text>
-      </button>
+      <view class="tool-dialog__actions">
+        <button class="tool-dialog__secondary" bindtap="closeInviteDialog">取消</button>
+        <button
+          class="tool-dialog__primary"
+          open-type="share"
+          data-share-type="invite"
+          loading="{{inviteCreating}}"
+          disabled="{{!inviteMode || inviteCreating || (inviteMode === 'content' && inviteSelectedCount === 0)}}"
+        >
+          <text>确认</text>
+        </button>
+      </view>
     </view>
   </view>
 </view>

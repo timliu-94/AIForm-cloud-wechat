@@ -6,7 +6,7 @@
   bind:acknowledge="onFirstLaunchAcknowledge"
 />
 
-<view class="split" style="{{splitHeight ? 'height:' + splitHeight + 'px;' : ''}}">
+<view wx:if="{{formReady}}" class="split" style="{{splitHeight ? 'height:' + splitHeight + 'px;' : ''}}">
   <!-- 顶部图片预览（与下方表单上下分屏），突出当前填写位置 -->
   <view class="preview-pane">
     <view class="preview-pane__head">

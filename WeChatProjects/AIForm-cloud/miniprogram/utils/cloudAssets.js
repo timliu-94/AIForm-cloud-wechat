@@ -2,6 +2,7 @@ const CLOUD_FILE_ROOT = 'cloud://cloudbase-d6gt24wo5bc8f4e49.636c-cloudbase-d6gt
 const resolvedURLCache = {};
 const jsonCache = {};
 const jsonRequestCache = {};
+const DOWNLOAD_RETRY_DELAYS = [400, 1000];
 
 function normalizeCloudPath(path) {
   return String(path || '').replace(/^\/+|\/+$/g, '');
@@ -42,6 +43,37 @@ function countryFormSchemaAsset(country, versionDir, pdfFilename) {
 
 function isCloudFileID(fileID) {
   return typeof fileID === 'string' && fileID.indexOf('cloud://') === 0;
+}
+
+function getErrorMessage(err) {
+  return String((err && (err.errMsg || err.message)) || err || '');
+}
+
+function isTransientDownloadError(err) {
+  return /(ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up|network|timeout|超时|连接.*(?:中断|重置|失败))/i
+    .test(getErrorMessage(err));
+}
+
+function wait(delay) {
+  return new Promise((resolve) => setTimeout(resolve, delay));
+}
+
+function downloadCloudFile(fileID, attempt = 0) {
+  if (!isCloudFileID(fileID)) {
+    return Promise.reject(new Error(`无效的云端 File ID: ${fileID || '(empty)'}`));
+  }
+  if (!wx.cloud) return Promise.reject(new Error('当前微信基础库不支持云能力'));
+
+  return wx.cloud.downloadFile({ fileID }).catch((err) => {
+    const retryDelay = DOWNLOAD_RETRY_DELAYS[attempt];
+    if (retryDelay === undefined || !isTransientDownloadError(err)) throw err;
+    console.warn('Cloud file download interrupted, retrying:', {
+      attempt: attempt + 2,
+      fileID,
+      errMsg: getErrorMessage(err),
+    });
+    return wait(retryDelay).then(() => downloadCloudFile(fileID, attempt + 1));
+  });
 }
 
 function getTempFileURLs(fileList) {
@@ -99,7 +131,7 @@ function downloadCloudJSON(fileID) {
   if (jsonRequestCache[fileID]) return jsonRequestCache[fileID];
   if (!wx.cloud) return Promise.reject(new Error('当前微信基础库不支持云能力'));
 
-  const request = wx.cloud.downloadFile({ fileID })
+  const request = downloadCloudFile(fileID)
     .then((res) => {
       if (!res.tempFilePath) throw new Error('云端 JSON 下载结果缺少临时文件路径');
       return readJSONFile(res.tempFilePath);
@@ -111,6 +143,12 @@ function downloadCloudJSON(fileID) {
     })
     .catch((err) => {
       delete jsonRequestCache[fileID];
+      if (isTransientDownloadError(err)) {
+        const wrapped = new Error('云端表单资源下载连接中断，请检查网络后重试');
+        wrapped.code = 'CLOUD_DOWNLOAD_INTERRUPTED';
+        wrapped.originalError = err;
+        throw wrapped;
+      }
       throw err;
     });
   jsonRequestCache[fileID] = request;
@@ -135,6 +173,7 @@ module.exports = {
   countryFormAsset,
   countryFormFile,
   countryFormSchemaAsset,
+  downloadCloudFile,
   downloadCloudJSON,
   getTempFileURLs,
   isCloudFileID,
