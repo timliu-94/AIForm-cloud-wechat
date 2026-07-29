@@ -669,17 +669,16 @@
 
 .companion-dialog .companion-dialog__panel--invite {
   position: relative;
-  height: 86vh;
-  max-height: 86vh;
-  padding-bottom: calc(120rpx + env(safe-area-inset-bottom));
+  height: calc(100% - @nav-bar-height - 24rpx);
+  max-height: 82vh;
   border-radius: 28rpx 28rpx 0 0;
   box-sizing: border-box;
 }
 
 .invite-dialog__content {
   min-height: 0;
-  flex: 1;
   height: 0;
+  flex: 1 1 0;
   padding: 0 28rpx 24rpx;
   box-sizing: border-box;
 }
@@ -1168,8 +1167,8 @@
   .companion-dialog__panel--invite {
     width: 100%;
     max-width: 702rpx;
-    height: 86vh;
-    max-height: 86vh;
+    height: calc(100% - @nav-bar-height - 24rpx);
+    max-height: 82vh;
     padding-bottom: 0;
     overflow: hidden;
     border: 1rpx solid fade(@outline-variant, 70%);
@@ -1266,7 +1265,7 @@
   .invite-dialog__content {
     min-height: 0;
     height: 0;
-    flex: 1;
+    flex: 1 1 0;
     padding: 22rpx 24rpx 30rpx;
     background: @surface;
     box-sizing: border-box;
@@ -1697,6 +1696,7 @@
 .share-notice {
   bottom: calc(@tab-bar-height + env(safe-area-inset-bottom));
   z-index: 130;
+  align-items: center;
   padding: 28rpx;
   background: rgba(25, 28, 30, 0.48);
   backdrop-filter: blur(3px);
