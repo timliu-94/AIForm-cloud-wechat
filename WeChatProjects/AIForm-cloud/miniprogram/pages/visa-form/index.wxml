@@ -45,13 +45,20 @@
           <view
             wx:for="{{previewFields}}"
             wx:key="name"
-            class="box {{item.active ? 'box--active' : (item.manual ? 'box--manual' : (item.filled ? 'box--filled' : 'box--empty'))}} {{item.isHandwriting ? 'box--handwriting' : ''}} {{item.skipFill ? 'box--skip' : ''}} {{item.isCheckbox ? 'box--checkbox' : ''}}"
+            class="box {{item.active ? 'box--active' : (item.manual ? 'box--manual' : (item.filled ? 'box--filled' : 'box--empty'))}} {{item.isHandwriting ? 'box--handwriting' : ''}} {{item.skipFill ? 'box--skip' : ''}} {{item.isCheckbox ? 'box--checkbox' : ''}} {{item.overflow ? 'box--overflow' : ''}}"
             style="{{item.style}}"
             data-name="{{item.name}}"
             data-leaf="{{item.leafId}}"
             bindtap="tapPreviewBox"
           >
-            <text class="box__value">{{item.display}}</text>
+            <view class="box__clip {{item.multiline ? 'box__clip--multiline' : ''}}" style="{{item.valueStyle}}">
+              <text
+                wx:for="{{item.lineItems}}"
+                wx:for-item="lineItem"
+                wx:key="key"
+                class="box__line"
+              >{{lineItem.text}}</text>
+            </view>
           </view>
         </view>
       </movable-view>

@@ -6,6 +6,7 @@
       <view class="summary__title">{{application.title}}</view>
       <view class="summary__meta">{{application.country}} · {{application.visaType}}</view>
     </view>
+    <view wx:if="{{overflowCount > 0}}" class="summary__pending">{{overflowCount}} 项内容过长</view>
     <button wx:if="{{isTemplatePreview}}" class="summary__back" bindtap="backToHome">返回</button>
   </view>
 
@@ -16,10 +17,17 @@
       <view
         wx:for="{{currentPage.overlays}}"
         wx:key="name"
-        class="overlay {{item.manual ? 'overlay--manual' : (item.filled ? 'overlay--filled' : 'overlay--pending')}} {{item.isHandwriting ? 'overlay--handwriting' : ''}} {{item.skipFill ? 'overlay--skip' : ''}} {{item.isCheckbox ? 'overlay--checkbox' : ''}}"
+        class="overlay {{item.manual ? 'overlay--manual' : (item.filled ? 'overlay--filled' : 'overlay--pending')}} {{item.isHandwriting ? 'overlay--handwriting' : ''}} {{item.skipFill ? 'overlay--skip' : ''}} {{item.isCheckbox ? 'overlay--checkbox' : ''}} {{item.overflow ? 'overlay--overflow' : ''}}"
         style="{{item.style}}"
       >
-        <text class="overlay__value">{{item.display}}</text>
+        <view class="overlay__clip {{item.multiline ? 'overlay__clip--multiline' : ''}}" style="{{item.valueStyle}}">
+          <text
+            wx:for="{{item.lineItems}}"
+            wx:for-item="lineItem"
+            wx:key="key"
+            class="overlay__line"
+          >{{lineItem.text}}</text>
+        </view>
         <view class="overlay__label" wx:if="{{showLabels}}">{{item.label}}</view>
       </view>
     </view>

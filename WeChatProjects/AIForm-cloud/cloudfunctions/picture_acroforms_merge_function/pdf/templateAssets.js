@@ -14,15 +14,23 @@ const italyPdfFileID = countryFormAsset(
   'commonforms',
   ITALY_PDF_FILENAME,
 );
+const italySchemaFileID = countryFormAsset(
+  ITALY_COUNTRY_DIR,
+  ITALY_VERSION_DIR,
+  'outputs',
+  `${ITALY_PDF_FILENAME.replace(/\.pdf$/i, '')}.parsed.simple.json`,
+);
 
 const pdfTemplates = {
   italy: {
     fileID: italyPdfFileID,
+    schemaFileID: italySchemaFileID,
     filename: ITALY_PDF_FILENAME,
     fieldMap: {},
   },
   [ITALY_TEMPLATE_ID]: {
     fileID: italyPdfFileID,
+    schemaFileID: italySchemaFileID,
     filename: ITALY_PDF_FILENAME,
     fieldMap: {},
   },
@@ -36,6 +44,12 @@ function getDynamicPdfTemplate(asset) {
   if (!pdfFilename || /[\\/]/.test(pdfFilename) || !/\.pdf$/i.test(pdfFilename)) return null;
   return {
     fileID: countryFormAsset(country, versionDir, 'commonforms', pdfFilename),
+    schemaFileID: countryFormAsset(
+      country,
+      versionDir,
+      'outputs',
+      `${pdfFilename.replace(/\.pdf$/i, '')}.parsed.simple.json`,
+    ),
     filename: pdfFilename,
     fieldMap: {},
   };

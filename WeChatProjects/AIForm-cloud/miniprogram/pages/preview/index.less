@@ -96,7 +96,7 @@
     background: rgba(128, 128, 128, 0.06);
   }
 
-  &--manual &__value {
+  &--manual &__clip {
     text-align: center;
     color: #606266;
     font-weight: 600;
@@ -107,25 +107,43 @@
     background: rgba(212, 56, 13, 0.06);
   }
 
-  &--handwriting &__value {
+  &--handwriting &__clip {
     color: #d4380d;
   }
 
-  &__value {
-    flex: 1;
-    padding: 0 4rpx;
-    font-size: 18rpx;
-    line-height: 1.1;
-    color: #0a2540;
-    white-space: nowrap;
+  &__clip {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
     overflow: hidden;
-    text-overflow: ellipsis;
+    color: #0a2540;
   }
 
-  &--checkbox &__value {
+  &__line {
+    display: block;
+    flex-shrink: 0;
+    width: 100%;
+    box-sizing: border-box;
+    white-space: pre;
+    overflow: hidden;
+  }
+
+  &--checkbox &__clip {
+    align-items: center;
+    padding: 0;
+    font-size: 18rpx;
+    line-height: 1;
     text-align: center;
     color: @brand7-normal;
     font-weight: 700;
+  }
+
+  &--overflow {
+    border: 2rpx solid #d4380d;
+    background: rgba(212, 56, 13, 0.12);
   }
 
   &__label {

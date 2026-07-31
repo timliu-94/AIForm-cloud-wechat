@@ -1,4 +1,4 @@
-const { loadForm, COUNTRY_NAME } = require('../../utils/italyForm');
+const { buildFieldPreviewLayout, loadForm, COUNTRY_NAME } = require('../../utils/italyForm');
 const { buildDefaultApplicationTitle, normalizeTitle } = require('../../utils/applicationTitle');
 const { resolvePreviewImages } = require('../../utils/cloudAssets');
 const { fetchInvite } = require('../../utils/invite');
@@ -244,7 +244,13 @@ Page({
           activeLeaves: firstPage.leaves,
           activeFormLeaves: this.filterFormLeaves(firstPage.leaves),
           previewImage: firstPage.previewImage,
-          previewFields: this.buildPreviewFields(firstPage.leaves, values, ''),
+          previewFields: this.buildPreviewFields(
+            firstPage.leaves,
+            values,
+            '',
+            firstPage.width,
+            geometry.width,
+          ),
           previewCanvasWidth: geometry.width,
           previewCanvasHeight: geometry.height,
           previewX: geometry.x,
@@ -344,7 +350,7 @@ Page({
     return leaves.filter((leaf) => !leaf.skipFill);
   },
 
-  buildPreviewFields(leaves, values, activeName) {
+  buildPreviewFields(leaves, values, activeName, pageWidth, renderedWidth) {
     const out = [];
     leaves.forEach((leaf) => {
       if (leaf.skipFill) return;
@@ -352,6 +358,12 @@ Page({
         const isCheckbox = field.kind === 'checkbox';
         // 需要手写字段：用户不在线录入，但保留红框并参与预览联动。
         if (!leaf.needInput) {
+          const textLayout = buildFieldPreviewLayout(
+            { ...field, kind: 'text' },
+            leaf.manualText,
+            pageWidth,
+            renderedWidth,
+          );
           out.push({
             name: field.name,
             leafId: field.leafId,
@@ -364,12 +376,19 @@ Page({
             display: leaf.manualText,
             filled: false,
             style: field.previewStyle,
+            ...textLayout,
           });
           return;
         }
         const raw = values[field.name];
         let display = raw || '';
         if (isCheckbox) display = raw === true ? '✓' : '';
+        const textLayout = buildFieldPreviewLayout(
+          field,
+          isCheckbox ? raw === true : display,
+          pageWidth,
+          renderedWidth,
+        );
         out.push({
           name: field.name,
           leafId: field.leafId,
@@ -380,6 +399,7 @@ Page({
           display,
           filled: isCheckbox ? raw === true : !!(raw && String(raw).length),
           style: field.previewStyle,
+          ...textLayout,
         });
       });
     });
@@ -419,7 +439,13 @@ Page({
       activeLeaves: target.leaves,
       activeFormLeaves: this.filterFormLeaves(target.leaves),
       previewImage: target.previewImage,
-      previewFields: this.buildPreviewFields(target.leaves, this.data.values, firstField ? firstField.name : ''),
+      previewFields: this.buildPreviewFields(
+        target.leaves,
+        this.data.values,
+        firstField ? firstField.name : '',
+        target.width,
+        geometry.width,
+      ),
       activeFieldName: firstField ? firstField.name : '',
       activeFieldLabel: firstField ? firstField.label : '',
       previewCanvasWidth: geometry.width,
@@ -536,9 +562,16 @@ Page({
 
   setFieldValue(name, value) {
     const values = { ...this.data.values, [name]: value };
+    const activePage = this.data.pages.find((page) => page.page === this.data.activePage);
     this.setData({
       [`values.${name}`]: value,
-      previewFields: this.buildPreviewFields(this.data.activeLeaves, values, name),
+      previewFields: this.buildPreviewFields(
+        this.data.activeLeaves,
+        values,
+        name,
+        activePage && activePage.width,
+        this.data.previewCanvasWidth,
+      ),
     });
     this.refreshProgress(values);
   },
@@ -587,14 +620,21 @@ Page({
     const target = this.data.activePage === field.page
       ? null
       : this.data.pages.find((p) => p.page === field.page);
-    const activeLeaves = target ? target.leaves : this.data.activeLeaves;
+    const activePage = target || this.data.pages.find((p) => p.page === this.data.activePage);
+    const activeLeaves = activePage ? activePage.leaves : this.data.activeLeaves;
+    const geometry = target ? this.getPreviewGeometry(target) : null;
     const patch = {
       activeFieldName: name,
       activeFieldLabel: field.label,
-      previewFields: this.buildPreviewFields(activeLeaves, this.data.values, name),
+      previewFields: this.buildPreviewFields(
+        activeLeaves,
+        this.data.values,
+        name,
+        activePage && activePage.width,
+        geometry ? geometry.width : this.data.previewCanvasWidth,
+      ),
     };
     if (target) {
-      const geometry = this.getPreviewGeometry(target);
       patch.activePage = field.page;
       patch.activeLeaves = target.leaves;
       patch.activeFormLeaves = this.filterFormLeaves(target.leaves);

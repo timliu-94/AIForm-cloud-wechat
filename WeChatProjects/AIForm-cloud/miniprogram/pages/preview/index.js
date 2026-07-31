@@ -14,6 +14,7 @@ Page({
     currentPage: null,
     showLabels: false,
     pendingCount: 0,
+    overflowCount: 0,
     isTemplatePreview: false,
   },
 
@@ -60,6 +61,10 @@ Page({
         (n, page) => n + page.overlays.filter((o) => !o.filled && !o.manual).length,
         0,
       );
+      const overflowCount = pages.reduce(
+        (n, page) => n + page.overlays.filter((o) => o.overflow && !o.manual).length,
+        0,
+      );
       return resolvePreviewImages(pages).then((resolvedPages) => {
         if (!this._pageActive) return;
         this.setData({
@@ -68,6 +73,7 @@ Page({
           pageIndex: 0,
           currentPage: resolvedPages[0] || null,
           pendingCount,
+          overflowCount,
           isTemplatePreview: false,
         });
       });
@@ -105,6 +111,7 @@ Page({
           pageIndex: 0,
           currentPage: resolvedPages[0] || null,
           pendingCount: 0,
+          overflowCount: 0,
           isTemplatePreview: true,
         });
       });
@@ -155,6 +162,16 @@ Page({
     if (this.data.isTemplatePreview) return;
     const { application } = this.data;
     if (!application) return;
+    if (this.data.overflowCount > 0) {
+      wx.showModal({
+        title: '内容超出填写框',
+        content: `有 ${this.data.overflowCount} 项内容即使缩小字号后仍无法完整放入 PDF 填写框，请修改后再导出。`,
+        confirmText: '返回修改',
+        showCancel: false,
+        success: () => this.editForm(),
+      });
+      return;
+    }
     const fallback = buildDefaultApplicationTitle(COUNTRY_NAME);
     // 标题在导出环节填写（预览时不再弹框）。
     wx.showModal({

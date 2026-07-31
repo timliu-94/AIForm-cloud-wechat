@@ -59,9 +59,11 @@ function exportApplicationPdf(application, title) {
       missingCount: (result.missingFields || []).length,
       failedCount: (result.failedFields || []).length,
       unsupportedCount: (result.unsupportedFields || []).length,
+      overflowCount: (result.overflowFields || []).length,
       sampleMissingFields: (result.missingFields || []).slice(0, 20),
       sampleFailedFields: (result.failedFields || []).slice(0, 10),
       sampleUnsupportedFields: (result.unsupportedFields || []).slice(0, 20),
+      sampleOverflowFields: (result.overflowFields || []).slice(0, 10),
     });
     wx.showLoading({
       title: '下载中',
@@ -110,6 +112,12 @@ function getPdfExportErrorMessage(err) {
       `missing=${(result.missingFields || []).length}`,
       `failed=${(result.failedFields || []).length}`,
     ].filter(Boolean);
+    const overflowFields = result.overflowFields || [];
+    if (overflowFields.length) {
+      parts.push(...overflowFields.slice(0, 5).map((item) => (
+        `${item.label || item.field}: ${item.reason || '内容过长'}`
+      )));
+    }
     const firstFailed = result.failedFields && result.failedFields[0];
     if (firstFailed) parts.push(`${firstFailed.field}: ${firstFailed.message}`);
     return parts.join('\n');

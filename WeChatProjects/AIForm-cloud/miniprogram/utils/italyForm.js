@@ -5,10 +5,12 @@
 const { getPreviewImage, getTemplateAsset, loadTemplateSchema } = require('../config/countryConfig');
 const { countryFormSchemaAsset, downloadCloudJSON } = require('./cloudAssets');
 const { findCachedCountryFormVersion } = require('./countryFormCatalog');
+const { buildScaledTextStyle, layoutText } = require('./textLayout');
 
 const TEMPLATE_ID = 'it-schengen-tourism-shanghai-demo';
 const COUNTRY_NAME = '意大利';
 const FORM_TITLE = '意大利申根签证申请表';
+const FULL_PREVIEW_CANVAS_RPX = 702;
 
 // 新版标注（Italy_acroforms_new.json）已自带语义信息，无需再做
 // OCR 配对 / 标签覆盖 / 示范映射 / 幽灵字段表：
@@ -116,10 +118,44 @@ function buildLeafFields(leaf, size) {
       label,
       // 复合 input_type（如「单选+文本」）作为类型标注会误导，仅在有明确字段名时展示。
       inputType: named ? normalizeInputType(af.input_type) : '',
+      layoutInputType: af.input_type,
+      fontSize: af.font_size,
+      fontSizeMin: af.font_size_min,
+      textAlignment: af.text_alignment,
+      layoutMode: af.layout_mode,
+      multiline: af.multiline || af.is_multiline,
+      lineHeightRatio: af.line_height_ratio,
+      padding: af.padding,
       rect: af.rect,
       ...geo,
     };
   });
+}
+
+function buildFieldPreviewLayout(field, value, pageWidth, renderedWidth, unit = 'px') {
+  if (field.kind === 'checkbox') {
+    return {
+      lines: [value === true ? '✓' : ''],
+      lineItems: [{ key: 0, text: value === true ? '✓' : '' }],
+      multiline: false,
+      overflow: false,
+      valueStyle: '',
+    };
+  }
+  const layout = layoutText(value, {
+    ...field,
+    inputType: field.layoutInputType || field.inputType,
+  });
+  const scale = Number(pageWidth) > 0 ? Number(renderedWidth) / Number(pageWidth) : 0;
+  return {
+    lines: layout.lines,
+    lineItems: layout.lines.map((text, key) => ({ key, text })),
+    multiline: layout.multiline,
+    overflow: layout.overflow,
+    valueStyle: buildScaledTextStyle(layout, scale, unit),
+    fontSize: layout.fontSize,
+    lineHeight: layout.lineHeight,
+  };
 }
 
 function normalizeTemplateVersion(templateId, override) {
@@ -233,6 +269,13 @@ function buildPreviewPages(form, values) {
       // 需要手写的叶子不参与未填统计，但保留图片上的 acroform 红框。
       if (!leaf.needInput) {
         leaf.fields.forEach((field) => {
+          const textLayout = buildFieldPreviewLayout(
+            { ...field, kind: 'text' },
+            leaf.manualText,
+            page.width,
+            FULL_PREVIEW_CANVAS_RPX,
+            'rpx',
+          );
           overlays.push({
             name: field.name,
             label: field.label,
@@ -243,6 +286,7 @@ function buildPreviewPages(form, values) {
             display: leaf.manualText,
             isCheckbox: false,
             style: field.previewStyle,
+            ...textLayout,
           });
         });
         return;
@@ -253,6 +297,13 @@ function buildPreviewPages(form, values) {
         const filled = isCheckbox ? raw === true : !!(raw && String(raw).length);
         let display = raw || '';
         if (isCheckbox) display = raw === true ? '✓' : '';
+        const textLayout = buildFieldPreviewLayout(
+          field,
+          isCheckbox ? raw === true : display,
+          page.width,
+          FULL_PREVIEW_CANVAS_RPX,
+          'rpx',
+        );
         overlays.push({
           name: field.name,
           label: field.label,
@@ -261,11 +312,14 @@ function buildPreviewPages(form, values) {
           display,
           isCheckbox,
           style: field.previewStyle,
+          ...textLayout,
         });
       });
     });
     return {
       page: page.page,
+      width: page.width,
+      height: page.height,
       previewImage: page.previewImage,
       overlays,
     };
@@ -277,6 +331,7 @@ module.exports = {
   COUNTRY_NAME,
   FORM_TITLE,
   buildForm,
+  buildFieldPreviewLayout,
   buildPreviewPages,
   loadForm,
 };
