@@ -30,9 +30,9 @@
         </view>
         <view class="search-empty__body">
           <view class="search-empty__title">没有找到国家，请联系我们</view>
-          <view class="search-empty__desc">提交你需要的国家/地区，我们会尽快补充。</view>
+          <view class="search-empty__desc">通过微信客服告诉我们你需要的国家/地区。</view>
         </view>
-        <button class="search-empty__button" bindtap="openFeedback">反馈</button>
+        <button class="search-empty__button" bindtap="openCustomerService">联系客服</button>
       </view>
     </view>
 

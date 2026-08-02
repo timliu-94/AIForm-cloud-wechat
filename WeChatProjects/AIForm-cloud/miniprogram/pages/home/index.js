@@ -5,7 +5,7 @@ const {
 const { listCountryFormVersions, openCloudPdf } = require('../../utils/countryFormCatalog');
 
 const HOT_FILTER = '热门';
-const OPEN_FEEDBACK_KEY = 'open_feedback_from_home_empty_country';
+const OPEN_CUSTOMER_SERVICE_KEY = 'open_customer_service_from_home';
 
 function getVisaTypeIcon(typeId) {
   if (typeId.includes('business')) return 'work';
@@ -106,8 +106,8 @@ Page({
     this.refreshCountries();
   },
 
-  openFeedback() {
-    wx.setStorageSync(OPEN_FEEDBACK_KEY, true);
+  openCustomerService() {
+    wx.setStorageSync(OPEN_CUSTOMER_SERVICE_KEY, true);
     wx.switchTab({
       url: '/pages/my/index',
     });
