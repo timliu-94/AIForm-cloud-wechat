@@ -77,22 +77,27 @@
     </view>
   </view>
 
-  <view wx:if="{{showContact}}" class="panel contact-panel">
-    <view class="panel__title">联系我们</view>
-    <view class="contact-row">
-      <view class="contact-row__main">
-        <view class="contact-row__label">QQ群</view>
-        <view class="contact-row__value">{{contactInfo.qqGroup}}</view>
+  <view wx:if="{{showContact}}" class="panel customer-service-panel">
+    <view class="panel__title">微信客服</view>
+    <view class="customer-service-panel__intro">
+      <view class="customer-service-panel__icon">
+        <t-icon name="chat" size="42rpx" color="#003da6" />
       </view>
-      <button class="contact-row__copy" data-value="{{contactInfo.qqGroup}}" bindtap="copyContact">复制</button>
-    </view>
-    <view class="contact-row">
-      <view class="contact-row__main">
-        <view class="contact-row__label">邮箱</view>
-        <view class="contact-row__value">{{contactInfo.email}}</view>
+      <view class="customer-service-panel__content">
+        <view class="customer-service-panel__title">在线客服咨询</view>
+        <view class="customer-service-panel__description">如有使用问题或需要帮助，可通过微信客服与我们沟通。</view>
       </view>
-      <button class="contact-row__copy" data-value="{{contactInfo.email}}" bindtap="copyContact">复制</button>
     </view>
+    <button
+      class="customer-service-panel__button"
+      open-type="contact"
+      session-from="{{sessionFrom}}"
+      bindcontact="handleContact"
+    >
+      <t-icon name="chat" size="32rpx" color="#ffffff" />
+      <text>联系微信客服</text>
+    </button>
+    <view class="customer-service-panel__hint">发送消息后，客服人员上线时会尽快回复。</view>
   </view>
 
   <view wx:if="{{showPrivacy}}" class="panel privacy-panel">

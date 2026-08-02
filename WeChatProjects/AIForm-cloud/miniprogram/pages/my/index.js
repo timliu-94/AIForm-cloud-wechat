@@ -4,8 +4,11 @@ const { privacyPolicy } = require('../../config/firstLaunchNotice');
 const APPLICATIONS_KEY = 'visa_applications';
 const FEEDBACK_KEY = 'user_feedback';
 const OPEN_FEEDBACK_KEY = 'open_feedback_from_home_empty_country';
-const CONTACT_QQ_GROUP = '84173943';
-const CONTACT_EMAIL = '84173942@qq.com';
+const TAB_BAR_PAGES = [
+  '/pages/home/index',
+  '/pages/applications/index',
+  '/pages/my/index',
+];
 
 Page({
   behaviors: [useToastBehavior],
@@ -19,15 +22,12 @@ Page({
     feedbackTypes: ['问题反馈', '建议', '其他'],
     feedbackTypeIndex: 0,
     feedbackDescription: '',
-    contactInfo: {
-      qqGroup: CONTACT_QQ_GROUP,
-      email: CONTACT_EMAIL,
-    },
+    sessionFrom: JSON.stringify({ source: 'my-contact' }),
     privacyPolicy,
     settingList: [
       { name: '隐私政策', icon: 'lock-on', type: 'privacy', note: '查看小程序隐私政策' },
       { name: '意见与建议', icon: 'chat', type: 'feedback', note: '提交问题、建议或其他反馈' },
-      { name: '联系我们', icon: 'mail', type: 'contact', note: '查看 QQ 群和邮箱' },
+      { name: '联系我们', icon: 'mail', type: 'contact', note: '在线咨询微信客服' },
     ],
   },
 
@@ -139,15 +139,25 @@ Page({
 
   noop() {},
 
-  copyContact(e) {
-    const { value } = e.currentTarget.dataset;
-    if (!value || value === '待补充') {
-      this.onShowToast('#t-toast', '联系方式待补充');
+  handleContact(e) {
+    const { path, query } = e.detail || {};
+    if (!path) {
       return;
     }
-    wx.setClipboardData({
-      data: value,
-      success: () => this.onShowToast('#t-toast', '已复制'),
-    });
+
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    const queryString = typeof query === 'string'
+      ? query.replace(/^\?/, '')
+      : Object.keys(query || {})
+        .map((key) => `${encodeURIComponent(key)}=${encodeURIComponent(query[key])}`)
+        .join('&');
+    const url = queryString ? `${normalizedPath}?${queryString}` : normalizedPath;
+
+    if (TAB_BAR_PAGES.includes(normalizedPath)) {
+      wx.switchTab({ url: normalizedPath });
+      return;
+    }
+
+    wx.navigateTo({ url });
   },
 });

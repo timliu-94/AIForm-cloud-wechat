@@ -1,9 +1,14 @@
 const assert = require('assert');
 const {
   PDFDocument,
+  PDFName,
   StandardFonts,
 } = require('pdf-lib');
 const clientLayout = require('../../../miniprogram/utils/textLayout');
+const {
+  buildPagePreviewFields,
+  buildPreviewPages,
+} = require('../../../miniprogram/utils/italyForm');
 const cloudLayout = require('../pdf/textLayout');
 const fillPdfAcroForm = require('../pdf/fillPdfAcroForm');
 
@@ -55,6 +60,123 @@ function testMultilineAndOverflow() {
   assert.strictEqual(overflow.overflow, true);
 }
 
+async function testMissingFieldErrorAndManualFieldCreation() {
+  const pdfDoc = await PDFDocument.create();
+  pdfDoc.addPage([300, 300]);
+  pdfDoc.addPage([300, 300]);
+  const form = pdfDoc.getForm();
+  let missingError;
+  try {
+    form.getField('manual_textbox_1_3');
+  } catch (err) {
+    missingError = err;
+  }
+
+  assert.strictEqual(
+    fillPdfAcroForm.__test.isMissingFormFieldError(missingError),
+    true,
+  );
+  assert.strictEqual(
+    fillPdfAcroForm.__test.isMissingFormFieldError(new Error('unrelated layout error')),
+    false,
+  );
+
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const field = fillPdfAcroForm.__test.createManualFormField({
+    pdfDoc,
+    form,
+    name: 'manual_textbox_1_3',
+    definition: {
+      manual: true,
+      field_type: '/Tx',
+      page: 2,
+      rect: [30, 54.96, 264.29, 79.72],
+    },
+    font,
+  });
+
+  assert(field);
+  assert.strictEqual(field.getName(), 'manual_textbox_1_3');
+  assert.strictEqual(field.acroField.getWidgets()[0].P().toString(), pdfDoc.getPage(1).ref.toString());
+
+  const fillResult = fillPdfAcroForm.__test.fillTextField({
+    field,
+    value: 'HOTEL ROMA',
+    definition: { font_size: 10.5 },
+    font,
+    form,
+  });
+  assert.strictEqual(fillResult.overflow, false);
+
+  const bytes = await pdfDoc.save({ updateFieldAppearances: false });
+  const reloaded = await PDFDocument.load(bytes);
+  assert.strictEqual(
+    reloaded.getForm().getTextField('manual_textbox_1_3').getText(),
+    'HOTEL ROMA',
+  );
+}
+
+function testPreviewPagesUseSharedFieldRendering() {
+  const page = {
+    page: 1,
+    width: 595,
+    height: 842,
+    previewImage: 'page-1.png',
+    leaves: [
+      {
+        needInput: true,
+        skipFill: false,
+        fields: [
+          {
+            name: 'accepted',
+            leafId: 'leaf-checkbox',
+            label: '确认',
+            kind: 'checkbox',
+            previewStyle: 'left:1%;top:2%;width:3%;height:4%',
+          },
+          {
+            name: 'surname',
+            leafId: 'leaf-text',
+            label: '姓',
+            kind: 'text',
+            rect: [0, 0, 120, 20],
+            fontSize: 10,
+            previewStyle: 'left:5%;top:6%;width:20%;height:4%',
+          },
+        ],
+      },
+      {
+        needInput: false,
+        skipFill: false,
+        isHandwriting: true,
+        manualText: '需要手写',
+        fields: [{
+          name: 'signature',
+          leafId: 'leaf-signature',
+          label: '签名',
+          kind: 'text',
+          rect: [0, 0, 120, 20],
+          fontSize: 10,
+          previewStyle: 'left:5%;top:12%;width:20%;height:4%',
+        }],
+      },
+    ],
+  };
+  const values = { accepted: true, surname: 'ZHANG' };
+  const sharedFields = buildPagePreviewFields(page, values, {
+    renderedWidth: 702,
+    unit: 'rpx',
+  });
+  const previewPages = buildPreviewPages({ pages: [page] }, values);
+
+  assert.deepStrictEqual(previewPages[0].overlays, sharedFields);
+  assert.strictEqual(sharedFields[0].isCheckbox, true);
+  assert.strictEqual(sharedFields[0].filled, true);
+  assert.strictEqual(sharedFields[0].display, '✓');
+  assert.strictEqual(sharedFields[2].manual, true);
+  assert.strictEqual(sharedFields[2].display, '需要手写');
+}
+
 async function testPdfAppearanceKeepsOriginalValue() {
   const pdfDoc = await PDFDocument.create();
   const page = pdfDoc.addPage([300, 300]);
@@ -103,11 +225,56 @@ async function testPdfOverflowIsRejected() {
   assert.strictEqual(result.overflow, true);
 }
 
+async function testPdfCheckboxIsSavedWithVisibleAppearance() {
+  const pdfDoc = await PDFDocument.create();
+  const page = pdfDoc.addPage([100, 100]);
+  const form = pdfDoc.getForm();
+  const checkbox = form.createCheckBox('accepted');
+  checkbox.addToPage(page, { x: 20, y: 20, width: 16, height: 16 });
+  const originalWidget = checkbox.acroField.getWidgets()[0];
+
+  // 真实签证模板中的部分复选框没有 /AP；此时第一次 check() 只能写值，
+  // 不能把 widget 的 /AS 从 /Off 切换到可见的选中态。
+  originalWidget.dict.delete(PDFName.of('AP'));
+  assert.strictEqual(checkbox.acroField.getOnValue(), undefined);
+  assert.strictEqual(checkbox.needsAppearancesUpdate(), true);
+
+  assert.strictEqual(
+    fillPdfAcroForm.__test.fillNonTextField(checkbox, true),
+    true,
+  );
+  assert.strictEqual(checkbox.isChecked(), true);
+  assert.strictEqual(checkbox.needsAppearancesUpdate(), false);
+  assert.strictEqual(
+    originalWidget.getAppearanceState().toString(),
+    checkbox.acroField.getOnValue().toString(),
+  );
+  assert.notStrictEqual(originalWidget.getAppearanceState().toString(), '/Off');
+
+  // 与生产导出保持一致：不触发全表单自动更新，确认勾选值和可见外观均已落盘。
+  const bytes = await pdfDoc.save({ updateFieldAppearances: false });
+  const reloaded = await PDFDocument.load(bytes);
+  const reloadedCheckbox = reloaded.getForm().getCheckBox('accepted');
+  const widget = reloadedCheckbox.acroField.getWidgets()[0];
+  const appearanceState = widget.getAppearanceState();
+  const normalAppearance = widget.getAppearances().normal;
+
+  assert.strictEqual(reloadedCheckbox.isChecked(), true);
+  assert(appearanceState);
+  assert(normalAppearance.has(appearanceState));
+  assert.strictEqual(appearanceState.toString(), reloadedCheckbox.acroField.getOnValue().toString());
+  assert.notStrictEqual(appearanceState.toString(), '/Off');
+  assert.strictEqual(reloadedCheckbox.needsAppearancesUpdate(), false);
+}
+
 async function run() {
   testSharedLayoutParity();
   testMultilineAndOverflow();
+  await testMissingFieldErrorAndManualFieldCreation();
+  testPreviewPagesUseSharedFieldRendering();
   await testPdfAppearanceKeepsOriginalValue();
   await testPdfOverflowIsRejected();
+  await testPdfCheckboxIsSavedWithVisibleAppearance();
   console.log('text layout tests passed');
 }
 

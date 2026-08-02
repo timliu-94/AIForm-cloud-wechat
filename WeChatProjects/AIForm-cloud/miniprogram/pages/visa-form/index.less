@@ -165,6 +165,23 @@ page {
     overflow: hidden;
   }
 
+  &__check {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(25, 28, 30, 0.78);
+    font-size: 18rpx;
+    font-weight: 600;
+    line-height: 1;
+    text-align: center;
+    pointer-events: none;
+  }
+
   &--empty {
     border: 1rpx dashed rgba(0, 61, 166, 0.38);
   }
@@ -219,6 +236,12 @@ page {
     box-shadow: 0 0 0 2rpx rgba(186, 26, 26, 0.16);
     z-index: 6;
   }
+}
+
+// PDF 里的勾应像文档内容，而不是表单控件的高亮状态。
+.box--checkbox.box--filled {
+  border-color: rgba(67, 70, 84, 0.28);
+  background: transparent;
 }
 
 /* —— 底部表单 —— */

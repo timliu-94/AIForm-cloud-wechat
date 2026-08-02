@@ -1,4 +1,4 @@
-const { buildFieldPreviewLayout, loadForm, COUNTRY_NAME } = require('../../utils/italyForm');
+const { buildPagePreviewFields, loadForm, COUNTRY_NAME } = require('../../utils/italyForm');
 const { buildDefaultApplicationTitle, normalizeTitle } = require('../../utils/applicationTitle');
 const { resolvePreviewImages } = require('../../utils/cloudAssets');
 const { fetchInvite } = require('../../utils/invite');
@@ -351,59 +351,11 @@ Page({
   },
 
   buildPreviewFields(leaves, values, activeName, pageWidth, renderedWidth) {
-    const out = [];
-    leaves.forEach((leaf) => {
-      if (leaf.skipFill) return;
-      leaf.fields.forEach((field) => {
-        const isCheckbox = field.kind === 'checkbox';
-        // 需要手写字段：用户不在线录入，但保留红框并参与预览联动。
-        if (!leaf.needInput) {
-          const textLayout = buildFieldPreviewLayout(
-            { ...field, kind: 'text' },
-            leaf.manualText,
-            pageWidth,
-            renderedWidth,
-          );
-          out.push({
-            name: field.name,
-            leafId: field.leafId,
-            label: field.label,
-            isCheckbox: false,
-            manual: true,
-            skipFill: leaf.skipFill,
-            isHandwriting: leaf.isHandwriting,
-            active: field.name === activeName,
-            display: leaf.manualText,
-            filled: false,
-            style: field.previewStyle,
-            ...textLayout,
-          });
-          return;
-        }
-        const raw = values[field.name];
-        let display = raw || '';
-        if (isCheckbox) display = raw === true ? '✓' : '';
-        const textLayout = buildFieldPreviewLayout(
-          field,
-          isCheckbox ? raw === true : display,
-          pageWidth,
-          renderedWidth,
-        );
-        out.push({
-          name: field.name,
-          leafId: field.leafId,
-          label: field.label,
-          isCheckbox,
-          manual: false,
-          active: field.name === activeName,
-          display,
-          filled: isCheckbox ? raw === true : !!(raw && String(raw).length),
-          style: field.previewStyle,
-          ...textLayout,
-        });
-      });
+    return buildPagePreviewFields({ width: pageWidth, leaves }, values, {
+      activeName,
+      renderedWidth,
+      unit: 'px',
     });
-    return out;
   },
 
   switchPage(e) {
@@ -547,8 +499,16 @@ Page({
 
   onCheckboxTap(e) {
     const { name } = e.currentTarget.dataset;
-    this.setFieldValue(name, !this.data.values[name]);
-    this.setActiveField(name, true);
+    const checked = this.data.values[name] !== true;
+    const previewActiveName = checked
+      ? name
+      : (this.data.activeFieldName === name ? '' : this.data.activeFieldName);
+    this.setFieldValue(name, checked, previewActiveName);
+    if (checked) {
+      this.setActiveField(name, true);
+    } else if (this.data.activeFieldName === name) {
+      this.setData({ activeFieldName: '', activeFieldLabel: '' });
+    }
   },
 
   backToHome() {
@@ -560,7 +520,7 @@ Page({
     wx.switchTab({ url: '/pages/home/index' });
   },
 
-  setFieldValue(name, value) {
+  setFieldValue(name, value, previewActiveName = name) {
     const values = { ...this.data.values, [name]: value };
     const activePage = this.data.pages.find((page) => page.page === this.data.activePage);
     this.setData({
@@ -568,7 +528,7 @@ Page({
       previewFields: this.buildPreviewFields(
         this.data.activeLeaves,
         values,
-        name,
+        previewActiveName,
         activePage && activePage.width,
         this.data.previewCanvasWidth,
       ),

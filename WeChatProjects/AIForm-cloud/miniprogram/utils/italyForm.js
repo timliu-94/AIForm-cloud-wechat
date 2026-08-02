@@ -158,6 +158,71 @@ function buildFieldPreviewLayout(field, value, pageWidth, renderedWidth, unit = 
   };
 }
 
+// 为单页生成字段叠加层。“辅助填写”和完整 PDF 预览必须共用这份数据转换，
+// 否则勾选框、手写字段或文字自适应规则变更后，两处预览会出现不同结果。
+function buildPagePreviewFields(page, values, options = {}) {
+  const out = [];
+  const activeName = options.activeName || '';
+  const renderedWidth = options.renderedWidth || FULL_PREVIEW_CANVAS_RPX;
+  const unit = options.unit || 'px';
+  const pageValues = values || {};
+
+  page.leaves.forEach((leaf) => {
+    if (leaf.skipFill) return;
+    leaf.fields.forEach((field) => {
+      const isCheckbox = field.kind === 'checkbox';
+      if (!leaf.needInput) {
+        const textLayout = buildFieldPreviewLayout(
+          { ...field, kind: 'text' },
+          leaf.manualText,
+          page.width,
+          renderedWidth,
+          unit,
+        );
+        out.push({
+          name: field.name,
+          leafId: field.leafId,
+          label: field.label,
+          isCheckbox: false,
+          manual: true,
+          skipFill: leaf.skipFill,
+          isHandwriting: leaf.isHandwriting,
+          active: field.name === activeName,
+          display: leaf.manualText,
+          filled: false,
+          style: field.previewStyle,
+          ...textLayout,
+        });
+        return;
+      }
+
+      const raw = pageValues[field.name];
+      const filled = isCheckbox ? raw === true : !!(raw && String(raw).length);
+      const display = isCheckbox ? (filled ? '✓' : '') : (raw || '');
+      const textLayout = buildFieldPreviewLayout(
+        field,
+        isCheckbox ? filled : display,
+        page.width,
+        renderedWidth,
+        unit,
+      );
+      out.push({
+        name: field.name,
+        leafId: field.leafId,
+        label: field.label,
+        isCheckbox,
+        manual: false,
+        active: field.name === activeName,
+        display,
+        filled,
+        style: field.previewStyle,
+        ...textLayout,
+      });
+    });
+  });
+  return out;
+}
+
 function normalizeTemplateVersion(templateId, override) {
   const dynamic = override || findCachedCountryFormVersion(templateId);
   if (dynamic) return dynamic;
@@ -261,69 +326,16 @@ function loadForm(templateId = TEMPLATE_ID, versionOverride) {
 
 // 依据已填写的值，为预览页生成每页的叠加层（把值放回 PDF 字段位置）。
 function buildPreviewPages(form, values) {
-  return form.pages.map((page) => {
-    const overlays = [];
-    page.leaves.forEach((leaf) => {
-      // 无需填写的叶子不在图片预览中展示；需要手写的叶子保留红框提示。
-      if (leaf.skipFill) return;
-      // 需要手写的叶子不参与未填统计，但保留图片上的 acroform 红框。
-      if (!leaf.needInput) {
-        leaf.fields.forEach((field) => {
-          const textLayout = buildFieldPreviewLayout(
-            { ...field, kind: 'text' },
-            leaf.manualText,
-            page.width,
-            FULL_PREVIEW_CANVAS_RPX,
-            'rpx',
-          );
-          overlays.push({
-            name: field.name,
-            label: field.label,
-            filled: false,
-            manual: true,
-            skipFill: leaf.skipFill,
-            isHandwriting: leaf.isHandwriting,
-            display: leaf.manualText,
-            isCheckbox: false,
-            style: field.previewStyle,
-            ...textLayout,
-          });
-        });
-        return;
-      }
-      leaf.fields.forEach((field) => {
-        const raw = values[field.name];
-        const isCheckbox = field.kind === 'checkbox';
-        const filled = isCheckbox ? raw === true : !!(raw && String(raw).length);
-        let display = raw || '';
-        if (isCheckbox) display = raw === true ? '✓' : '';
-        const textLayout = buildFieldPreviewLayout(
-          field,
-          isCheckbox ? raw === true : display,
-          page.width,
-          FULL_PREVIEW_CANVAS_RPX,
-          'rpx',
-        );
-        overlays.push({
-          name: field.name,
-          label: field.label,
-          filled,
-          manual: false,
-          display,
-          isCheckbox,
-          style: field.previewStyle,
-          ...textLayout,
-        });
-      });
-    });
-    return {
-      page: page.page,
-      width: page.width,
-      height: page.height,
-      previewImage: page.previewImage,
-      overlays,
-    };
-  });
+  return form.pages.map((page) => ({
+    page: page.page,
+    width: page.width,
+    height: page.height,
+    previewImage: page.previewImage,
+    overlays: buildPagePreviewFields(page, values, {
+      renderedWidth: FULL_PREVIEW_CANVAS_RPX,
+      unit: 'rpx',
+    }),
+  }));
 }
 
 module.exports = {
@@ -332,6 +344,7 @@ module.exports = {
   FORM_TITLE,
   buildForm,
   buildFieldPreviewLayout,
+  buildPagePreviewFields,
   buildPreviewPages,
   loadForm,
 };

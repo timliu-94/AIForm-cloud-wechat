@@ -1,10 +1,10 @@
 function confirmA3PrintOrder() {
   return new Promise((resolve) => {
     wx.showModal({
-      title: 'A3 打印顺序',
-      content: '是否把 PDF 调整成 A3 打印顺序？',
-      confirmText: '是',
-      cancelText: '否',
+      title: '是否需要 A3 打印？',
+      content: '部分大使馆要求使用 A3 纸打印。选择 A3 打印后，系统会将 PDF 最后一页调整到第一页，便于双面打印后折叠成册。',
+      confirmText: '需要',
+      cancelText: '不需要',
       success: (res) => resolve(Boolean(res.confirm)),
       fail: () => resolve(false),
     });
@@ -56,6 +56,7 @@ function exportApplicationPdf(application, title) {
     console.log('Generate PDF result:', {
       fileID: result.fileID,
       filledCount: (result.filledFields || []).length,
+      checkedCount: (result.checkedFields || []).length,
       missingCount: (result.missingFields || []).length,
       failedCount: (result.failedFields || []).length,
       unsupportedCount: (result.unsupportedFields || []).length,

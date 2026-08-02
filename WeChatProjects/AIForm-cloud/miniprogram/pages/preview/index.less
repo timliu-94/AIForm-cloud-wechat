@@ -131,6 +131,23 @@
     overflow: hidden;
   }
 
+  &__check {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(25, 28, 30, 0.78);
+    font-size: 18rpx;
+    font-weight: 600;
+    line-height: 1;
+    text-align: center;
+    pointer-events: none;
+  }
+
   &--checkbox &__clip {
     align-items: center;
     padding: 0;
@@ -170,6 +187,12 @@
   &--skip &__label {
     background: rgba(96, 98, 102, 0.7);
   }
+}
+
+// 勾选结果贴近原 PDF 的印刷效果，不再额外铺一层醒目的品牌色。
+.overlay--checkbox.overlay--filled {
+  border-color: rgba(67, 70, 84, 0.28);
+  background: transparent;
 }
 
 .footer {
@@ -284,14 +307,25 @@
 }
 
 .overlay--filled {
-  border-color: rgba(0, 82, 217, 0.44);
-  background: rgba(0, 82, 217, 0.07);
+  border: 1rpx solid rgba(0, 61, 166, 0.58);
+  background: rgba(0, 61, 166, 0.06);
 }
 
-.overlay--pending,
+.overlay--pending {
+  border: 1rpx dashed rgba(0, 61, 166, 0.38);
+  background: transparent;
+}
+
 .overlay--handwriting {
-  border-color: rgba(186, 26, 26, 0.58);
-  background: rgba(186, 26, 26, 0.06);
+  border-color: rgba(212, 56, 13, 0.7);
+  background: rgba(212, 56, 13, 0.06);
+}
+
+.overlay--overflow {
+  border: 3rpx solid @error;
+  background: rgba(186, 26, 26, 0.14);
+  box-shadow: 0 0 0 2rpx rgba(186, 26, 26, 0.16);
+  z-index: 6;
 }
 
 .overlay__label {

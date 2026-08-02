@@ -31,8 +31,17 @@ function fillNonTextField(field, value, font) {
   const text = String(value);
 
   if (field instanceof PDFCheckBox) {
-    if (isChecked(value)) field.check();
+    const checked = isChecked(value);
+    if (checked) field.check();
     else field.uncheck();
+    // 导出时关闭了全表单的自动外观更新，以免覆盖模板原有样式。
+    // 部分模板的复选框没有 /AP，第一次 check() 只能写入 /V，无法同步控件
+    // 的 /AS。先补齐可见外观，再次 check/uncheck 才能把 /AS 指向正确状态。
+    if (checked || field.needsAppearancesUpdate()) {
+      field.updateAppearances();
+      if (checked) field.check();
+      else field.uncheck();
+    }
     return true;
   }
 
@@ -77,6 +86,48 @@ function collectAcroformDefinitions(schema) {
 
   visit(schema);
   return definitions;
+}
+
+function isMissingFormFieldError(err) {
+  const message = String((err && err.message) || err || '');
+  return /no (?:form )?field with (?:the )?name/i.test(message);
+}
+
+function createManualFormField({ pdfDoc, form, name, definition, font }) {
+  if (!definition || definition.manual !== true) return null;
+
+  const pageNumber = Number(definition.page);
+  const rect = Array.isArray(definition.rect) ? definition.rect.map(Number) : [];
+  if (!Number.isInteger(pageNumber) || pageNumber < 1 || pageNumber > pdfDoc.getPageCount()) return null;
+  if (rect.length < 4 || rect.some((value) => !Number.isFinite(value))) return null;
+
+  const [x0, y0, x1, y1] = rect;
+  const width = x1 - x0;
+  const height = y1 - y0;
+  if (width <= 0 || height <= 0) return null;
+
+  const page = pdfDoc.getPage(pageNumber - 1);
+  const widgetOptions = {
+    x: x0,
+    y: y0,
+    width,
+    height,
+    borderWidth: 0,
+  };
+
+  if (definition.field_type === '/Tx') {
+    const field = form.createTextField(name);
+    field.addToPage(page, { ...widgetOptions, font });
+    return field;
+  }
+
+  if (definition.field_type === '/Btn') {
+    const field = form.createCheckBox(name);
+    field.addToPage(page, widgetOptions);
+    return field;
+  }
+
+  return null;
 }
 
 async function loadTemplateFieldDefinitions(template) {
@@ -260,6 +311,8 @@ async function fillPdfAcroForm(event) {
   const failedFields = [];
   const skippedFields = [];
   const filledFields = [];
+  const checkedFields = [];
+  const createdFields = [];
   const unsupportedFields = [];
   const overflowFields = [];
   const textLayouts = {};
@@ -270,10 +323,27 @@ async function fillPdfAcroForm(event) {
       return;
     }
     const pdfFieldName = template.fieldMap[fieldName] || fieldName;
+    const definition = fieldDefinitions[pdfFieldName] || fieldDefinitions[fieldName] || {};
     try {
-      const field = form.getField(pdfFieldName);
+      let field;
+      try {
+        field = form.getField(pdfFieldName);
+      } catch (err) {
+        if (!isMissingFormFieldError(err)) throw err;
+        field = createManualFormField({
+          pdfDoc,
+          form,
+          name: pdfFieldName,
+          definition,
+          font: appearanceFont,
+        });
+        if (!field) {
+          missingFields.push(pdfFieldName);
+          return;
+        }
+        createdFields.push(pdfFieldName);
+      }
       if (field instanceof PDFTextField) {
-        const definition = fieldDefinitions[pdfFieldName] || fieldDefinitions[fieldName] || {};
         const result = fillTextField({
           field,
           value: values[fieldName],
@@ -297,11 +367,14 @@ async function fillPdfAcroForm(event) {
         }
       } else if (fillNonTextField(field, values[fieldName], appearanceFont)) {
         filledFields.push(pdfFieldName);
+        if (field instanceof PDFCheckBox && isChecked(values[fieldName])) {
+          checkedFields.push(pdfFieldName);
+        }
       } else {
         unsupportedFields.push(pdfFieldName);
       }
     } catch (err) {
-      if (/No field with name/.test(String(err && err.message))) {
+      if (isMissingFormFieldError(err)) {
         missingFields.push(pdfFieldName);
       } else {
         failedFields.push({ field: pdfFieldName, message: err.message || String(err) });
@@ -313,12 +386,16 @@ async function fillPdfAcroForm(event) {
     templateId,
     inputCount: Object.keys(values).length,
     filledCount: filledFields.length,
+    checkedCount: checkedFields.length,
+    createdCount: createdFields.length,
     skippedCount: skippedFields.length,
     missingCount: missingFields.length,
     failedCount: failedFields.length,
     unsupportedCount: unsupportedFields.length,
     overflowCount: overflowFields.length,
     sampleMissingFields: missingFields.slice(0, 20),
+    sampleCheckedFields: checkedFields.slice(0, 20),
+    sampleCreatedFields: createdFields.slice(0, 20),
     sampleFailedFields: failedFields.slice(0, 10),
     sampleUnsupportedFields: unsupportedFields.slice(0, 20),
     sampleOverflowFields: overflowFields.slice(0, 10),
@@ -414,6 +491,8 @@ async function fillPdfAcroForm(event) {
     cloudPath,
     pageOrderAdjusted,
     filledFields,
+    checkedFields,
+    createdFields,
     missingFields,
     failedFields,
     skippedFields,
@@ -426,6 +505,10 @@ async function fillPdfAcroForm(event) {
 module.exports = fillPdfAcroForm;
 module.exports.__test = {
   collectAcroformDefinitions,
+  createManualFormField,
+  fillNonTextField,
   fillTextField,
+  isChecked,
+  isMissingFormFieldError,
   widgetLayoutBox,
 };

@@ -299,52 +299,72 @@
   }
 }
 
-.contact-row {
-  display: flex;
-  align-items: center;
-  gap: 18rpx;
-  padding: 24rpx 0;
-  border-bottom: 1rpx solid rgba(195, 198, 215, 0.5);
-
-  &:last-child {
-    padding-bottom: 0;
-    border-bottom: 0;
+.customer-service-panel {
+  &__intro {
+    display: flex;
+    align-items: center;
+    gap: 20rpx;
+    margin-top: 24rpx;
+    padding: 24rpx;
+    border-radius: 18rpx;
+    background: @surface-low;
   }
 
-  &__main {
+  &__icon {
+    display: flex;
+    width: 76rpx;
+    height: 76rpx;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    border-radius: 50%;
+    background: @primary-fixed;
+  }
+
+  &__content {
     min-width: 0;
     flex: 1;
   }
 
-  &__label {
+  &__title {
+    color: @text-primary;
+    font-size: 28rpx;
+    font-weight: 700;
+    line-height: 38rpx;
+  }
+
+  &__description {
+    margin-top: 6rpx;
     color: @text-secondary;
     font-size: 24rpx;
-    line-height: 34rpx;
+    line-height: 36rpx;
   }
 
-  &__value {
-    margin-top: 4rpx;
-    color: @text-primary;
-    font-size: 30rpx;
-    line-height: 40rpx;
-    word-break: break-all;
-  }
-
-  &__copy {
-    flex: none;
-    min-width: 104rpx;
-    height: 64rpx;
-    margin: 0;
-    padding: 0 22rpx;
+  &__button {
+    display: flex;
+    height: 84rpx;
+    align-items: center;
+    justify-content: center;
+    gap: 12rpx;
+    margin: 28rpx 0 0;
     border-radius: 999rpx;
-    color: @primary;
-    font-size: 26rpx;
-    line-height: 64rpx;
-    background: @primary-fixed;
+    color: @surface-lowest;
+    font-size: 28rpx;
+    font-weight: 700;
+    line-height: 84rpx;
+    background: @primary;
 
     &::after {
       border: 0;
     }
+  }
+
+  &__hint {
+    margin-top: 14rpx;
+    color: @outline;
+    font-size: 22rpx;
+    line-height: 32rpx;
+    text-align: center;
   }
 }
 

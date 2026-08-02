@@ -51,7 +51,8 @@
             data-leaf="{{item.leafId}}"
             bindtap="tapPreviewBox"
           >
-            <view class="box__clip {{item.multiline ? 'box__clip--multiline' : ''}}" style="{{item.valueStyle}}">
+            <view wx:if="{{item.isCheckbox && item.filled}}" class="box__check" aria-label="已勾选">✓</view>
+            <view wx:else class="box__clip {{item.multiline ? 'box__clip--multiline' : ''}}" style="{{item.valueStyle}}">
               <text
                 wx:for="{{item.lineItems}}"
                 wx:for-item="lineItem"
