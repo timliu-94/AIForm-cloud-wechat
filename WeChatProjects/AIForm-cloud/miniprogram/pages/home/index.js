@@ -5,7 +5,7 @@ const {
 const { listCountryFormVersions, openCloudPdf } = require('../../utils/countryFormCatalog');
 
 const HOT_FILTER = '热门';
-const OPEN_CUSTOMER_SERVICE_KEY = 'open_customer_service_from_home';
+const OFFICIAL_WEB_MODE = 'official_web';
 
 function getVisaTypeIcon(typeId) {
   if (typeId.includes('business')) return 'work';
@@ -37,16 +37,25 @@ function getCountrySelection(country) {
   };
 }
 
-function replaceItalyVersions(catalog, cloudVersions) {
+function countryMatchesQuery(country, query) {
+  if (!query) return true;
+  return [country.name, country.id, country.iso2, ...(country.searchAliases || [])]
+    .some((term) => String(term || '').toLowerCase().includes(query));
+}
+
+function replaceCountryVersions(catalog, catalogCountry, cloudVersions) {
   if (!cloudVersions.length) return catalog;
+  const visaTypeIds = catalogCountry.cloudCatalog.visaTypeIds
+    || [catalogCountry.cloudCatalog.visaTypeId];
   return catalog.map((country) => {
-    if (country.id !== 'italy') return country;
+    if (country.id !== catalogCountry.id) return country;
     return {
       ...country,
       visaTypes: country.visaTypes.map((visaType) => ({
         ...visaType,
         districts: visaType.districts.map((district) => (
-          visaType.id === 'tourism' && district.id === 'shanghai'
+          visaTypeIds.indexOf(visaType.id) >= 0
+            && district.id === catalogCountry.cloudCatalog.districtId
             ? { ...district, versions: cloudVersions }
             : district
         )),
@@ -70,6 +79,7 @@ Page({
     selectedDistrict: null,
     selectedVersion: null,
     selectedVersionId: '',
+    searchGuideCountryName: '',
     catalogLoading: false,
     catalogError: '',
   },
@@ -86,11 +96,25 @@ Page({
 
   loadCountryFormCatalog(options = {}) {
     this.setData({ catalogLoading: true, catalogError: '' });
-    return listCountryFormVersions('Italy', options)
-      .then((versions) => {
-        this.runtimeVisaCatalog = replaceItalyVersions(visaCatalog, versions);
+    const catalogCountries = visaCatalog.filter((country) => country.cloudCatalog);
+    const requests = catalogCountries.map((country) => (
+      listCountryFormVersions(country.cloudCatalog.country, options)
+        .then((versions) => ({ country, versions, error: null }))
+        .catch((error) => ({ country, versions: [], error }))
+    ));
+    return Promise.all(requests)
+      .then((results) => {
+        this.runtimeVisaCatalog = results.reduce((catalog, result) => (
+          replaceCountryVersions(catalog, result.country, result.versions)
+        ), visaCatalog);
         this.refreshCountries();
-        this.setData({ catalogLoading: false });
+        const failures = results.filter((result) => result.error);
+        this.setData({
+          catalogLoading: false,
+          catalogError: failures.map((result) => (
+            `${result.country.name}：${result.error.message || String(result.error)}`
+          )).join('\n'),
+        });
       })
       .catch((err) => {
         console.error('Load country form catalog failed:', err);
@@ -102,15 +126,11 @@ Page({
   },
 
   onSearch(e) {
-    this.setData({ query: e.detail.value || '' });
-    this.refreshCountries();
-  },
-
-  openCustomerService() {
-    wx.setStorageSync(OPEN_CUSTOMER_SERVICE_KEY, true);
-    wx.switchTab({
-      url: '/pages/my/index',
+    this.setData({
+      query: e.detail.value || '',
+      ...getCountrySelection(null),
     });
+    this.refreshCountries();
   },
 
   selectContinent(e) {
@@ -124,6 +144,7 @@ Page({
       selectedDistrict: null,
       selectedVersion: null,
       selectedVersionId: '',
+      searchGuideCountryName: '',
     });
     this.refreshCountries();
   },
@@ -199,16 +220,32 @@ Page({
   },
 
   refreshCountries() {
-    const query = this.data.query.trim().toLowerCase();
+    const rawQuery = this.data.query.trim();
+    const query = rawQuery.toLowerCase();
     const {selectedContinent} = this.data;
-    const countries = (this.runtimeVisaCatalog || visaCatalog).filter((country) => {
-      const hitQuery = !query || country.name.toLowerCase().includes(query);
+    const source = this.runtimeVisaCatalog || visaCatalog;
+    const selectableCountries = source.filter(
+      (country) => country.applicationMode !== OFFICIAL_WEB_MODE,
+    );
+    const countries = selectableCountries.filter((country) => {
+      if (query) return countryMatchesQuery(country, query);
       const hitContinent = selectedContinent === HOT_FILTER
         ? country.hot
         : country.continent === selectedContinent;
-      return hitQuery && hitContinent;
+      return hitContinent;
     }).map(decorateCountry);
-    this.setData({ countries });
+    const officialWebCountry = query && !countries.length
+      ? source.find((country) => (
+        country.applicationMode === OFFICIAL_WEB_MODE
+        && countryMatchesQuery(country, query)
+      ))
+      : null;
+    this.setData({
+      countries,
+      searchGuideCountryName: query && !countries.length
+        ? ((officialWebCountry && officialWebCountry.name) || rawQuery)
+        : '',
+    });
   },
 
   openPdfPreview(version) {

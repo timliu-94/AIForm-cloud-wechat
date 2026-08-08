@@ -27,6 +27,11 @@ const countries = [
     iso2: 'it',
     continent: '欧洲',
     hot: true,
+    cloudCatalog: {
+      country: 'Italy',
+      visaTypeId: 'tourism',
+      districtId: 'shanghai',
+    },
     templates: [
       {
         id: 'it-schengen-tourism-shanghai-demo',
@@ -132,6 +137,8 @@ const countries = [
     iso2: 'de',
     continent: '欧洲',
     hot: true,
+    applicationMode: 'official_web',
+    searchAliases: ['Germany', '德意志'],
     templates: [
       {
         id: 'de-schengen-tourism-2026-02',
@@ -160,18 +167,29 @@ const countries = [
     iso2: 'jp',
     continent: '亚洲',
     hot: true,
+    cloudCatalog: {
+      country: 'Japan',
+      visaTypeIds: ['short-term', 'long-term'],
+      districtId: 'shanghai',
+    },
     templates: [
       {
         id: 'jp-tourism-2026-01',
-        visaType: {
-          id: 'tourism',
-          name: '短期旅游',
-        },
+        visaTypes: [
+          {
+            id: 'short-term',
+            name: '短期签证',
+          },
+          {
+            id: 'long-term',
+            name: '长期签证',
+          },
+        ],
         district: {
           id: 'shanghai',
           name: '上海领区',
         },
-        name: '短期停留签证申请表',
+        name: '日本签证申请表',
         version: '2026.01',
         publishedAt: '2026-01-01',
         scope: '上海、江苏、浙江、安徽、江西',
@@ -181,6 +199,16 @@ const countries = [
         },
       },
     ],
+  },
+  {
+    id: 'south-korea',
+    name: '韩国',
+    iso2: 'kr',
+    continent: '亚洲',
+    hot: true,
+    applicationMode: 'official_web',
+    searchAliases: ['Korea', 'South Korea', '南韩'],
+    templates: [],
   },
   {
     id: 'usa',
@@ -214,6 +242,12 @@ const countries = [
 
 function getCountryConfig(countryId) {
   return countries.find((country) => country.id === countryId) || null;
+}
+
+function getCountryConfigByCloudDirectory(directory) {
+  return countries.find((country) => (
+    country.cloudCatalog && country.cloudCatalog.country === directory
+  )) || null;
 }
 
 function resolveTemplateId(templateId) {
@@ -285,6 +319,7 @@ module.exports = {
   continents,
   countries,
   getCountryConfig,
+  getCountryConfigByCloudDirectory,
   getCountryFlag,
   getPreviewImage,
   getTemplateAsset,

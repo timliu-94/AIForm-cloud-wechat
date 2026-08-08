@@ -2,7 +2,12 @@
 // 把抽取出来的 acroforms schema（叶子节点 + 其包含的 acroform 字段）转换成
 // 小程序表单/预览所需的视图模型。核心约束：按 JSON 叶子节点顺序展示，每个叶子
 // 是一个不可分割的文字块，里面的若干 acroforms 以「包含」关系嵌套在该文字块下。
-const { getPreviewImage, getTemplateAsset, loadTemplateSchema } = require('../config/countryConfig');
+const {
+  getCountryConfigByCloudDirectory,
+  getPreviewImage,
+  getTemplateAsset,
+  loadTemplateSchema,
+} = require('../config/countryConfig');
 const { countryFormSchemaAsset, downloadCloudJSON } = require('./cloudAssets');
 const { findCachedCountryFormVersion } = require('./countryFormCatalog');
 const { buildScaledTextStyle, layoutText } = require('./textLayout');
@@ -15,10 +20,12 @@ const FULL_PREVIEW_CANVAS_RPX = 702;
 // 新版标注（Italy_acroforms_new.json）已自带语义信息，无需再做
 // OCR 配对 / 标签覆盖 / 示范映射 / 幽灵字段表：
 //   - 叶子节点 is_need_filled：标注该文字块是否需要用户填写。为 false 时不渲染录入控件、
-//     不计入进度、不写回值，但仍保留文字块与预览图红框。
+//     不计入进度、不写回值，但仍保留文字块与预览位置提示。
 //   - 叶子节点 is_handwritting：标注该文字块需手写。它会出现在表单里提示用户手写，
-//     不渲染线上输入控件、不计入进度，但仍保留对应 acroform 的图片预览红框。
+//     不计入进度，但仍保留对应 acroform 的图片预览位置提示。
 //   - acroform is_acro_need_filled：标注该 PDF 字段是否需要用户填写。
+//   - acroform is_acro_handwritting：标注该 PDF 字段需在打印后手写；字段级
+//     标注优先于叶子节点，以支持同一文字块里同时存在在线填写和手写字段。
 //   - acroform field_name：字段中文名（直接作为标签）。
 //   - acroform field_example：填写示范（直接展示在输入框下方）。
 //   - acroform input_type：语义类型，决定录入控件（日期/地址/电话/文本）。
@@ -108,11 +115,19 @@ function buildLeafFields(leaf, size) {
     // 填写示范：仅文本类字段取用（日期/勾选有各自的占位提示，不取示范）。
     const example = (!isBtn && component !== 'date') ? (af.field_example || '') : '';
     return {
+      // id 在 buildForm 完成全量重名检查后赋值；name 始终保留 PDF 原始字段名。
+      id: '',
       name: af.name,
+      fieldName: af.field_name || '',
       leafId: leaf.leaf_id,
       page: leaf.page,
       fieldType: af.field_type,
       kind: isBtn ? 'checkbox' : 'text',
+      // AcroForm 有显式布尔值时以字段级标注为准；旧 schema 缺失该属性时
+      // 才继承叶子节点的手写设置。
+      isHandwriting: typeof af.is_acro_handwritting === 'boolean'
+        ? af.is_acro_handwritting
+        : leaf.is_handwritting === true,
       component,
       example,
       label,
@@ -129,6 +144,62 @@ function buildLeafFields(leaf, size) {
       rect: af.rect,
       ...geo,
     };
+  });
+}
+
+// 页面状态不再直接把可重复的字段名当作组件 key。加载 JSON 后全量检查：
+//   1. PDF AcroForm name 重复；
+//   2. 用于前端展示的 field_name 重复。
+// 命中任一情况就生成隐藏 ID。非重名项保持 id === name，以兼容已有草稿。
+function assignUniqueFieldIds(pages) {
+  const allFields = [];
+  pages.forEach((page) => page.leaves.forEach((leaf) => {
+    leaf.fields.forEach((field) => allFields.push(field));
+  }));
+
+  const nameCounts = {};
+  const fieldNameCounts = {};
+  allFields.forEach((field) => {
+    const name = String(field.name || '');
+    const fieldName = String(field.fieldName || '').trim();
+    nameCounts[name] = (nameCounts[name] || 0) + 1;
+    if (fieldName) fieldNameCounts[fieldName] = (fieldNameCounts[fieldName] || 0) + 1;
+  });
+
+  const usedIds = new Set();
+  allFields.forEach((field) => {
+    const name = String(field.name || '');
+    const fieldName = String(field.fieldName || '').trim();
+    const hasDuplicateName = nameCounts[name] > 1;
+    const hasDuplicateFieldName = fieldName && fieldNameCounts[fieldName] > 1;
+    if (name && !hasDuplicateName && !hasDuplicateFieldName && !usedIds.has(name)) {
+      field.id = name;
+      usedIds.add(name);
+      return;
+    }
+
+    // ID 由 PDF 字段名、页码、叶子节点和坐标生成，不依赖数组顺序。
+    // 这样 JSON 新增其他字段后，已有草稿的隐藏 ID 仍保持稳定。
+    const identity = JSON.stringify([
+      name,
+      field.page || 0,
+      field.leafId || '',
+      field.rect || [],
+    ]);
+    let hash = 2166136261;
+    for (let i = 0; i < identity.length; i += 1) {
+      hash ^= identity.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    const base = `acroform_${(hash >>> 0).toString(36)}`;
+    let id = base;
+    let suffix = 1;
+    while (usedIds.has(id) || nameCounts[id]) {
+      suffix += 1;
+      id = `${base}_${suffix}`;
+    }
+    field.id = id;
+    usedIds.add(id);
   });
 }
 
@@ -170,25 +241,27 @@ function buildPagePreviewFields(page, values, options = {}) {
   page.leaves.forEach((leaf) => {
     if (leaf.skipFill) return;
     leaf.fields.forEach((field) => {
+      const fieldId = field.id || field.name;
       const isCheckbox = field.kind === 'checkbox';
-      if (!leaf.needInput) {
+      if (field.isHandwriting || !leaf.needInput) {
         const textLayout = buildFieldPreviewLayout(
           { ...field, kind: 'text' },
-          leaf.manualText,
+          field.isHandwriting ? '需要手写' : leaf.manualText,
           page.width,
           renderedWidth,
           unit,
         );
         out.push({
+          id: fieldId,
           name: field.name,
           leafId: field.leafId,
           label: field.label,
           isCheckbox: false,
           manual: true,
           skipFill: leaf.skipFill,
-          isHandwriting: leaf.isHandwriting,
-          active: field.name === activeName,
-          display: leaf.manualText,
+          isHandwriting: field.isHandwriting || leaf.isHandwriting,
+          active: fieldId === activeName,
+          display: field.isHandwriting ? '需要手写' : leaf.manualText,
           filled: false,
           style: field.previewStyle,
           ...textLayout,
@@ -196,7 +269,9 @@ function buildPagePreviewFields(page, values, options = {}) {
         return;
       }
 
-      const raw = pageValues[field.name];
+      const raw = Object.prototype.hasOwnProperty.call(pageValues, fieldId)
+        ? pageValues[fieldId]
+        : pageValues[field.name];
       const filled = isCheckbox ? raw === true : !!(raw && String(raw).length);
       const display = isCheckbox ? (filled ? '✓' : '') : (raw || '');
       const textLayout = buildFieldPreviewLayout(
@@ -207,12 +282,13 @@ function buildPagePreviewFields(page, values, options = {}) {
         unit,
       );
       out.push({
+        id: fieldId,
         name: field.name,
         leafId: field.leafId,
         label: field.label,
         isCheckbox,
         manual: false,
-        active: field.name === activeName,
+        active: fieldId === activeName,
         display,
         filled,
         style: field.previewStyle,
@@ -259,8 +335,10 @@ function buildForm(schema, templateId = TEMPLATE_ID, versionOverride) {
     const leaves = page.leaf_nodes.map((leaf) => {
       const skipFill = leaf.is_need_filled === false;
       const isHandwriting = leaf.is_handwritting === true;
-      const needInput = !skipFill && !isHandwriting;
       const fields = buildLeafFields(leaf, page.size);
+      const inputFields = skipFill ? [] : fields.filter((field) => !field.isHandwriting);
+      const handwritingFields = skipFill ? [] : fields.filter((field) => field.isHandwriting);
+      const needInput = inputFields.length > 0;
       return {
         leafId: leaf.leaf_id,
         page: leaf.page,
@@ -268,12 +346,15 @@ function buildForm(schema, templateId = TEMPLATE_ID, versionOverride) {
         lines: (leaf.text || '').split('\n'),
         skipFill,
         isHandwriting,
+        hasHandwritingFields: handwritingFields.length > 0,
         needInput,
-        manualFill: skipFill || isHandwriting,
+        manualFill: skipFill || (!needInput && handwritingFields.length > 0),
         manualText: isHandwriting ? '需要手写' : '无需填写',
         fieldCount: fields.length,
-        inputFieldCount: needInput ? fields.length : 0,
+        inputFieldCount: inputFields.length,
         fields,
+        inputFields,
+        handwritingFields,
       };
     });
     return {
@@ -285,17 +366,20 @@ function buildForm(schema, templateId = TEMPLATE_ID, versionOverride) {
     };
   });
 
+  assignUniqueFieldIds(pages);
+
   // 全局字段表用于进度统计、初值、定位等，只包含需要线上录入的字段。
   const fields = [];
   pages.forEach((page) => page.leaves.forEach((leaf) => {
-    if (!leaf.needInput) return;
-    leaf.fields.forEach((f) => fields.push(f));
+    leaf.inputFields.forEach((f) => fields.push(f));
   }));
 
   return {
     templateId,
     templateVersion,
-    country: COUNTRY_NAME,
+    country: (
+      getCountryConfigByCloudDirectory(templateVersion.country) || { name: COUNTRY_NAME }
+    ).name,
     title: templateVersion.name || FORM_TITLE,
     summary: schema.summary,
     pages,

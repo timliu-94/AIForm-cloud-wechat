@@ -16,18 +16,20 @@
       <image class="pdf-bg" src="{{currentPage.previewImage}}" mode="widthFix" bindload="onPreviewImageLoad" bindtap="previewImage" binderror="onPreviewImageError" />
       <view
         wx:for="{{currentPage.overlays}}"
-        wx:key="name"
+        wx:key="id"
         class="overlay {{item.manual ? 'overlay--manual' : (item.filled ? 'overlay--filled' : 'overlay--pending')}} {{item.isHandwriting ? 'overlay--handwriting' : ''}} {{item.skipFill ? 'overlay--skip' : ''}} {{item.isCheckbox ? 'overlay--checkbox' : ''}} {{item.overflow ? 'overlay--overflow' : ''}}"
         style="{{item.style}}"
       >
         <view wx:if="{{item.isCheckbox && item.filled}}" class="overlay__check" aria-label="已勾选">✓</view>
-        <view wx:else class="overlay__clip {{item.multiline ? 'overlay__clip--multiline' : ''}}" style="{{item.valueStyle}}">
-          <text
-            wx:for="{{item.lineItems}}"
-            wx:for-item="lineItem"
-            wx:key="key"
-            class="overlay__line"
-          >{{lineItem.text}}</text>
+        <view wx:else class="overlay__clip {{item.multiline ? 'overlay__clip--multiline' : ''}}">
+          <view class="overlay__content" style="{{item.valueStyle}}">
+            <text
+              wx:for="{{item.lineItems}}"
+              wx:for-item="lineItem"
+              wx:key="key"
+              class="overlay__line"
+            >{{lineItem.text}}</text>
+          </view>
         </view>
         <view class="overlay__label" wx:if="{{showLabels}}">{{item.label}}</view>
       </view>

@@ -88,6 +88,19 @@ function displayDateFromPickerState(ranges, value) {
   return day && month && year ? `${day}-${month}-${year}` : '';
 }
 
+// 新数据以隐藏唯一 ID 存储；旧草稿仍可能以 PDF 原始 name 存储。
+// 重名字段首次读取旧草稿时会共用旧值，之后保存即转为各自的唯一 ID。
+function applyStoredValues(fields, target, stored) {
+  const source = stored || {};
+  fields.forEach((field) => {
+    if (Object.prototype.hasOwnProperty.call(source, field.id)) {
+      target[field.id] = source[field.id];
+    } else if (Object.prototype.hasOwnProperty.call(source, field.name)) {
+      target[field.id] = source[field.name];
+    }
+  });
+}
+
 Page({
   data: {
     title: '',
@@ -196,19 +209,19 @@ Page({
   initializeForm(options, form) {
     const values = {};
     form.fields.forEach((field) => {
-      values[field.name] = field.kind === 'checkbox' ? false : '';
+      values[field.id] = field.kind === 'checkbox' ? false : '';
     });
 
-    let draftTitle = buildDefaultApplicationTitle(COUNTRY_NAME);
+    let draftTitle = buildDefaultApplicationTitle(form.country || COUNTRY_NAME);
     const applicationId = options.applicationId || '';
     if (this._inviteValues) {
       // 邀请填写：用邀请人分享的字段值预填，被邀请人保存时生成自己的本地副本。
-      Object.assign(values, this._inviteValues);
+      applyStoredValues(form.fields, values, this._inviteValues);
     } else if (applicationId) {
       const record = this.getApplications().find((item) => item.id === applicationId);
       if (record) {
         draftTitle = record.title || draftTitle;
-        Object.assign(values, record.values || {});
+        applyStoredValues(form.fields, values, record.values);
       }
     }
     this.normalizeDateValues(form, values);
@@ -223,7 +236,7 @@ Page({
     this._previewScale = PREVIEW_MIN_SCALE;
 
     this.form = form;
-    // 全量字段索引（含手写字段），仅用于预览红框定位/联动；进度统计、初值
+    // 全量字段索引（含手写字段），仅用于预览位置定位/联动；进度统计、初值
     // 仍走 form.fields（只含线上录入字段），互不影响。
     this.allFields = [];
     form.pages.forEach((page) => page.leaves.forEach((leaf) => {
@@ -381,11 +394,13 @@ Page({
     }
     const geometry = this.getPreviewGeometry(target);
     // 优先定位到首个需线上录入的叶子节点；若整页只有手写块，则退回到首个手写块，
-    // 使其红框照常高亮联动。
-    const firstLeaf = target.leaves.find((leaf) => leaf.needInput && leaf.fields && leaf.fields.length)
-      || target.leaves.find((leaf) => leaf.isHandwriting && leaf.fields && leaf.fields.length)
+    // 使其位置提示照常参与联动。
+    const firstLeaf = target.leaves.find((leaf) => leaf.needInput && leaf.inputFields && leaf.inputFields.length)
+      || target.leaves.find((leaf) => leaf.hasHandwritingFields && leaf.fields && leaf.fields.length)
       || target.leaves.find((leaf) => !leaf.skipFill && leaf.fields && leaf.fields.length);
-    const firstField = firstLeaf ? firstLeaf.fields[0] : null;
+    const firstField = firstLeaf
+      ? ((firstLeaf.inputFields && firstLeaf.inputFields[0]) || firstLeaf.fields[0])
+      : null;
     this.setData({
       activePage: page,
       activeLeaves: target.leaves,
@@ -394,11 +409,11 @@ Page({
       previewFields: this.buildPreviewFields(
         target.leaves,
         this.data.values,
-        firstField ? firstField.name : '',
+        firstField ? firstField.id : '',
         target.width,
         geometry.width,
       ),
-      activeFieldName: firstField ? firstField.name : '',
+      activeFieldName: firstField ? firstField.id : '',
       activeFieldLabel: firstField ? firstField.label : '',
       previewCanvasWidth: geometry.width,
       previewCanvasHeight: geometry.height,
@@ -424,6 +439,19 @@ Page({
   // —— 表单录入 ——
   onFieldFocus(e) {
     this.setActiveField(e.currentTarget.dataset.name, true);
+  },
+
+  // 软键盘弹出会带动 scroll-view 滚动。记住正在编辑的字段，
+  // 避免 onFormScroll 把它误重置为当前文字块的第一个字段。
+  onKeyboardFieldFocus(e) {
+    const { name } = e.currentTarget.dataset;
+    this._focusedFieldName = name;
+    this.setActiveField(name, true);
+  },
+
+  onKeyboardFieldBlur(e) {
+    const { name } = e.currentTarget.dataset;
+    if (this._focusedFieldName === name) this._focusedFieldName = '';
   },
 
   onTextInput(e) {
@@ -461,7 +489,7 @@ Page({
 
   normalizeDateValues(form, values) {
     form.fields.forEach((field) => {
-      if (field.component === 'date') values[field.name] = normalizeDisplayDate(values[field.name]);
+      if (field.component === 'date') values[field.id] = normalizeDisplayDate(values[field.id]);
     });
   },
 
@@ -471,10 +499,10 @@ Page({
     const datePickerDisplayRanges = {};
     this.form.fields.forEach((field) => {
       if (field.component === 'date') {
-        const state = datePickerStateFromDisplay(values[field.name]);
-        datePickerValues[field.name] = state.value;
-        datePickerRanges[field.name] = state.ranges;
-        datePickerDisplayRanges[field.name] = buildDateDisplayColumns(state.ranges);
+        const state = datePickerStateFromDisplay(values[field.id]);
+        datePickerValues[field.id] = state.value;
+        datePickerRanges[field.id] = state.ranges;
+        datePickerDisplayRanges[field.id] = buildDateDisplayColumns(state.ranges);
       }
     });
     return { datePickerValues, datePickerRanges, datePickerDisplayRanges };
@@ -484,7 +512,7 @@ Page({
   buildPhoneInputValues(values) {
     const map = {};
     this.form.fields.forEach((field) => {
-      if (field.component === 'phone') map[field.name] = String(values[field.name] || '').replace(/^\++/, '');
+      if (field.component === 'phone') map[field.id] = String(values[field.id] || '').replace(/^\++/, '');
     });
     return map;
   },
@@ -539,7 +567,7 @@ Page({
   refreshProgress(values) {
     let filled = 0;
     this.form.fields.forEach((field) => {
-      const v = values[field.name];
+      const v = values[field.id];
       if (field.kind === 'checkbox' ? v === true : !!(v && String(v).length)) filled += 1;
     });
     this.setData({ filledCount: filled });
@@ -558,6 +586,9 @@ Page({
     const now = Date.now();
     if (this._scrollGate && now - this._scrollGate < 120) return;
     this._scrollGate = now;
+    // 输入框聚焦时的滚动通常由软键盘或微信容器触发，
+    // 不应覆盖用户刚选中的精确字段。
+    if (this._focusedFieldName) return;
     const offsets = this._leafOffsets;
     if (!offsets || !offsets.length) return;
     const top = e.detail.scrollTop + 40;
@@ -567,9 +598,15 @@ Page({
       else break;
     }
     const leaf = this.data.activeLeaves.find((l) => l.leafId === current.leafId);
-    const field = leaf && leaf.fields[0];
-    if (field && field.name !== this.data.activeFieldName) {
-      this.setActiveField(field.name, false);
+    // 同一文字块可包含多个字段（如日本担保人的姓名、电话）。
+    // 只要当前字段仍在这个块内，就保留它，不回退到 fields[0]。
+    const activeFieldStillVisible = leaf && leaf.fields.some(
+      (field) => field.id === this.data.activeFieldName,
+    );
+    if (activeFieldStillVisible) return;
+    const field = leaf && ((leaf.inputFields && leaf.inputFields[0]) || leaf.fields[0]);
+    if (field && field.id !== this.data.activeFieldName) {
+      this.setActiveField(field.id, false);
     }
   },
 
@@ -611,8 +648,8 @@ Page({
   },
 
   findField(name) {
-    // 用全量索引：现场手写字段不在 form.fields 中，但其红框仍需参与预览定位/联动。
-    return this.allFields.find((f) => f.name === name);
+    // 用全量索引：现场手写字段不在 form.fields 中，但仍需参与预览定位/联动。
+    return this.allFields.find((f) => f.id === name);
   },
 
   queryLeafOffsets() {
@@ -647,13 +684,14 @@ Page({
 
   goPreview() {
     // 预览不再要求填写标题，沿用当前草稿标题（或默认），由导出环节再让用户填写。
-    const title = normalizeTitle(this.data.draftTitle) || buildDefaultApplicationTitle(COUNTRY_NAME);
+    const countryName = (this.form && this.form.country) || COUNTRY_NAME;
+    const title = normalizeTitle(this.data.draftTitle) || buildDefaultApplicationTitle(countryName);
     const id = this.persistDraft(title);
     wx.navigateTo({ url: `/pages/preview/index?applicationId=${id}` });
   },
 
   confirmTitle(onConfirm) {
-    const fallback = buildDefaultApplicationTitle(COUNTRY_NAME);
+    const fallback = buildDefaultApplicationTitle((this.form && this.form.country) || COUNTRY_NAME);
     wx.showModal({
       title: '保存表格',
       editable: true,
@@ -676,15 +714,23 @@ Page({
     const applications = this.getApplications();
     const index = applications.findIndex((item) => item.id === id);
     const now = new Date().toISOString();
+    // 仅保存可在线录入的字段，避免旧草稿中的值被带入已改为手写的 AcroForm。
+    const values = {};
+    const acroformFieldMap = {};
+    this.form.fields.forEach((field) => {
+      values[field.id] = this.data.values[field.id];
+      acroformFieldMap[field.id] = field.name;
+    });
     const record = {
       id,
       templateId: this.form.templateId,
       templateVersion: this.form.templateVersion,
       title,
       country: this.form.country,
-      visaType: '申根短期申请表',
+      visaType: this.form.title || '签证申请表',
       status: 'draft',
-      values: { ...this.data.values },
+      values,
+      acroformFieldMap,
       updatedAt: now,
       createdAt: index >= 0 ? applications[index].createdAt : now,
     };

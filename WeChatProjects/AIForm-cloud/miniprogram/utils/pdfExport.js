@@ -11,6 +11,18 @@ function confirmA3PrintOrder() {
   });
 }
 
+// 草稿中的 key 是前端隐藏唯一 ID；云函数只识别 PDF 里的 AcroForm name。
+// 没有映射的旧草稿保持原样，确保向后兼容。
+function buildAcroformValues(application) {
+  const storedValues = (application && application.values) || {};
+  const fieldMap = (application && application.acroformFieldMap) || {};
+  const values = {};
+  Object.keys(storedValues).forEach((fieldId) => {
+    values[fieldMap[fieldId] || fieldId] = storedValues[fieldId];
+  });
+  return values;
+}
+
 function exportApplicationPdf(application, title) {
   if (!application) {
     return Promise.reject(new Error('Application is required'));
@@ -36,7 +48,7 @@ function exportApplicationPdf(application, title) {
           pdfFilename: application.templateVersion.pdfFilename,
         } : null,
         title,
-        values: application.values || {},
+        values: buildAcroformValues(application),
         options: {
           flatten: false,
           updateAppearances: false,
@@ -133,6 +145,7 @@ function getPdfExportErrorMessage(err) {
 }
 
 module.exports = {
+  buildAcroformValues,
   exportApplicationPdf,
   getPdfExportErrorMessage,
   getPdfExportErrorTitle,

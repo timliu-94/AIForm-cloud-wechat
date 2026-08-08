@@ -3,7 +3,7 @@ const COS = require('cos-nodejs-sdk-v5');
 
 const CLOUD_FILE_ROOT = 'cloud://cloudbase-d6gt24wo5bc8f4e49.636c-cloudbase-d6gt24wo5bc8f4e49-1449758889';
 const CLOUD_BUCKET = CLOUD_FILE_ROOT.slice('cloud://'.length).split('.')[1];
-const SUPPORTED_COUNTRIES = new Set(['Italy']);
+const SUPPORTED_COUNTRIES = new Set(['Italy', 'Japan']);
 
 function cloudFile(key) {
   return `${CLOUD_FILE_ROOT}/${String(key || '').replace(/^\/+/, '')}`;

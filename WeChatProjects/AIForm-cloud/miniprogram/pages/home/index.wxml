@@ -24,15 +24,14 @@
         <t-icon name="search" size="36rpx" color="#434654" />
         <input placeholder="搜索国家/地区" value="{{query}}" bindinput="onSearch" />
       </view>
-      <view class="search-empty" wx:if="{{!countries.length}}">
+      <view class="search-empty" wx:if="{{searchGuideCountryName}}">
         <view class="search-empty__icon">
-          <t-icon name="chat" size="32rpx" color="#003da6" />
+          <t-icon name="browse" size="32rpx" color="#003da6" />
         </view>
         <view class="search-empty__body">
-          <view class="search-empty__title">没有找到国家，请联系我们</view>
-          <view class="search-empty__desc">通过微信客服告诉我们你需要的国家/地区。</view>
+          <view class="search-empty__title">{{searchGuideCountryName}}需要通过官方网站在线填写申请表</view>
+          <view class="search-empty__desc">请前往{{searchGuideCountryName}}签证申请官方网站查看并完成在线填写。</view>
         </view>
-        <button class="search-empty__button" bindtap="openCustomerService">联系客服</button>
       </view>
     </view>
 

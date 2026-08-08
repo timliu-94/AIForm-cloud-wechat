@@ -146,6 +146,15 @@ page {
   align-items: center;
 
   &__clip {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+    color: #0a2540;
+  }
+
+  &__content {
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -153,7 +162,7 @@ page {
     height: 100%;
     box-sizing: border-box;
     overflow: hidden;
-    color: #0a2540;
+    font-family: Arial, "Helvetica Neue", sans-serif;
   }
 
   &__line {
@@ -191,7 +200,7 @@ page {
     background: rgba(0, 61, 166, 0.06);
   }
 
-  /* 无需线上录入字段：保留红框、参与联动，但区别于待填/已填。 */
+  /* 无需线上录入字段：保留位置提示、参与联动，但区别于待填/已填。 */
   &--manual {
     border: 1rpx solid rgba(128, 128, 128, 0.7);
     background: rgba(128, 128, 128, 0.06);
@@ -204,12 +213,12 @@ page {
   }
 
   &--handwriting {
-    border-color: rgba(212, 56, 13, 0.7);
-    background: rgba(212, 56, 13, 0.06);
+    border: 1rpx solid rgba(0, 82, 217, 0.54);
+    background: rgba(0, 82, 217, 0.07);
   }
 
   &--handwriting &__clip {
-    color: #d4380d;
+    color: #0a2540;
   }
 
   /* 用户填写/定位时高亮的红框 */
@@ -271,25 +280,55 @@ page {
 
 .leaf-block {
   margin: 24rpx 24rpx 0;
-  padding: 18rpx 20rpx;
-  background: @form-surface-low;
-  border-left: 6rpx solid @form-brand-strong;
-  border-radius: 8rpx;
+  padding: 22rpx 22rpx 22rpx 0;
+  display: flex;
+  align-items: stretch;
+  background: rgba(0, 82, 217, 0.06);
+  border: 1rpx solid rgba(0, 82, 217, 0.12);
+  border-radius: 12rpx;
+
+  &__marker {
+    width: 8rpx;
+    margin-right: 20rpx;
+    flex: none;
+    border-radius: 0 999rpx 999rpx 0;
+    background: @form-brand-strong;
+  }
+
+  &__content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__eyebrow {
+    display: block;
+    margin-bottom: 4rpx;
+    font-size: 20rpx;
+    line-height: 1.4;
+    letter-spacing: 2rpx;
+    color: @form-brand-strong;
+    font-weight: 600;
+  }
 
   &__line {
     display: block;
-    font-size: 26rpx;
-    line-height: 1.6;
+    font-size: 30rpx;
+    line-height: 1.5;
     color: @form-text;
+    font-weight: 700;
   }
 }
 
 .leaf-fields {
-  padding: 8rpx 24rpx 24rpx;
+  padding: 12rpx 24rpx 28rpx;
 }
 
 .field {
-  margin-top: 22rpx;
+  margin-top: 28rpx;
+}
+
+.field--option + .field--option {
+  margin-top: 12rpx;
 }
 
 .field--active {
@@ -299,14 +338,13 @@ page {
 
 .field-input {
   &__label {
-    display: flex;
-    flex-direction: column;
-    gap: 4rpx;
-    margin-bottom: 10rpx;
-    font-size: 24rpx;
+    display: block;
+    margin-bottom: 12rpx;
+    font-size: 26rpx;
     line-height: 1.5;
     color: @form-text;
     font-weight: 600;
+    transition: color 0.2s ease;
   }
 
   &__type {
@@ -319,22 +357,54 @@ page {
   }
 
   &__example {
+    display: flex;
+    align-items: baseline;
+    gap: 10rpx;
+    padding-top: 10rpx;
     font-size: 22rpx;
+    line-height: 1.5;
     color: @form-muted;
     font-weight: 400;
   }
 
+  &__example-label {
+    padding: 1rpx 10rpx;
+    color: @form-brand-strong;
+    background: rgba(0, 82, 217, 0.08);
+    border-radius: 999rpx;
+    font-size: 20rpx;
+    line-height: 1.5;
+  }
+
+  &__label--handwriting {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16rpx;
+  }
+
+  &__mode {
+    flex: none;
+    padding: 2rpx 12rpx;
+    color: @form-brand-strong;
+    background: rgba(0, 82, 217, 0.08);
+    border-radius: 999rpx;
+    font-size: 20rpx;
+    line-height: 1.5;
+    font-weight: 600;
+  }
+
   &__control {
     width: 100%;
-    min-height: 84rpx;
-    padding: 16rpx 22rpx;
+    min-height: 92rpx;
+    padding: 18rpx 24rpx;
     box-sizing: border-box;
     font-size: 28rpx;
     line-height: 1.6;
     color: @form-text;
-    background: @form-surface-container;
-    border-radius: 8rpx;
-    border: 2rpx solid transparent;
+    background: @form-surface;
+    border-radius: 12rpx;
+    border: 1rpx solid @form-outline-variant;
     transition: all 0.2s ease;
 
     &--textarea {
@@ -344,6 +414,7 @@ page {
     &--picker {
       display: flex;
       align-items: center;
+      justify-content: space-between;
     }
 
     &--phone {
@@ -351,14 +422,25 @@ page {
       align-items: center;
       padding: 0 22rpx;
     }
+
+    &--handwriting {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+    }
   }
 
   &.field--active &__control,
   .field--active &__control {
-    border-color: @form-brand-strong;
+    border: 2rpx solid @form-brand-strong;
     background: @surface-lowest;
-    box-shadow: 0 0 0 2rpx @form-brand-strong;
+    box-shadow: 0 0 0 4rpx rgba(0, 82, 217, 0.1);
     transform: none;
+  }
+
+  &.field--active &__label,
+  .field--active &__label {
+    color: @form-brand-strong;
   }
 
   &__phone-prefix {
@@ -369,13 +451,42 @@ page {
 
   &__phone-input {
     flex: 1;
-    min-height: 88rpx;
+    min-height: 92rpx;
     font-size: 28rpx;
     color: @form-text;
   }
 
   &__placeholder {
-    color: #9ca3af;
+    color: #737686;
+  }
+
+  &__chevron {
+    margin-left: 16rpx;
+    flex: none;
+    color: @form-muted;
+    font-size: 42rpx;
+    line-height: 1;
+    transform: rotate(90deg);
+  }
+
+  &__handwriting-copy {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    flex-direction: column;
+  }
+
+  &__handwriting-title {
+    color: @form-text;
+    font-size: 28rpx;
+    line-height: 1.5;
+    font-weight: 500;
+  }
+
+  &__handwriting-hint {
+    color: @form-muted;
+    font-size: 22rpx;
+    line-height: 1.5;
   }
 
   // [优化] 焦点态辅助文字以内联方式平滑出现，减少弹窗打断
@@ -393,19 +504,19 @@ page {
   &__hint--show {
     max-height: 60rpx;
     opacity: 1;
-    padding-top: 8rpx;
+    padding-top: 10rpx;
   }
 }
 
 .field-checkbox {
   display: flex;
   align-items: center;
-  min-height: 88rpx;
-  padding: 18rpx 22rpx;
+  min-height: 92rpx;
+  padding: 20rpx 24rpx;
   box-sizing: border-box;
-  background: @form-surface-container;
-  border-radius: 8rpx;
-  border: 2rpx solid transparent;
+  background: @form-surface;
+  border-radius: 12rpx;
+  border: 1rpx solid @form-outline-variant;
   transition: all 0.2s ease;
 
   &:active {
@@ -414,14 +525,15 @@ page {
   }
 
   &--on {
-    border-color: @form-brand-strong;
-    background: @form-brand-soft;
+    border: 2rpx solid @form-brand-strong;
+    background: rgba(0, 82, 217, 0.08);
+    box-shadow: 0 0 0 4rpx rgba(0, 82, 217, 0.06);
   }
 
   &__box {
-    width: 44rpx;
-    height: 44rpx;
-    margin-right: 16rpx;
+    width: 48rpx;
+    height: 48rpx;
+    margin-right: 18rpx;
     flex-shrink: 0;
     display: flex;
     align-items: center;
@@ -430,7 +542,7 @@ page {
     color: @surface-lowest;
     background: @surface-lowest;
     border: 2rpx solid @gy3;
-    border-radius: 10rpx;
+    border-radius: 12rpx;
     box-sizing: border-box;
   }
 
@@ -439,11 +551,17 @@ page {
     border-color: @form-brand-strong;
   }
 
+  &--on &__label {
+    color: @form-brand-strong;
+    font-weight: 600;
+  }
+
   &__label {
     flex: 1;
-    font-size: 26rpx;
-    line-height: 1.6;
+    font-size: 28rpx;
+    line-height: 1.5;
     color: @form-text;
+    font-weight: 400;
   }
 }
 
@@ -501,6 +619,27 @@ page {
   &--handwriting {
     background: #fff7e6;
     border-color: #ffd591;
+    color: #ad6800;
+  }
+}
+
+// AcroForm 字段级手写提醒：与普通字段同层展示，不渲染在线输入控件。
+.field-manual {
+  margin: 0;
+
+  &__content {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    flex-direction: column;
+  }
+
+  &__label {
+    color: @form-text;
+    font-weight: 600;
+  }
+
+  &__hint {
     color: #ad6800;
   }
 }
@@ -625,9 +764,9 @@ page {
 }
 
 .leaf-block {
-  border-left-color: @form-brand-strong;
   border-radius: 12rpx;
-  background: @form-surface-low;
+  border-color: rgba(0, 82, 217, 0.12);
+  background: rgba(0, 82, 217, 0.06);
 }
 
 .field-input__label {
@@ -643,7 +782,7 @@ page {
 .field-checkbox {
   border-radius: 12rpx;
   border: 1rpx solid @form-outline-variant;
-  background: @form-surface-low;
+  background: @form-surface;
 }
 
 .field-input.field--active .field-input__control,
@@ -659,8 +798,8 @@ page {
 }
 
 .field-checkbox--on {
-  border-color: @form-brand-strong;
-  background: @form-brand-soft;
+  border: 2rpx solid @form-brand-strong;
+  background: rgba(0, 82, 217, 0.08);
 }
 
 .field-checkbox--on .field-checkbox__box {

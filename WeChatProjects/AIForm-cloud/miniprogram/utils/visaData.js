@@ -19,24 +19,27 @@ function buildVisaCatalog() {
   return countries.map((country) => {
     const visaTypes = [];
     country.templates.forEach((template) => {
-      const visaType = upsertById(visaTypes, template.visaType.id, () => ({
-        id: template.visaType.id,
-        name: template.visaType.name,
-        districts: [],
-      }));
-      const district = upsertById(visaType.districts, template.district.id, () => ({
-        id: template.district.id,
-        name: template.district.name,
-        versions: [],
-      }));
-      district.versions.push({
-        id: template.id,
-        name: template.name,
-        version: template.version,
-        publishedAt: template.publishedAt,
-        scope: template.scope,
-        status: template.status,
-        sourcePdf: template.assets && template.assets.sourcePdf,
+      const templateVisaTypes = template.visaTypes || [template.visaType];
+      templateVisaTypes.forEach((templateVisaType) => {
+        const visaType = upsertById(visaTypes, templateVisaType.id, () => ({
+          id: templateVisaType.id,
+          name: templateVisaType.name,
+          districts: [],
+        }));
+        const district = upsertById(visaType.districts, template.district.id, () => ({
+          id: template.district.id,
+          name: template.district.name,
+          versions: [],
+        }));
+        district.versions.push({
+          id: template.id,
+          name: template.name,
+          version: template.version,
+          publishedAt: template.publishedAt,
+          scope: template.scope,
+          status: template.status,
+          sourcePdf: template.assets && template.assets.sourcePdf,
+        });
       });
     });
     return {
@@ -45,6 +48,9 @@ function buildVisaCatalog() {
       iso2: country.iso2,
       continent: country.continent,
       hot: country.hot,
+      applicationMode: country.applicationMode || 'form_assist',
+      searchAliases: country.searchAliases || [],
+      cloudCatalog: country.cloudCatalog || null,
       flag: getCountryFlag(country),
       visaTypes,
     };
@@ -433,9 +439,18 @@ function findTemplate(templateId) {
   );
   if (!result) {
     const dynamic = findCachedCountryFormVersion(templateId);
-    const country = dynamic && visaCatalog.find((item) => item.id === 'italy');
-    const visaType = country && country.visaTypes.find((item) => item.id === 'tourism');
-    const district = visaType && visaType.districts.find((item) => item.id === 'shanghai');
+    const country = dynamic && visaCatalog.find((item) => (
+      item.cloudCatalog && item.cloudCatalog.country === dynamic.country
+    ));
+    const catalogVisaTypeIds = country && (
+      country.cloudCatalog.visaTypeIds || [country.cloudCatalog.visaTypeId]
+    );
+    const visaType = country && country.visaTypes.find(
+      (item) => catalogVisaTypeIds.indexOf(item.id) >= 0,
+    );
+    const district = visaType && visaType.districts.find(
+      (item) => item.id === country.cloudCatalog.districtId,
+    );
     if (dynamic && country && visaType && district) {
       result = { country, visaType, district, version: dynamic };
     }

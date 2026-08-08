@@ -324,6 +324,11 @@ async function fillPdfAcroForm(event) {
     }
     const pdfFieldName = template.fieldMap[fieldName] || fieldName;
     const definition = fieldDefinitions[pdfFieldName] || fieldDefinitions[fieldName] || {};
+    // 手写/签字栏必须保持空白；即使旧草稿或异常请求仍带了值，也不写入 PDF。
+    if (definition.is_acro_handwritting === true) {
+      skippedFields.push(fieldName);
+      return;
+    }
     try {
       let field;
       try {

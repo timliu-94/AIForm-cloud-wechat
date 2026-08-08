@@ -44,21 +44,23 @@
           <image class="pdf-bg" src="{{previewImage}}" mode="widthFix" bindload="onPreviewImageLoad" binderror="onPreviewImageError" />
           <view
             wx:for="{{previewFields}}"
-            wx:key="name"
+            wx:key="id"
             class="box {{item.active ? 'box--active' : (item.manual ? 'box--manual' : (item.filled ? 'box--filled' : 'box--empty'))}} {{item.isHandwriting ? 'box--handwriting' : ''}} {{item.skipFill ? 'box--skip' : ''}} {{item.isCheckbox ? 'box--checkbox' : ''}} {{item.overflow ? 'box--overflow' : ''}}"
             style="{{item.style}}"
-            data-name="{{item.name}}"
+            data-name="{{item.id}}"
             data-leaf="{{item.leafId}}"
             bindtap="tapPreviewBox"
           >
             <view wx:if="{{item.isCheckbox && item.filled}}" class="box__check" aria-label="已勾选">✓</view>
-            <view wx:else class="box__clip {{item.multiline ? 'box__clip--multiline' : ''}}" style="{{item.valueStyle}}">
-              <text
-                wx:for="{{item.lineItems}}"
-                wx:for-item="lineItem"
-                wx:key="key"
-                class="box__line"
-              >{{lineItem.text}}</text>
+            <view wx:else class="box__clip {{item.multiline ? 'box__clip--multiline' : ''}}">
+              <view class="box__content" style="{{item.valueStyle}}">
+                <text
+                  wx:for="{{item.lineItems}}"
+                  wx:for-item="lineItem"
+                  wx:key="key"
+                  class="box__line"
+                >{{lineItem.text}}</text>
+              </view>
             </view>
           </view>
         </view>
@@ -76,56 +78,81 @@
   >
     <view class="leaf-card" wx:for="{{activeFormLeaves}}" wx:for-item="leaf" wx:key="leafId" id="{{leaf.leafId}}">
       <view class="leaf-block">
-        <text class="leaf-block__line" wx:for="{{leaf.lines}}" wx:for-item="line" wx:key="*this">{{line}}</text>
+        <view class="leaf-block__marker" aria-hidden="true"></view>
+        <view class="leaf-block__content">
+          <text class="leaf-block__eyebrow">填写项目</text>
+          <text class="leaf-block__line" wx:for="{{leaf.lines}}" wx:for-item="line" wx:key="*this">{{line}}</text>
+        </view>
       </view>
 
-      <view class="leaf-manual leaf-manual--handwriting" wx:if="{{leaf.isHandwriting}}">
+      <view class="leaf-manual leaf-manual--handwriting" wx:if="{{leaf.isHandwriting && leaf.fieldCount === 0}}">
         <text class="leaf-manual__icon">!</text>
         <text>需要手写</text>
       </view>
 
-      <view class="leaf-fields" wx:elif="{{leaf.needInput && leaf.fieldCount > 0}}">
-        <view class="field" wx:for="{{leaf.fields}}" wx:for-item="field" wx:key="name">
+      <view class="leaf-fields" wx:elif="{{leaf.fieldCount > 0}}">
+        <view class="field {{field.kind === 'checkbox' ? 'field--option' : ''}}" wx:for="{{leaf.fields}}" wx:for-item="field" wx:key="id">
           <view
-            wx:if="{{field.kind === 'checkbox'}}"
-            class="field-checkbox {{values[field.name] ? 'field-checkbox--on' : ''}} {{activeFieldName === field.name ? 'field--active' : ''}}"
-            data-name="{{field.name}}"
+            wx:if="{{field.isHandwriting}}"
+            class="field-input field-input--handwriting {{activeFieldName === field.id ? 'field--active' : ''}}"
+            data-name="{{field.id}}"
+            bindtap="onFieldFocus"
+          >
+            <view class="field-input__label field-input__label--handwriting">
+              <text>{{field.label}}</text>
+              <text class="field-input__mode">手写</text>
+            </view>
+            <view class="field-input__control field-input__control--handwriting">
+              <view class="field-input__handwriting-copy">
+                <text class="field-input__handwriting-title">此项需要手写</text>
+                <text class="field-input__handwriting-hint">请在打印后填写</text>
+              </view>
+            </view>
+            <view class="field-input__hint {{activeFieldName === field.id ? 'field-input__hint--show' : ''}}">上方预览已显示对应的手写位置</view>
+          </view>
+
+          <view
+            wx:elif="{{field.kind === 'checkbox'}}"
+            class="field-checkbox {{values[field.id] ? 'field-checkbox--on' : ''}} {{activeFieldName === field.id ? 'field--active' : ''}}"
+            data-name="{{field.id}}"
             bindtap="onCheckboxTap"
           >
-            <view class="field-checkbox__box">{{values[field.name] ? '✓' : ''}}</view>
+            <view class="field-checkbox__box">{{values[field.id] ? '✓' : ''}}</view>
             <text class="field-checkbox__label">{{field.label}}</text>
           </view>
 
-          <view wx:else class="field-input {{activeFieldName === field.name ? 'field--active' : ''}}">
+          <view wx:else class="field-input {{activeFieldName === field.id ? 'field--active' : ''}}">
             <view class="field-input__label">
               <text>{{field.label}}</text>
-              <text wx:if="{{field.example}}" class="field-input__example">示范：{{field.example}}</text>
             </view>
 
             <picker
               wx:if="{{field.component === 'date'}}"
               mode="multiSelector"
-              range="{{datePickerDisplayRanges[field.name]}}"
-              value="{{datePickerValues[field.name]}}"
-              data-name="{{field.name}}"
+              range="{{datePickerDisplayRanges[field.id]}}"
+              value="{{datePickerValues[field.id]}}"
+              data-name="{{field.id}}"
               bindchange="onDateChange"
               bindcolumnchange="onDateColumnChange"
               bindtap="onFieldFocus"
             >
               <view class="field-input__control field-input__control--picker">
-                <text wx:if="{{values[field.name]}}">{{values[field.name]}}</text>
+                <text wx:if="{{values[field.id]}}">{{values[field.id]}}</text>
                 <text wx:else class="field-input__placeholder">请选择日期（日-月-年）</text>
+                <text class="field-input__chevron" aria-hidden="true">›</text>
               </view>
             </picker>
 
             <textarea
               wx:elif="{{field.component === 'textarea'}}"
               class="field-input__control field-input__control--textarea"
-              value="{{values[field.name]}}"
+              value="{{values[field.id]}}"
               placeholder="请输入{{field.label}}"
-              data-name="{{field.name}}"
+              placeholder-class="field-input__placeholder"
+              data-name="{{field.id}}"
               bindinput="onTextInput"
-              bindfocus="onFieldFocus"
+              bindfocus="onKeyboardFieldFocus"
+              bindblur="onKeyboardFieldBlur"
               auto-height
             />
 
@@ -137,24 +164,32 @@
               <input
                 class="field-input__phone-input"
                 type="number"
-                value="{{phoneInputValues[field.name]}}"
+                value="{{phoneInputValues[field.id]}}"
                 placeholder="区号+号码，如 8613800000000"
-                data-name="{{field.name}}"
+                placeholder-class="field-input__placeholder"
+                data-name="{{field.id}}"
                 bindinput="onPhoneInput"
-                bindfocus="onFieldFocus"
+                bindfocus="onKeyboardFieldFocus"
+                bindblur="onKeyboardFieldBlur"
               />
             </view>
 
             <input
               wx:else
               class="field-input__control"
-              value="{{values[field.name]}}"
+              value="{{values[field.id]}}"
               placeholder="请输入{{field.label}}"
-              data-name="{{field.name}}"
+              placeholder-class="field-input__placeholder"
+              data-name="{{field.id}}"
               bindinput="onTextInput"
-              bindfocus="onFieldFocus"
+              bindfocus="onKeyboardFieldFocus"
+              bindblur="onKeyboardFieldBlur"
             />
-            <view class="field-input__hint {{activeFieldName === field.name ? 'field-input__hint--show' : ''}}">填写后会同步高亮到上方预览对应位置</view>
+            <view wx:if="{{field.example}}" class="field-input__example">
+              <text class="field-input__example-label">示例</text>
+              <text>{{field.example}}</text>
+            </view>
+            <view class="field-input__hint {{activeFieldName === field.id ? 'field-input__hint--show' : ''}}">填写后会同步高亮到上方预览对应位置</view>
           </view>
         </view>
       </view>

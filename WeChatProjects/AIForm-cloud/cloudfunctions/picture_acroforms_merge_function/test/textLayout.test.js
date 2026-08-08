@@ -6,6 +6,7 @@ const {
 } = require('pdf-lib');
 const clientLayout = require('../../../miniprogram/utils/textLayout');
 const {
+  buildForm,
   buildPagePreviewFields,
   buildPreviewPages,
 } = require('../../../miniprogram/utils/italyForm');
@@ -58,6 +59,24 @@ function testMultilineAndOverflow() {
     },
   );
   assert.strictEqual(overflow.overflow, true);
+}
+
+function testSmallPreviewFontUsesVisualScaling() {
+  const layout = clientLayout.layoutText(
+    'A LONG USER VALUE',
+    { rect: [0, 0, 60, 12], fontSize: 10.5 },
+  );
+  const smallStyle = clientLayout.buildScaledTextStyle(layout, 0.55, 'px');
+  assert(smallStyle.includes('font-size:12.00px'));
+  assert(smallStyle.includes('transform-origin:0 0'));
+  assert(smallStyle.includes('transform:scale('));
+
+  const normalLayout = clientLayout.layoutText(
+    'OK',
+    { rect: [0, 0, 100, 30], fontSize: 24 },
+  );
+  const normalStyle = clientLayout.buildScaledTextStyle(normalLayout, 1, 'px');
+  assert.strictEqual(normalStyle.includes('transform:scale('), false);
 }
 
 async function testMissingFieldErrorAndManualFieldCreation() {
@@ -177,6 +196,45 @@ function testPreviewPagesUseSharedFieldRendering() {
   assert.strictEqual(sharedFields[2].display, '需要手写');
 }
 
+function testDuplicateAcroformIdentity() {
+  const field = (name, rect) => ({
+    name,
+    field_name: '重复标题',
+    field_type: '/Tx',
+    rect,
+    is_acro_need_filled: true,
+    input_type: '普通文本',
+  });
+  const schema = {
+    pages: [{
+      page: 1,
+      size: [100, 100],
+      leaf_nodes: [
+        { leaf_id: 'leaf-a', page: 1, text: '第一项', acroforms: [field('pdf_a', [10, 10, 40, 20])] },
+        { leaf_id: 'leaf-b', page: 1, text: '第二项', acroforms: [field('pdf_b', [10, 30, 40, 40])] },
+      ],
+    }],
+  };
+  const form = buildForm(schema, 'identity-test', {
+    id: 'identity-test',
+    country: 'Italy',
+    name: '重名测试',
+    previewPattern: 'page-{page}.png',
+  });
+  const [first, second] = form.fields;
+  assert.notStrictEqual(first.id, second.id);
+  assert.notStrictEqual(first.id, first.name);
+  assert.notStrictEqual(second.id, second.name);
+  assert.strictEqual(first.label, '重复标题');
+  assert.strictEqual(second.label, '重复标题');
+
+  const overlays = buildPagePreviewFields(form.pages[0], {
+    [first.id]: '甲',
+    [second.id]: '乙',
+  });
+  assert.deepStrictEqual(overlays.map((item) => item.display), ['甲', '乙']);
+}
+
 async function testPdfAppearanceKeepsOriginalValue() {
   const pdfDoc = await PDFDocument.create();
   const page = pdfDoc.addPage([300, 300]);
@@ -270,8 +328,10 @@ async function testPdfCheckboxIsSavedWithVisibleAppearance() {
 async function run() {
   testSharedLayoutParity();
   testMultilineAndOverflow();
+  testSmallPreviewFontUsesVisualScaling();
   await testMissingFieldErrorAndManualFieldCreation();
   testPreviewPagesUseSharedFieldRendering();
+  testDuplicateAcroformIdentity();
   await testPdfAppearanceKeepsOriginalValue();
   await testPdfOverflowIsRejected();
   await testPdfCheckboxIsSavedWithVisibleAppearance();

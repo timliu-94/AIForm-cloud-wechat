@@ -172,7 +172,7 @@ Page({
       });
       return;
     }
-    const fallback = buildDefaultApplicationTitle(COUNTRY_NAME);
+    const fallback = buildDefaultApplicationTitle(application.country || COUNTRY_NAME);
     // 标题在导出环节填写（预览时不再弹框）。
     wx.showModal({
       title: '导出 PDF',

@@ -1,5 +1,6 @@
 const CACHE_PREFIX = 'country_form_catalog_v1:';
 const CACHE_TTL = 10 * 60 * 1000;
+const CATALOG_COUNTRIES = ['Italy', 'Japan'];
 const memoryVersions = {};
 
 function cacheKey(country) {
@@ -89,8 +90,12 @@ function findCachedCountryFormVersion(templateId) {
     const found = (memoryVersions[countries[i]] || []).find((item) => item.id === templateId);
     if (found) return found;
   }
-  const italy = readCache('Italy', true) || [];
-  return italy.find((item) => item.id === templateId) || null;
+  for (let i = 0; i < CATALOG_COUNTRIES.length; i += 1) {
+    const versions = readCache(CATALOG_COUNTRIES[i], true) || [];
+    const found = versions.find((item) => item.id === templateId);
+    if (found) return found;
+  }
+  return null;
 }
 
 function openCloudPdf(fileID) {

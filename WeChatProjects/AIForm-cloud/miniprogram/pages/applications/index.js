@@ -98,16 +98,28 @@ function isSensitiveCompanionBlock(leaf) {
   return (leaf.fields || []).some(isSensitiveCompanionField);
 }
 
+function getApplicationFieldValue(application, block, fieldId) {
+  const values = (application && application.values) || {};
+  if (Object.prototype.hasOwnProperty.call(values, fieldId)) return values[fieldId];
+  const acroformName = block.acroformNames && block.acroformNames[fieldId];
+  return acroformName ? values[acroformName] : undefined;
+}
+
 function buildCompanionBlockOptions(form) {
   const blocks = [];
   form.pages.forEach((page) => {
     page.leaves.forEach((leaf) => {
-      if (!leaf.needInput || !leaf.fields || !leaf.fields.length) return;
+      const inputFields = leaf.inputFields || (leaf.fields || []).filter((field) => !field.isHandwriting);
+      if (!leaf.needInput || !inputFields.length) return;
       blocks.push({
         name: leaf.leafId,
-        title: leaf.text || leaf.fields.map((field) => field.label).join(' / '),
-        fieldNames: leaf.fields.map((field) => field.name),
-        selected: !isSensitiveCompanionBlock(leaf),
+        title: leaf.text || inputFields.map((field) => field.label).join(' / '),
+        fieldNames: inputFields.map((field) => field.id),
+        acroformNames: inputFields.reduce((map, field) => {
+          map[field.id] = field.name;
+          return map;
+        }, {}),
+        selected: !isSensitiveCompanionBlock({ ...leaf, fields: inputFields }),
       });
     });
   });
@@ -290,7 +302,7 @@ Page({
     const values = {};
     selectedBlocks.forEach((block) => {
       (block.fieldNames || []).forEach((fieldName) => {
-        values[fieldName] = (source.values || {})[fieldName];
+        values[fieldName] = getApplicationFieldValue(source, block, fieldName);
       });
     });
     const copy = {
@@ -437,7 +449,7 @@ Page({
       if (!selectedBlocks.length) return null;
       selectedBlocks.forEach((block) => {
         (block.fieldNames || []).forEach((fieldName) => {
-          const value = (source.values || {})[fieldName];
+          const value = getApplicationFieldValue(source, block, fieldName);
           if (value !== undefined) values[fieldName] = value;
         });
       });

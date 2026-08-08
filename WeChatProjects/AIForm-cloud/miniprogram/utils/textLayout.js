@@ -3,6 +3,10 @@ const DEFAULT_MIN_FONT_SIZE = 4;
 const DEFAULT_LINE_HEIGHT_RATIO = 1.2;
 const DEFAULT_PADDING = 1;
 const FONT_SIZE_STEP = 0.25;
+// WebView 会把过小的 CSS 字号抬高到可渲染下限。预览先用这个字号排版，
+// 再整体缩放到目标尺寸，避免窄小 AcroForm 中的文字被系统放大后越界。
+const MIN_RENDER_FONT_PX = 12;
+const MIN_RENDER_FONT_RPX = 24;
 
 // Helvetica AFM widths (1/1000 em). The PDF exporter uses the same font, so
 // preview wrapping is deterministic without depending on the device font.
@@ -213,16 +217,34 @@ function layoutText(text, field, options = {}) {
 
 function buildScaledTextStyle(layout, scale, unit = 'px') {
   const safeScale = Math.max(0, finiteNumber(scale, 0));
-  const fontSize = layout.fontSize * safeScale;
-  const lineHeight = layout.lineHeight * safeScale;
-  const padding = layout.padding * safeScale;
-  return [
+  const targetFontSize = layout.fontSize * safeScale;
+  const targetLineHeight = layout.lineHeight * safeScale;
+  const targetPadding = layout.padding * safeScale;
+  const minRenderFontSize = unit === 'rpx' ? MIN_RENDER_FONT_RPX : MIN_RENDER_FONT_PX;
+  const renderScale = targetFontSize > 0 && targetFontSize < minRenderFontSize
+    ? targetFontSize / minRenderFontSize
+    : 1;
+  const fontSize = renderScale < 1 ? minRenderFontSize : targetFontSize;
+  const lineHeight = renderScale < 1 ? targetLineHeight / renderScale : targetLineHeight;
+  const padding = renderScale < 1 ? targetPadding / renderScale : targetPadding;
+  const styles = [
     `font-size:${fontSize.toFixed(2)}${unit}`,
     `line-height:${lineHeight.toFixed(2)}${unit}`,
     `padding:${padding.toFixed(2)}${unit}`,
     `text-align:${layout.alignment}`,
     `justify-content:${layout.multiline ? 'flex-start' : 'center'}`,
-  ].join(';');
+  ];
+
+  if (renderScale < 1) {
+    styles.push(
+      `width:${(100 / renderScale).toFixed(2)}%`,
+      `height:${(100 / renderScale).toFixed(2)}%`,
+      'transform-origin:0 0',
+      `transform:scale(${renderScale.toFixed(4)})`,
+    );
+  }
+
+  return styles.join(';');
 }
 
 module.exports = {
