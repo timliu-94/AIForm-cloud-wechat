@@ -1,0 +1,24 @@
+{
+  "field_name": [
+    "以往申请申根签证是否有指纹纪录-否",
+    "以往申请申根签证是否有指纹纪录-是",
+    "如有，请写明日期",
+    "如有，请写明签证贴纸号码"
+  ],
+  "input_type": [
+    "单选",
+    "单选",
+    "日期",
+    "普通文本"
+  ],
+  "raw_content": "{\"field_name\":[\"以往申请申根签证是否有指纹纪录-否\",\"以往申请申根签证是否有指纹纪录-是\",\"如有，请写明日期\",\"如有，请写明签证贴纸号码\"],\"input_type\":[\"单选\",\"单选\",\"日期\",\"普通文本\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 731,
+    "completion_tokens": 57
+  },
+  "attempt_count": 1,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}

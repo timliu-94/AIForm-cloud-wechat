@@ -1,0 +1,28 @@
+{
+  "field_name": [
+    "申请入境次数",
+    "单次",
+    "两次",
+    "多次",
+    "申根地区预计首次停留的预计抵达日期",
+    "申根地区预计首次停留之后的预计离开日期"
+  ],
+  "input_type": [
+    "单选",
+    "单选",
+    "单选",
+    "单选",
+    "日期",
+    "日期"
+  ],
+  "raw_content": "{\"field_name\":[\"申请入境次数\",\"单次\",\"两次\",\"多次\",\"申根地区预计首次停留的预计抵达日期\",\"申根地区预计首次停留之后的预计离开日期\"],\"input_type\":[\"单选\",\"单选\",\"单选\",\"单选\",\"日期\",\"日期\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 737,
+    "completion_tokens": 56
+  },
+  "attempt_count": 1,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}

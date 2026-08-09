@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "cities": {
+    "北京": {
+      "pdfs": {
+        "北京_申根签证申请表（90天以内）.pdf": {
+          "acroforms": [
+            {"page": 1, "name": "manual_textbox_0_64", "rect": [384.08, 377.28, 442.65, 397.44], "field_type": "/Tx", "note": "人工标注：AI 漏掉的婚姻状况文本输入框", "leaf_id": "p001_l0008", "input_type": "文本", "field_name": ""},
+            {"page": 1, "name": "manual_textbox_0_65", "rect": [405.2, 203.52, 444.57, 218.88], "field_type": "/Tx", "note": "人工标注：AI 漏掉的文本输入框", "leaf_id": "p001_l0011", "input_type": "文本", "field_name": ""},
+            {"page": 2, "name": "manual_textbox_1_43", "rect": [419.6, 453.12, 560.75, 473.28], "field_type": "/Tx", "note": "人工标注：AI 漏掉的旅行目的最后一个文本框", "leaf_id": "p002_l0011", "input_type": "文本", "field_name": ""},
+            {"page": 3, "name": "manual_textbox_2_25", "rect": [304.38, 458.88, 564.59, 476.16], "field_type": "/Tx", "note": "人工标注：AI 漏掉的签字栏文本框", "leaf_id": "p003_l0008", "input_type": "文本"},
+            {"page": 4, "name": "manual_textbox_3_2", "rect": [325.51, 115.2, 563.63, 142.08], "field_type": "/Tx", "note": "人工标注：AI 漏掉的签字栏文本框", "leaf_id": "p004_l0004", "input_type": "文本"}
+          ],
+          "acroform_removals": [
+            {"page": 1, "name": "choicebutton_0_20", "note": "AI 错误识别：该位置实际不存在 widget（leaf p001_l0008）"}
+          ],
+          "leaves_not_need_filled": ["p001_l0001", "p001_l0022", "p003_l0010", "p004_l0001"],
+          "leaves_handwritten": ["p004_l0003", "p004_l0004"]
+        }
+      }
+    }
+  }
+}

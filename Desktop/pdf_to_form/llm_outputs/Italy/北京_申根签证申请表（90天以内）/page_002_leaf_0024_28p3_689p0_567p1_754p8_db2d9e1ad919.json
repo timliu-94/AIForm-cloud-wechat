@@ -1,0 +1,28 @@
+{
+  "field_name": [
+    "配偶",
+    "子女",
+    "受养人",
+    "孙儿女",
+    "注册伴侣",
+    "其他"
+  ],
+  "input_type": [
+    "单选",
+    "单选",
+    "单选",
+    "单选",
+    "单选",
+    "单选+文本"
+  ],
+  "raw_content": "{\"field_name\":[\"配偶\",\"子女\",\"受养人\",\"孙儿女\",\"注册伴侣\",\"其他\"],\"input_type\":[\"单选\",\"单选\",\"单选\",\"单选\",\"单选\",\"单选+文本\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 1281,
+    "completion_tokens": 41
+  },
+  "attempt_count": 1,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}

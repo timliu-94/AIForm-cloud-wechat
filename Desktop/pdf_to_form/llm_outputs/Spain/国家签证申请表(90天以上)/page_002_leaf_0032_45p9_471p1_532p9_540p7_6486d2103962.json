@@ -1,0 +1,28 @@
+{
+  "field_name": [
+    "亲属关系（申请和聚合人的关系）",
+    "配偶",
+    "事实同居者",
+    "（配偶方或聚合人方的）子女",
+    "依靠其生活的（聚合人或其配偶的）父母",
+    "视聚合人为合法监护人的人"
+  ],
+  "input_type": [
+    "单选",
+    "单选",
+    "单选",
+    "单选",
+    "单选",
+    "单选"
+  ],
+  "raw_content": "{\"field_name\":[\"亲属关系（申请和聚合人的关系）\",\"配偶\",\"事实同居者\",\"（配偶方或聚合人方的）子女\",\"依靠其生活的（聚合人或其配偶的）父母\",\"视聚合人为合法监护人的人\"],\"input_type\":[\"单选\",\"单选\",\"单选\",\"单选\",\"单选\",\"单选\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 743,
+    "completion_tokens": 68
+  },
+  "attempt_count": 1,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}

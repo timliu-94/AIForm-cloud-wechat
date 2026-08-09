@@ -1,0 +1,22 @@
+{
+  "field_name": [
+    "Derzeitige Staatsangehörigkeit",
+    "Staatsangehörigkeit bei der Geburt",
+    "Andere Staatsangehörigkeiten"
+  ],
+  "input_type": [
+    "国家或地区",
+    "国家或地区",
+    "国家或地区"
+  ],
+  "raw_content": "{\"field_name\":[\"Derzeitige Staatsangehörigkeit\",\"Staatsangehörigkeit bei der Geburt\",\"Andere Staatsangehörigkeiten\"],\"input_type\":[\"国家或地区\",\"国家或地区\",\"国家或地区\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 670,
+    "completion_tokens": 49
+  },
+  "attempt_count": 1,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}

@@ -1,0 +1,26 @@
+{
+  "field_name": [
+    "拒绝",
+    "批准",
+    "具有空间限制有效期的签证",
+    "有效期起",
+    "有效期止"
+  ],
+  "input_type": [
+    "单选",
+    "单选",
+    "单选",
+    "日期",
+    "日期"
+  ],
+  "raw_content": "{\"field_name\":[\"拒绝\",\"批准\",\"具有空间限制有效期的签证\",\"有效期起\",\"有效期止\"],\"input_type\":[\"单选\",\"单选\",\"单选\",\"日期\",\"日期\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 1103,
+    "completion_tokens": 38
+  },
+  "attempt_count": 1,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}

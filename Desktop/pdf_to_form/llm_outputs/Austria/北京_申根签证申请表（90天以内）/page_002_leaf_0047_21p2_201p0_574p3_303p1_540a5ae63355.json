@@ -1,0 +1,26 @@
+{
+  "field_name": [
+    "Einmalige Einreise",
+    "Zweimalige Einreise",
+    "Mehrfache Einreise",
+    "atum der geplanten Ankunft des ersten geplanten Aufenthalts im Schengen-Raum",
+    "atum der geplanten Abreise aus dem Schengen-Raum nach dem ersten geplanten Aufenthalt"
+  ],
+  "input_type": [
+    "单选",
+    "单选",
+    "单选",
+    "日期",
+    "日期"
+  ],
+  "raw_content": "{\"field_name\":[\"Einmalige Einreise\",\"Zweimalige Einreise\",\"Mehrfache Einreise\",\"atum der geplanten Ankunft des ersten geplanten Aufenthalts im Schengen-Raum\",\"atum der geplanten Abreise aus dem Schengen-Raum nach dem ersten geplanten Aufenthalt\"],\"input_type\":[\"单选\",\"单选\",\"单选\",\"日期\",\"日期\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 746,
+    "completion_tokens": 92
+  },
+  "attempt_count": 1,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}

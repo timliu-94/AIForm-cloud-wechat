@@ -1,0 +1,20 @@
+{
+  "field_name": [
+    "现金",
+    "提供住宿",
+    "支付旅程期间所有开支",
+    "预缴交通",
+    "其它(请注明)"
+  ],
+  "input_type": [
+    "多选",
+    "多选",
+    "多选",
+    "多选",
+    "多选+文本"
+  ],
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm_spatially_aligned",
+  "success": true,
+  "spatially_aligned": true
+}

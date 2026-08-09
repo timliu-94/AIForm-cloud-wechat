@@ -1,0 +1,18 @@
+{
+  "field_name": [
+    "研究或学习预计结束的日期"
+  ],
+  "input_type": [
+    "日期"
+  ],
+  "raw_content": "{\"field_name\":[\"研究或学习预计结束的日期\"],\"input_type\":[\"日期\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 859,
+    "completion_tokens": 21
+  },
+  "attempt_count": 1,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}

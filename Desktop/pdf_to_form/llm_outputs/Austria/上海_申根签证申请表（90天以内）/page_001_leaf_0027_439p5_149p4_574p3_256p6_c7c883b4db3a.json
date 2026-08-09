@@ -1,0 +1,24 @@
+{
+  "field_name": [
+    "Abgelehnt",
+    "Bewilligt",
+    "Visum mit räumlich beschränkter Gültigkeit",
+    "Gültigkeitszeitraum"
+  ],
+  "input_type": [
+    "单选",
+    "单选",
+    "单选",
+    "日期"
+  ],
+  "raw_content": "{\"field_name\":[\"Abgelehnt\",\"Bewilligt\",\"Visum mit räumlich beschränkter Gültigkeit\",\"Gültigkeitszeitraum\"],\"input_type\":[\"单选\",\"单选\",\"单选\",\"日期\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 660,
+    "completion_tokens": 50
+  },
+  "attempt_count": 1,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}

@@ -1,0 +1,20 @@
+{
+  "field_name": [
+    "por um patrocinador (anfitrião, empresa, organização), é favor especificar",
+    "Dinheiro líquido",
+    "Alojamento fornecido",
+    "Todas as despesas cobertas durante a estada",
+    "Outro (especificar)"
+  ],
+  "input_type": [
+    "单选+文本",
+    "单选",
+    "单选",
+    "单选",
+    "单选+文本"
+  ],
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm_spatially_aligned",
+  "success": true,
+  "spatially_aligned": true
+}

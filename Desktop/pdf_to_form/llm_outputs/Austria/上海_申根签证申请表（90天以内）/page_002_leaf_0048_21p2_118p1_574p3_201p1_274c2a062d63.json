@@ -1,0 +1,16 @@
+{
+  "field_name": [
+    "是",
+    "日期",
+    "签证号码"
+  ],
+  "input_type": [
+    "单选",
+    "日期",
+    "普通文本"
+  ],
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm_spatially_aligned",
+  "success": true,
+  "spatially_aligned": true
+}

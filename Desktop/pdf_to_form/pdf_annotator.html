@@ -1,0 +1,1418 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PDF AcroForm 人工标注</title>
+<style>
+:root {
+  --bg:#1f2329; --panel:#262b33; --panel2:#2d333b; --line:#3a414b;
+  --text:#e6e6e6; --muted:#9aa3af; --blue:#4f8cff; --orange:#ee9b35;
+  --green:#4cae6a; --red:#e15c5c; --purple:#a878e8; --yellow:#d6ab2f;
+  --mode:var(--blue);
+}
+* { box-sizing:border-box }
+html,body { height:100%; margin:0 }
+body {
+  background:var(--bg); color:var(--text);
+  font:13px/1.45 system-ui,"PingFang SC","Microsoft YaHei",sans-serif;
+  display:grid; grid-template-columns:minmax(0,1fr) 410px; overflow:hidden;
+}
+body[data-mode="simple"] { --mode:var(--purple) }
+button,input,label.btn,select,textarea {
+  border:1px solid var(--line); border-radius:6px; background:var(--panel2);
+  color:var(--text); font:inherit;
+}
+button,label.btn,select { padding:6px 9px; cursor:pointer }
+button:hover,label.btn:hover { background:#3a424e }
+button.primary { background:var(--mode); border-color:var(--mode); color:#fff }
+button.danger { background:var(--red); border-color:var(--red); color:#fff }
+button:disabled { opacity:.45; cursor:not-allowed }
+input { padding:6px 8px; min-width:0 }
+code { color:#d7dcff }
+.main,.side { min-width:0; display:flex; flex-direction:column }
+.modebar,.bar,.section,.footer {
+  padding:9px 12px; border-bottom:1px solid var(--line); display:flex;
+  gap:8px; align-items:center; flex-wrap:wrap; background:var(--panel);
+}
+.modebar { padding-bottom:0; gap:3px }
+.mode-tab {
+  border-radius:7px 7px 0 0; border-bottom:0; padding:9px 14px;
+  color:var(--muted); background:#20242a;
+}
+.mode-tab.active { color:#fff; background:var(--mode); border-color:var(--mode); font-weight:700 }
+.spacer,.grow { flex:1 }
+.file { display:none }
+.badge,.hint { color:var(--muted); font-size:11px }
+.badge { max-width:440px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.mode-summary {
+  border-left:4px solid var(--mode); background:#20242a; padding:8px 10px;
+  border-radius:4px; width:100%;
+}
+.mode-summary b { color:#fff }
+.canvas-wrap {
+  flex:1; overflow:auto; background:#14171c; padding:18px;
+  display:flex; justify-content:center; align-items:flex-start;
+}
+.stage { position:relative; background:#fff; box-shadow:0 0 0 1px var(--line),0 8px 30px #0008 }
+canvas { display:block }
+svg { position:absolute; left:0; top:0; cursor:crosshair }
+body[data-mode="simple"] svg { cursor:default }
+body[data-mode="simple"].leaf-ordering svg { cursor:cell }
+svg .acroform-shape.selected { filter:drop-shadow(0 0 5px color-mix(in srgb,var(--mode) 90%,transparent)) }
+.side { background:var(--panel); border-left:1px solid var(--line); min-height:0 }
+.side h2 { font-size:14px; margin:0; padding:12px; border-bottom:1px solid var(--line) }
+.section { display:block }
+.row { display:flex; gap:6px; align-items:center; margin-bottom:6px }
+.row:last-child { margin-bottom:0 }
+.row input { width:100% }
+.legend { display:flex; gap:10px; flex-wrap:wrap; font-size:11px; color:var(--muted); margin-top:8px }
+.dot { display:inline-block; width:10px; height:10px; margin-right:3px; border-radius:2px }
+.instructions { margin:8px 0 0 }
+.list { padding:7px; overflow:auto; flex:1; min-height:100px }
+.empty { color:var(--muted); padding:18px 8px; text-align:center; border:1px dashed var(--line); border-radius:6px }
+.leaf-module {
+  border:1px solid var(--line); border-radius:7px; background:#20242a;
+  margin-bottom:9px; overflow:hidden;
+}
+.leaf-module.modified { border-color:var(--yellow); box-shadow:inset 3px 0 0 var(--yellow) }
+.leaf-module.selected {
+  border-color:var(--orange); box-shadow:0 0 0 2px var(--orange),0 6px 18px #0007;
+}
+.leaf-module.selected .leaf-header { background:#3a2d20 }
+.leaf-module.leaf-drop-before { box-shadow:inset 0 4px 0 var(--mode) }
+.leaf-module.leaf-drop-after { box-shadow:inset 0 -4px 0 var(--mode) }
+.leaf-header { padding:8px; border-bottom:1px solid var(--line); background:#252a31 }
+.leaf-heading { display:flex; gap:7px; align-items:flex-start }
+.leaf-index {
+  flex:0 0 auto; padding:2px 6px; border-radius:9px; color:#17191d;
+  background:var(--orange); font-size:10px; font-weight:700;
+}
+.leaf-order-badge {
+  flex:0 0 auto; padding:2px 7px; border:1px solid var(--purple); border-radius:9px;
+  color:#e7d9ff; background:#342947; font-size:10px; font-weight:700;
+}
+.leaf-selected-badge {
+  flex:0 0 auto; padding:2px 7px; border-radius:9px; color:#17191d;
+  background:var(--orange); font-size:10px; font-weight:700;
+}
+.leaf-drag-handle {
+  flex:0 0 auto; padding:3px 7px; color:var(--muted); cursor:grab;
+  font-size:15px; line-height:1;
+}
+.leaf-drag-handle:active { cursor:grabbing }
+.leaf-module.dragging { opacity:.45 }
+.leaf-text {
+  width:100%; min-height:54px; max-height:150px; padding:6px 7px; resize:vertical;
+  background:#181c21; line-height:1.4;
+}
+.leaf-forms { padding:7px 7px 1px }
+.leaf-forms .item { margin-bottom:6px }
+.leaf-empty { padding:11px; color:var(--muted); text-align:center; font-size:11px }
+.drag-handle {
+  flex:0 0 auto; padding:3px 7px; color:var(--muted); cursor:grab;
+  font-size:15px; line-height:1;
+}
+.drag-handle:active { cursor:grabbing }
+.item.dragging { opacity:.4 }
+.item.drop-before { box-shadow:inset 0 3px 0 var(--mode) }
+.item.drop-after { box-shadow:inset 0 -3px 0 var(--mode) }
+.item {
+  position:relative; padding:8px; border:1px solid var(--line); border-left:4px solid var(--blue);
+  border-radius:5px; background:var(--panel2); margin-bottom:6px;
+  transition:background .15s,border-color .15s,box-shadow .15s,transform .15s;
+}
+.item.selected { background:#344154; border-color:var(--mode); box-shadow:0 0 0 2px var(--mode),0 5px 14px #0007; transform:translateX(-2px) }
+.item.selected::after {
+  content:'已选中'; position:absolute; right:7px; top:-8px; padding:1px 6px;
+  border-radius:8px; background:var(--mode); color:#fff; font-size:10px;
+  font-weight:700; line-height:15px; box-shadow:0 2px 5px #0007;
+}
+.item.deleted { opacity:.58; text-decoration:line-through }
+.item.modified { border-right:4px solid var(--yellow) }
+.item.invalid { border-color:var(--red) }
+.item-title { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.field-editor { margin:8px 0 4px; padding-top:7px; border-top:1px solid var(--line) }
+.field-editor label { display:flex; gap:6px; align-items:center; margin-top:6px }
+.field-editor label > span { width:92px; flex:0 0 auto }
+.field-editor input,.field-editor select { flex:1; width:100% }
+.field-type-options { display:flex; gap:5px; flex-wrap:wrap; margin-top:5px }
+.field-type-options button {
+  padding:4px 7px; border-color:#4a525e; background:#252a31; color:#aab2bd;
+  font-size:11px; opacity:.75;
+}
+.field-type-options button.active {
+  border-color:#fff; background:var(--type-color); color:#fff; font-weight:700;
+  opacity:1; box-shadow:0 0 0 2px var(--type-color);
+}
+.field-type-options button.active::before { content:'✓ ' }
+.boolean-options { display:flex; gap:5px; flex-wrap:wrap }
+.boolean-options button {
+  padding:4px 9px; border-color:#4a525e; background:#252a31; color:#aab2bd;
+  font-size:11px; opacity:.75;
+}
+.boolean-options button.active {
+  border-color:#fff; background:var(--type-color); color:#fff; font-weight:700;
+  opacity:1; box-shadow:0 0 0 2px var(--type-color);
+}
+.boolean-options button.active::before { content:'✓ ' }
+.leaf-properties { display:flex; align-items:center; gap:7px; margin-top:7px; flex-wrap:wrap }
+.field-editor label > .boolean-options { flex:1; width:auto }
+.coords { display:grid; grid-template-columns:1fr 1fr; gap:5px 8px; margin-top:7px }
+.coords label { margin:0 }
+.coords label > span { width:20px }
+.meta { font:11px ui-monospace,monospace; color:var(--muted); word-break:break-all }
+.warning { color:#ffabab }
+.pageinfo { min-width:72px; text-align:center; color:var(--muted) }
+textarea {
+  width:100%; min-height:165px; padding:7px; resize:vertical;
+  background:#101319; font:11px/1.4 ui-monospace,monospace;
+}
+.footer { border:0; padding:8px 0 0 }
+.hidden { display:none !important }
+</style>
+</head>
+<body data-mode="rules">
+<main class="main">
+  <div class="modebar">
+    <button class="mode-tab active" data-mode="rules">① AcroForm 增删标注</button>
+    <button class="mode-tab" data-mode="simple">② AcroForm 属性微调</button>
+  </div>
+  <div class="bar">
+    <label class="btn" for="pdfFile">加载 PDF</label>
+    <input class="file" id="pdfFile" type="file" accept="application/pdf">
+    <label class="btn" for="jsonFile" id="jsonFileLabel">加载 parsed.json</label>
+    <input class="file" id="jsonFile" type="file" accept="application/json,.json">
+    <span class="badge" id="fileInfo">请先加载 PDF 和 parsed.json</span>
+    <span class="spacer"></span>
+    <button id="prev">◀</button>
+    <span class="pageinfo"><span id="page">-</span>/<span id="pages">-</span></span>
+    <button id="next">▶</button>
+    <button id="zoomOut">−</button><span class="pageinfo" id="zoom">70%</span><button id="zoomIn">+</button>
+    <button id="fit">适合宽度</button>
+  </div>
+  <div class="canvas-wrap" id="wrap">
+    <div class="stage" id="stage"><canvas id="canvas"></canvas><svg id="overlay" xmlns="http://www.w3.org/2000/svg"></svg></div>
+  </div>
+</main>
+
+<aside class="side">
+  <h2 id="sideTitle">AcroForm 增删标注</h2>
+  <div class="section">
+    <div class="mode-summary" id="modeSummary"></div>
+
+    <div id="rulesControls">
+      <div class="row" style="margin-top:9px">
+        <label class="hint">城市 <input id="city" placeholder="例如：上海"></label>
+        <label class="hint grow">PDF 文件 <input id="targetPdf" placeholder="例如：上海_申根签证申请表.pdf"></label>
+      </div>
+      <label class="hint">筛选
+        <select id="rulesFilter">
+          <option value="all">全部</option><option value="existing">已有框</option>
+          <option value="added">新增框</option><option value="deleted">待删除</option>
+        </select>
+      </label>
+      <div class="legend">
+        <span><i class="dot" style="background:var(--orange)"></i>叶子节点</span>
+        <span><i class="dot" style="background:var(--blue)"></i>/Tx</span>
+        <span><i class="dot" style="background:var(--green)"></i>/Btn</span>
+        <span><i class="dot" style="background:var(--purple)"></i>/Ch</span>
+        <span><i class="dot" style="background:var(--yellow)"></i>/Sig</span>
+        <span><i class="dot" style="background:var(--red)"></i>待删除</span>
+      </div>
+      <p class="hint instructions">空白处拖动可新增框；只有新增框可以移动、缩放和设置 <code>field_type</code>。已有框仅允许删除或恢复。</p>
+    </div>
+
+    <div id="simpleControls" class="hidden">
+      <div class="row" style="margin-top:9px">
+        <label class="hint">筛选
+          <select id="simpleFilter"><option value="all">全部</option><option value="modified">已修改</option><option value="invalid">待处理</option></select>
+        </label>
+        <button id="undoCurrent">撤销当前字段</button>
+        <button id="resetAll">重置全部修改</button>
+      </div>
+      <div class="row">
+        <button id="toggleLeafOrder">拖选叶子排序</button>
+        <button id="resetPageLeafOrder">重置本页顺序</button>
+        <span class="hint grow" id="leafOrderStatus">点击叶子节点可查看选中标识</span>
+      </div>
+      <div class="legend">
+        <span><i class="dot" style="background:var(--orange)"></i>叶子节点</span>
+        <span><i class="dot" style="background:var(--yellow)"></i>已修改</span>
+        <span><i class="dot" style="background:var(--red)"></i>归属异常</span>
+      </div>
+      <p class="hint instructions">点击 PDF 中的叶子框可高亮定位；开启“拖选叶子排序”后，按住鼠标依次扫过叶子节点即可指定阅读顺序，也可用右栏叶子标题的 ☰ 手柄拖动排序。叶子顺序会写入 <code>leaf_nodes</code> 数组及每个节点的 <code>leaf_order</code>。AcroForm 仍可用 ↕ 手柄调整同一叶子内的顺序。</p>
+    </div>
+  </div>
+
+  <div class="list" id="list"></div>
+
+  <div class="section" id="rulesOutput">
+    <div class="row"><button id="generateRules" class="primary">生成规则 JSON</button><span class="hint grow" id="rulesCounts"></span></div>
+    <textarea id="out" readonly spellcheck="false"></textarea>
+    <div class="footer"><button id="copyRules">复制</button><button id="downloadRules" class="primary">下载 manual_rules.json</button></div>
+  </div>
+
+  <div class="section hidden" id="simpleOutput">
+    <div class="row"><span class="hint grow" id="simpleCounts"></span></div>
+    <div class="footer"><button id="downloadSimple" class="primary">导出修改后的 parsed.simple.json</button></div>
+  </div>
+</aside>
+
+<script src="vendor/pdf.min.js"></script>
+<script>
+'use strict';
+
+const $ = id => document.getElementById(id);
+const NS = 'http://www.w3.org/2000/svg';
+const FIELD_TYPES = [['/Tx','文本（/Tx）'],['/Btn','按钮（/Btn）'],['/Ch','选择（/Ch）'],['/Sig','签名（/Sig）']];
+const COLORS = {
+  leaf:'#ee9b35', deleted:'#e15c5c', modified:'#d6ab2f',
+  fieldTypes:{'/Tx':'#4f8cff','/Btn':'#4cae6a','/Ch':'#a878e8','/Sig':'#d6ab2f',other:'#7d8795'}
+};
+const SIMPLE_EDITABLE_KEYS = ['field_type','field_name','field_name_source','input_type','textTransform','field_example','is_acro_need_filled','is_acro_handwritting','rect'];
+const S = {
+  mode:'rules', pdf:null, pdfName:'', jsonName:'', data:null,
+  page:1, pages:0, scale:.7, base:1.5, viewport:null, renderTask:null,
+  items:[], nextId:1, selected:null, drawing:null, editing:null,
+  rulesFilter:'all', simpleFilter:'all', originalLeaves:[], dragItem:null,
+  selectedLeaf:null, leafOrdering:false, leafSweep:null, leafOrderDrafts:new Map(), dragLeaf:null
+};
+
+if (!window.pdfjsLib) {
+  alert('PDF.js 加载失败：请确认 vendor/pdf.min.js 存在');
+} else {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.worker.min.js';
+}
+
+function basename(value) { return String(value || '').split(/[\\/]/).pop(); }
+function deepClone(value) { return JSON.parse(JSON.stringify(value)); }
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function round(value) { return Math.round(Number(value) * 100) / 100; }
+function validRect(rect) { return Array.isArray(rect) && rect.length === 4 && rect.every(Number.isFinite) && rect[2] > rect[0] && rect[3] > rect[1]; }
+function rectKey(rect) { return (rect || []).map(value => Number(value).toFixed(3)).join(','); }
+function formKey(page, form) { return `${Number(page)}|${String(form?.name || '')}|${rectKey(form?.rect)}`; }
+function formRect(item) { return S.mode === 'simple' ? item.pageForm.rect : item.rect; }
+function formType(item) { return S.mode === 'simple' ? item.pageForm.field_type : item.field_type; }
+function pageData() { return S.data?.pages?.find(page => Number(page.page) === S.page); }
+function selectedItem() { return S.items.find(item => item.id === S.selected) || null; }
+
+function hasUnsavedChanges() {
+  if (S.mode === 'rules') return S.items.some(item => item.source === 'added' || item.deleted);
+  return S.items.some(simpleItemChanged) || S.originalLeaves.some(snapshot => simpleLeafChanged(snapshot.leaf));
+}
+
+function resetDocumentState() {
+  S.data = null; S.jsonName = ''; S.items = []; S.nextId = 1; S.selected = null;
+  S.drawing = null; S.editing = null; S.rulesFilter = 'all'; S.simpleFilter = 'all';
+  S.originalLeaves = []; S.dragItem = null; S.selectedLeaf = null; S.leafOrdering = false;
+  S.leafSweep = null; S.leafOrderDrafts = new Map(); S.dragLeaf = null;
+  document.body.classList.remove('leaf-ordering');
+  $('rulesFilter').value = 'all'; $('simpleFilter').value = 'all';
+  updateLeafOrderControls();
+}
+
+function switchMode(mode) {
+  if (mode === S.mode) return;
+  if (hasUnsavedChanges() && !confirm('当前 JSON 有尚未导出的修改，确定切换模式并丢弃这些修改吗？')) return;
+  resetDocumentState();
+  S.mode = mode;
+  document.body.dataset.mode = mode;
+  for (const button of document.querySelectorAll('.mode-tab')) button.classList.toggle('active', button.dataset.mode === mode);
+  const rulesMode = mode === 'rules';
+  $('sideTitle').textContent = rulesMode ? 'AcroForm 增删标注' : 'AcroForm 属性微调';
+  $('jsonFileLabel').textContent = rulesMode ? '加载 parsed.json' : '加载 parsed.simple.json';
+  $('rulesControls').classList.toggle('hidden', !rulesMode);
+  $('rulesOutput').classList.toggle('hidden', !rulesMode);
+  $('simpleControls').classList.toggle('hidden', rulesMode);
+  $('simpleOutput').classList.toggle('hidden', rulesMode);
+  refreshInfo(); draw(); renderList();
+}
+
+for (const button of document.querySelectorAll('.mode-tab')) button.onclick = () => switchMode(button.dataset.mode);
+
+function refreshInfo() {
+  const expected = S.mode === 'rules' ? 'parsed.json' : 'parsed.simple.json';
+  const pdfText = S.pdfName || '未加载 PDF';
+  const jsonText = S.jsonName || `未加载 ${expected}`;
+  $('fileInfo').textContent = `${pdfText} · ${jsonText}`;
+  const changed = S.mode === 'rules'
+    ? S.items.filter(item => item.source === 'added' || item.deleted).length
+    : S.items.filter(simpleItemChanged).length + S.originalLeaves.filter(snapshot => simpleLeafChanged(snapshot.leaf)).length;
+  $('modeSummary').innerHTML = S.mode === 'rules'
+    ? `<b>当前模式：增删标注</b><br><span class="hint">输入 parsed.json · 输出 manual_rules.json · 待处理 ${changed} 项</span>`
+    : `<b>当前模式：属性微调</b><br><span class="hint">输入 parsed.simple.json · 输出完整 parsed.simple.json · 已修改 ${changed} 项</span>`;
+}
+
+function setTargetFrom(name, force = false) {
+  if (force || !$('targetPdf').value) $('targetPdf').value = name;
+  const stem = name.replace(/\.pdf$/i, '');
+  if (!$('city').value) {
+    const match = stem.match(/^([^_\-]+)/);
+    if (match) $('city').value = match[1];
+  }
+}
+
+async function loadPdf(file) {
+  try {
+    S.pdfName = file.name;
+    setTargetFrom(file.name, true);
+    S.pdf = await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;
+    S.pages = S.pdf.numPages; S.page = 1;
+    $('pages').textContent = S.pages;
+    refreshInfo(); await renderPage();
+  } catch (error) {
+    alert(`PDF 加载失败：${error.message}`);
+  }
+}
+
+$('pdfFile').onchange = event => {
+  const file = event.target.files[0];
+  if (file) loadPdf(file);
+  event.target.value = '';
+};
+
+function validatePayload(data) {
+  if (!data || !Array.isArray(data.pages)) throw Error('JSON 缺少 pages 数组');
+  for (const page of data.pages) {
+    if (!Number.isFinite(Number(page.page))) throw Error('存在无效的页码');
+    if (!Array.isArray(page.acroforms)) throw Error(`第 ${page.page} 页缺少 acroforms 数组`);
+    if (!Array.isArray(page.leaf_nodes)) throw Error(`第 ${page.page} 页缺少 leaf_nodes 数组`);
+  }
+}
+
+function loadRulesPayload(data, fileName) {
+  if (/\.parsed\.simple\.json$/i.test(fileName) || !/\.parsed\.json$/i.test(fileName)) {
+    throw Error('增删标注模式只接受 *.parsed.json');
+  }
+  validatePayload(data);
+  S.data = data; S.jsonName = fileName; S.items = []; S.nextId = 1; S.selected = null; S.selectedLeaf = null;
+  const leafByExactForm = new Map();
+  const leafByRect = new Map();
+  for (const page of data.pages) {
+    for (const leaf of page.leaf_nodes) {
+      for (const form of leaf.acroforms || []) {
+        if (!validRect(form.rect)) continue;
+        leafByExactForm.set(formKey(page.page, form), leaf);
+        leafByRect.set(`${Number(page.page)}|${rectKey(form.rect)}`, leaf);
+      }
+    }
+  }
+  for (const page of data.pages) {
+    for (const form of page.acroforms) {
+      if (!validRect(form.rect)) continue;
+      const leaf = leafByExactForm.get(formKey(page.page, form)) || leafByRect.get(`${Number(page.page)}|${rectKey(form.rect)}`) || null;
+      S.items.push({
+        id:S.nextId++, source:'existing', deleted:false, page:Number(page.page),
+        rect:form.rect.map(Number), name:form.name || '', field_type:form.field_type || '/Tx',
+        field_name:form.field_name || '', leaf_id:leaf?.leaf_id || null
+      });
+    }
+  }
+  const source = basename(data.source_pdf);
+  if (source) setTargetFrom(source);
+}
+
+function buildLeafFormQueues(data) {
+  const queues = new Map();
+  for (const page of data.pages) {
+    for (const leaf of page.leaf_nodes) {
+      for (const form of leaf.acroforms || []) {
+        const key = formKey(page.page, form);
+        if (!queues.has(key)) queues.set(key, []);
+        queues.get(key).push({leaf, form});
+      }
+    }
+  }
+  return queues;
+}
+
+function loadSimplePayload(data, fileName) {
+  if (!/\.parsed\.simple\.json$/i.test(fileName)) throw Error('属性微调模式只接受 *.parsed.simple.json');
+  validatePayload(data);
+  S.data = data; S.jsonName = fileName; S.items = []; S.nextId = 1; S.selected = null; S.selectedLeaf = null;
+  S.leafOrdering = false; S.leafSweep = null; S.leafOrderDrafts = new Map(); S.dragLeaf = null;
+  document.body.classList.remove('leaf-ordering');
+  S.originalLeaves = data.pages.flatMap(page => page.leaf_nodes.map((leaf,index) => ({
+    page, leaf, index, text:leaf.text ?? '', acroforms:[...(leaf.acroforms || [])],
+    hadLeafOrder:Object.prototype.hasOwnProperty.call(leaf,'leaf_order'), leafOrder:leaf.leaf_order,
+    hadNeedFilled:Object.prototype.hasOwnProperty.call(leaf,'is_need_filled'), needFilled:leaf.is_need_filled
+  })));
+  const queues = buildLeafFormQueues(data);
+  for (const page of data.pages) {
+    for (const pageForm of page.acroforms) {
+      if (!validRect(pageForm.rect)) continue;
+      const pair = queues.get(formKey(page.page, pageForm))?.shift() || null;
+      S.items.push({
+        id:S.nextId++, page:Number(page.page), pageObject:page, pageForm,
+        leaf:pair?.leaf || null, leafForm:pair?.form || null,
+        originalPageForm:deepClone(pageForm), originalLeafForm:pair ? deepClone(pair.form) : null,
+        originalLeaf:pair?.leaf || null, invalidLeaf:false
+      });
+    }
+  }
+  updateLeafOrderControls();
+}
+
+$('jsonFile').onchange = async event => {
+  const file = event.target.files[0];
+  if (!file) return;
+  try {
+    if (hasUnsavedChanges() && !confirm('加载新 JSON 会丢弃当前未导出的修改，确定继续吗？')) return;
+    const data = JSON.parse(await file.text());
+    if (S.mode === 'rules') loadRulesPayload(data, file.name); else loadSimplePayload(data, file.name);
+    S.page = 1;
+    refreshInfo(); draw(); renderList();
+  } catch (error) {
+    alert(`解析 JSON 失败：${error.message}`);
+  } finally {
+    event.target.value = '';
+  }
+};
+
+async function renderPage() {
+  if (!S.pdf) return;
+  if (S.renderTask) try { S.renderTask.cancel(); } catch (_) {}
+  try {
+    const page = await S.pdf.getPage(S.page);
+    S.viewport = page.getViewport({scale:S.base * S.scale});
+    const dpr = devicePixelRatio || 1;
+    const canvas = $('canvas');
+    const context = canvas.getContext('2d');
+    canvas.width = Math.floor(S.viewport.width * dpr);
+    canvas.height = Math.floor(S.viewport.height * dpr);
+    canvas.style.width = `${Math.floor(S.viewport.width)}px`;
+    canvas.style.height = `${Math.floor(S.viewport.height)}px`;
+    $('overlay').setAttribute('width', S.viewport.width);
+    $('overlay').setAttribute('height', S.viewport.height);
+    $('overlay').setAttribute('viewBox', `0 0 ${S.viewport.width} ${S.viewport.height}`);
+    context.setTransform(dpr,0,0,dpr,0,0);
+    S.renderTask = page.render({canvasContext:context, viewport:S.viewport});
+    await S.renderTask.promise;
+    $('page').textContent = S.page;
+    $('zoom').textContent = `${Math.round(S.scale * 100)}%`;
+    draw(); renderList();
+  } catch (error) {
+    if (error.name !== 'RenderingCancelledException') alert(`页面渲染失败：${error.message}`);
+  }
+}
+
+for (const [id, delta] of [['prev',-1],['next',1]]) {
+  $(id).onclick = () => {
+    if (S.pdf && S.page + delta >= 1 && S.page + delta <= S.pages) {
+      S.page += delta; S.selected = null; S.selectedLeaf = null; S.leafSweep = null; renderPage();
+    }
+  };
+}
+
+function zoomPreview(factor) {
+  if (!S.pdf) return;
+  S.scale = Math.max(.2, Math.min(4, S.scale * factor));
+  renderPage();
+}
+$('zoomIn').onclick = () => zoomPreview(1.2);
+$('zoomOut').onclick = () => zoomPreview(1 / 1.2);
+$('fit').onclick = async () => {
+  if (!S.pdf) return;
+  const page = await S.pdf.getPage(S.page);
+  const viewport = page.getViewport({scale:1});
+  S.scale = ($('wrap').clientWidth - 40) / (viewport.width * S.base);
+  renderPage();
+};
+window.addEventListener('wheel', event => {
+  if (!(event.ctrlKey || event.metaKey)) return;
+  event.preventDefault(); zoomPreview(event.deltaY < 0 ? 1.1 : 1 / 1.1);
+}, {passive:false});
+
+let gestureStartScale = S.scale;
+window.addEventListener('gesturestart', event => { event.preventDefault(); gestureStartScale = S.scale; }, {passive:false});
+window.addEventListener('gesturechange', event => {
+  event.preventDefault();
+  if (!S.pdf) return;
+  S.scale = Math.max(.2, Math.min(4, gestureStartScale * event.scale));
+  renderPage();
+}, {passive:false});
+
+function findLeaf(rect, pageNumber = S.page) {
+  const page = S.data?.pages?.find(candidate => Number(candidate.page) === Number(pageNumber));
+  if (!page || !validRect(rect)) return null;
+  const [x0,y0,x1,y1] = rect;
+  const centerX = (x0 + x1) / 2, centerY = (y0 + y1) / 2;
+  return page.leaf_nodes.find(leaf => validRect(leaf.bbox) && centerX >= leaf.bbox[0] && centerX <= leaf.bbox[2] && centerY >= leaf.bbox[1] && centerY <= leaf.bbox[3]) || null;
+}
+
+function rulesItemVisible(item) {
+  if (S.rulesFilter === 'all') return true;
+  if (S.rulesFilter === 'deleted') return item.source === 'existing' && item.deleted;
+  if (S.rulesFilter === 'existing') return item.source === 'existing' && !item.deleted;
+  return item.source === 'added';
+}
+function simpleItemChanged(item) {
+  if (!item?.pageForm || !item.originalPageForm) return false;
+  return SIMPLE_EDITABLE_KEYS.some(key => JSON.stringify(item.pageForm[key] ?? null) !== JSON.stringify(item.originalPageForm[key] ?? null)) || item.leaf !== item.originalLeaf;
+}
+function originalLeafSnapshot(leaf) {
+  return S.originalLeaves.find(snapshot => snapshot.leaf === leaf) || null;
+}
+function simpleLeafTextChanged(leaf) {
+  const snapshot = originalLeafSnapshot(leaf);
+  return Boolean(snapshot) && String(leaf.text ?? '') !== String(snapshot.text);
+}
+function simpleLeafNeedFilledChanged(leaf) {
+  const snapshot = originalLeafSnapshot(leaf);
+  if (!snapshot) return false;
+  const hasNeedFilled = Object.prototype.hasOwnProperty.call(leaf,'is_need_filled');
+  return hasNeedFilled !== snapshot.hadNeedFilled || (hasNeedFilled && leaf.is_need_filled !== snapshot.needFilled);
+}
+function simpleLeafOrderChanged(leaf) {
+  const snapshot = originalLeafSnapshot(leaf);
+  const current = leaf.acroforms || [];
+  return Boolean(snapshot) && (current.length !== snapshot.acroforms.length || current.some((form,index) => form !== snapshot.acroforms[index]));
+}
+function simpleLeafRankChanged(leaf) {
+  const snapshot = originalLeafSnapshot(leaf);
+  if (!snapshot) return false;
+  const currentIndex = snapshot.page.leaf_nodes.indexOf(leaf);
+  const hasLeafOrder = Object.prototype.hasOwnProperty.call(leaf,'leaf_order');
+  return currentIndex !== snapshot.index || hasLeafOrder !== snapshot.hadLeafOrder || (hasLeafOrder && leaf.leaf_order !== snapshot.leafOrder);
+}
+function simpleLeafChanged(leaf) {
+  return simpleLeafTextChanged(leaf) || simpleLeafNeedFilledChanged(leaf) || simpleLeafOrderChanged(leaf) || simpleLeafRankChanged(leaf);
+}
+function simpleRectChanged(item) {
+  return JSON.stringify(item?.pageForm?.rect ?? null) !== JSON.stringify(item?.originalPageForm?.rect ?? null);
+}
+function simpleItemVisible(item) {
+  if (S.simpleFilter === 'modified') return simpleItemChanged(item);
+  if (S.simpleFilter === 'invalid') return item.invalidLeaf || !item.leafForm;
+  return true;
+}
+function visibleItems() {
+  return S.items.filter(item => item.page === S.page && (S.mode === 'rules' ? rulesItemVisible(item) : simpleItemVisible(item)));
+}
+
+function simpleItemsForLeaf(leaf) {
+  const positions = new Map((leaf.acroforms || []).map((form,index) => [form,index]));
+  return S.items
+    .filter(item => item.page === S.page && item.leaf === leaf)
+    .sort((left,right) => (positions.get(left.leafForm) ?? Number.MAX_SAFE_INTEGER) - (positions.get(right.leafForm) ?? Number.MAX_SAFE_INTEGER));
+}
+
+function simpleLeafVisible(leaf) {
+  const items = simpleItemsForLeaf(leaf);
+  if (S.simpleFilter === 'modified') return simpleLeafChanged(leaf) || items.some(simpleItemChanged);
+  if (S.simpleFilter === 'invalid') return items.some(item => item.invalidLeaf || !item.leafForm);
+  return true;
+}
+
+function svgPoint(event) {
+  const bounds = $('overlay').getBoundingClientRect();
+  return {x:(event.clientX - bounds.left) * S.viewport.width / bounds.width, y:(event.clientY - bounds.top) * S.viewport.height / bounds.height};
+}
+
+function leafAtViewPoint(point) {
+  const page = pageData();
+  if (!page || !S.viewport) return null;
+  const [pdfX,pdfY] = S.viewport.convertToPdfPoint(point.x,point.y);
+  return page.leaf_nodes.find(leaf => validRect(leaf.bbox) && pdfX >= leaf.bbox[0] && pdfX <= leaf.bbox[2] && pdfY >= leaf.bbox[1] && pdfY <= leaf.bbox[3]) || null;
+}
+
+function selectLeaf(leaf, scroll = false) {
+  if (!leaf) return;
+  S.selectedLeaf = leaf; S.selected = null;
+  draw(); renderList(scroll); updateLeafOrderControls();
+}
+
+function applyPageLeafOrder(page, orderedLeaves) {
+  if (!page || orderedLeaves.length !== page.leaf_nodes.length || new Set(orderedLeaves).size !== orderedLeaves.length) return false;
+  page.leaf_nodes.splice(0,page.leaf_nodes.length,...orderedLeaves);
+  page.leaf_nodes.forEach((leaf,index) => { leaf.leaf_order = index + 1; });
+  page.n_leaves = page.leaf_nodes.length;
+  return true;
+}
+
+function leafOrderDraft(page = pageData()) {
+  if (!page) return [];
+  const key = Number(page.page);
+  if (!S.leafOrderDrafts.has(key)) S.leafOrderDrafts.set(key,[]);
+  return S.leafOrderDrafts.get(key);
+}
+
+function appendLeafToOrderDraft(leaf) {
+  const page = pageData();
+  if (!page || !leaf || !page.leaf_nodes.includes(leaf)) return false;
+  const draft = leafOrderDraft(page);
+  if (draft.includes(leaf)) return false;
+  draft.push(leaf);
+  const draftSet = new Set(draft);
+  applyPageLeafOrder(page,[...draft,...page.leaf_nodes.filter(candidate => !draftSet.has(candidate))]);
+  S.selectedLeaf = leaf; S.selected = null;
+  updateLeafOrderControls(); draw();
+  return true;
+}
+
+function beginLeafSweep(event) {
+  if (S.mode !== 'simple' || !S.leafOrdering || !S.viewport) return false;
+  const leaf = leafAtViewPoint(svgPoint(event));
+  if (!leaf) return false;
+  event.preventDefault(); event.stopPropagation();
+  S.leafSweep = {page:S.page};
+  appendLeafToOrderDraft(leaf);
+  return true;
+}
+
+$('overlay').addEventListener('mousedown', event => {
+  if (event.button !== 0 || !S.viewport || !S.data) return;
+  if (S.mode === 'simple') {
+    if (S.leafOrdering) { beginLeafSweep(event); return; }
+    const leaf = leafAtViewPoint(svgPoint(event));
+    if (leaf) selectLeaf(leaf,true);
+    return;
+  }
+  const point = svgPoint(event);
+  S.drawing = {x:point.x,y:point.y,cx:point.x,cy:point.y};
+  draw();
+});
+
+window.addEventListener('mousemove', event => {
+  if (S.leafSweep) {
+    const leaf = leafAtViewPoint(svgPoint(event));
+    if (leaf) appendLeafToOrderDraft(leaf);
+    return;
+  }
+  if (S.editing) { updateEdit(svgPoint(event)); return; }
+  if (!S.drawing) return;
+  const point = svgPoint(event);
+  S.drawing.cx = Math.max(0, Math.min(S.viewport.width, point.x));
+  S.drawing.cy = Math.max(0, Math.min(S.viewport.height, point.y));
+  draw();
+});
+
+window.addEventListener('mouseup', () => {
+  if (S.leafSweep) {
+    S.leafSweep = null; renderList(); refreshInfo(); updateLeafOrderControls();
+    return;
+  }
+  if (S.editing) {
+    const item = S.editing.item;
+    const originalRect = [...S.editing.rect];
+    S.editing = null;
+    if (S.mode === 'rules') {
+      const leaf = findLeaf(item.rect, item.page);
+      if (leaf) item.leaf_id = leaf.leaf_id;
+      else {
+        setItemRect(item,originalRect);
+        alert('新增框中心必须位于一个叶子节点内，本次坐标修改已撤销。');
+      }
+    } else {
+      reassignSimpleLeaf(item);
+    }
+    refreshInfo(); draw(); renderList();
+    return;
+  }
+  if (!S.drawing) return;
+  const drawing = S.drawing; S.drawing = null;
+  const x0 = Math.min(drawing.x,drawing.cx), y0 = Math.min(drawing.y,drawing.cy);
+  const x1 = Math.max(drawing.x,drawing.cx), y1 = Math.max(drawing.y,drawing.cy);
+  if (x1 - x0 < 4 || y1 - y0 < 4) { draw(); return; }
+  const a = S.viewport.convertToPdfPoint(x0,y0), b = S.viewport.convertToPdfPoint(x1,y1);
+  const rect = [Math.min(a[0],b[0]),Math.min(a[1],b[1]),Math.max(a[0],b[0]),Math.max(a[1],b[1])];
+  const leaf = findLeaf(rect);
+  if (!leaf) { alert('新增框中心不在任何叶子节点内，请在橙色叶子框中绘制。'); draw(); return; }
+  const item = {
+    id:S.nextId++, source:'added', deleted:false, page:S.page, rect,
+    name:nextManualName(), field_type:'/Tx', field_name:'', input_type:'文本', leaf_id:leaf.leaf_id
+  };
+  S.items.push(item); S.selected = item.id;
+  refreshInfo(); draw(); renderList();
+});
+
+function nextManualName() {
+  const names = new Set(S.items.map(item => item.name));
+  let index = 1, candidate;
+  do { candidate = `textbox_${S.page - 1}_${index++}`; } while (names.has(candidate));
+  return candidate;
+}
+
+function fieldColor(item) {
+  if (S.mode === 'rules' && item.deleted) return COLORS.deleted;
+  if (S.mode === 'simple' && item.invalidLeaf) return COLORS.deleted;
+  return COLORS.fieldTypes[formType(item)] || COLORS.fieldTypes.other;
+}
+function appendSvg(tag, attrs = {}) {
+  const element = document.createElementNS(NS,tag);
+  for (const [key,value] of Object.entries(attrs)) element.setAttribute(key,value);
+  return element;
+}
+function rectInView(rect) {
+  const viewportRect = S.viewport.convertToViewportRectangle(rect);
+  return {x:Math.min(viewportRect[0],viewportRect[2]),y:Math.min(viewportRect[1],viewportRect[3]),w:Math.abs(viewportRect[2]-viewportRect[0]),h:Math.abs(viewportRect[3]-viewportRect[1])};
+}
+function canEditGeometry(item) { return S.mode === 'simple' || (item.source === 'added' && !item.deleted); }
+function beginEdit(event, item, editMode = 'move') {
+  if (!canEditGeometry(item)) return;
+  event.stopPropagation();
+  S.selected = item.id;
+  S.editing = {item, mode:editMode, start:svgPoint(event), rect:[...formRect(item)]};
+  draw(); renderList(true);
+}
+function setItemRect(item, rect) {
+  const normalized = rect.map(Number);
+  if (S.mode === 'rules') item.rect = normalized;
+  else {
+    item.pageForm.rect = [...normalized];
+    if (item.leafForm) item.leafForm.rect = [...normalized];
+  }
+}
+function updateEdit(point) {
+  const edit = S.editing;
+  const startPdf = S.viewport.convertToPdfPoint(edit.start.x,edit.start.y);
+  const currentPdf = S.viewport.convertToPdfPoint(point.x,point.y);
+  const rect = [...edit.rect];
+  if (edit.mode === 'move') {
+    const dx = currentPdf[0] - startPdf[0], dy = currentPdf[1] - startPdf[1];
+    setItemRect(edit.item,[rect[0]+dx,rect[1]+dy,rect[2]+dx,rect[3]+dy]);
+  } else {
+    if (edit.mode.includes('w')) rect[0] = currentPdf[0];
+    if (edit.mode.includes('e')) rect[2] = currentPdf[0];
+    if (edit.mode.includes('s')) rect[1] = currentPdf[1];
+    if (edit.mode.includes('n')) rect[3] = currentPdf[1];
+    setItemRect(edit.item,[Math.min(rect[0],rect[2]),Math.min(rect[1],rect[3]),Math.max(rect[0],rect[2]),Math.max(rect[1],rect[3])]);
+  }
+  draw();
+}
+function drawHandles(overlay,item,rect) {
+  const points = {nw:[rect.x,rect.y],n:[rect.x+rect.w/2,rect.y],ne:[rect.x+rect.w,rect.y],e:[rect.x+rect.w,rect.y+rect.h/2],se:[rect.x+rect.w,rect.y+rect.h],s:[rect.x+rect.w/2,rect.y+rect.h],sw:[rect.x,rect.y+rect.h],w:[rect.x,rect.y+rect.h/2]};
+  for (const [mode,[x,y]] of Object.entries(points)) {
+    const handle = appendSvg('rect',{x:x-4,y:y-4,width:8,height:8,fill:'#fff',stroke:fieldColor(item),'stroke-width':'1.5',cursor:`${mode}-resize`});
+    handle.addEventListener('mousedown',event => beginEdit(event,item,mode));
+    overlay.append(handle);
+  }
+}
+
+function drawLeafOrderBadge(overlay, rect, order, selected) {
+  const size = 19, x = rect.x + 3, y = Math.max(2,rect.y + 3);
+  overlay.append(appendSvg('rect',{x,y,width:size,height:size,rx:'9.5',fill:selected ? COLORS.leaf : COLORS.fieldTypes['/Ch'],stroke:'#fff','stroke-width':'1','pointer-events':'none'}));
+  const label = appendSvg('text',{x:x + size / 2,y:y + 13,'text-anchor':'middle',fill:selected ? '#17191d' : '#fff','font-size':'11','font-weight':'700','pointer-events':'none'});
+  label.textContent = String(order); overlay.append(label);
+}
+
+function drawSelectedLeafLabel(overlay, rect) {
+  const x = rect.x + 25, y = Math.max(2,rect.y + 3);
+  overlay.append(appendSvg('rect',{x,y,width:49,height:19,rx:'9.5',fill:COLORS.leaf,stroke:'#fff','stroke-width':'1','pointer-events':'none'}));
+  const label = appendSvg('text',{x:x + 24.5,y:y + 13,'text-anchor':'middle',fill:'#17191d','font-size':'10','font-weight':'700','pointer-events':'none'});
+  label.textContent = '已选中'; overlay.append(label);
+}
+
+function draw() {
+  const overlay = $('overlay'); overlay.replaceChildren();
+  if (!S.viewport) return;
+  const page = pageData();
+  for (const [leafIndex,leaf] of (page?.leaf_nodes || []).entries()) {
+    if (!validRect(leaf.bbox)) continue;
+    const rect = rectInView(leaf.bbox);
+    const selected = leaf === S.selectedLeaf;
+    const element = appendSvg('rect',{
+      class:`leaf-shape${selected ? ' selected' : ''}`,x:rect.x,y:rect.y,width:rect.w,height:rect.h,
+      fill:COLORS.leaf,'fill-opacity':selected ? '.15' : '.035',stroke:COLORS.leaf,
+      'stroke-width':selected ? '4' : S.leafOrdering ? '1.8' : '.8','stroke-dasharray':selected ? '' : '3,3',
+      'pointer-events':S.mode === 'simple' ? 'all' : 'none',cursor:S.leafOrdering ? 'cell' : 'pointer'
+    });
+    overlay.append(element);
+    if (S.mode === 'simple' && (S.leafOrdering || Object.prototype.hasOwnProperty.call(leaf,'leaf_order'))) drawLeafOrderBadge(overlay,rect,leaf.leaf_order || leafIndex + 1,selected);
+    if (selected) drawSelectedLeafLabel(overlay,rect);
+  }
+  for (const item of visibleItems()) {
+    const rect = rectInView(formRect(item));
+    const color = fieldColor(item);
+    const deleted = S.mode === 'rules' && item.deleted;
+    const modified = S.mode === 'simple' && simpleItemChanged(item);
+    const element = appendSvg('rect',{
+      class:`acroform-shape${item.id === S.selected ? ' selected' : ''}`,
+      x:rect.x,y:rect.y,width:rect.w,height:rect.h,fill:color,
+      'fill-opacity':deleted ? '.08' : '.16',stroke:modified ? COLORS.modified : color,
+      'stroke-width':item.id === S.selected ? '4' : modified ? '2.5' : '1.5',
+      'stroke-dasharray':deleted ? '5,3' : '',cursor:S.leafOrdering ? 'cell' : canEditGeometry(item) ? 'move' : 'pointer'
+    });
+    element.addEventListener('mousedown',event => {
+      if (S.mode === 'simple' && S.leafOrdering) { beginLeafSweep(event); return; }
+      event.stopPropagation(); S.selected = item.id;
+      if (S.mode === 'simple') S.selectedLeaf = item.leaf;
+      if (canEditGeometry(item)) beginEdit(event,item); else { draw(); renderList(true); }
+    });
+    overlay.append(element);
+    if (!S.leafOrdering && item.id === S.selected && canEditGeometry(item)) drawHandles(overlay,item,rect);
+  }
+  if (S.drawing) {
+    const drawing = S.drawing;
+    overlay.append(appendSvg('rect',{x:Math.min(drawing.x,drawing.cx),y:Math.min(drawing.y,drawing.cy),width:Math.abs(drawing.cx-drawing.x),height:Math.abs(drawing.cy-drawing.y),fill:COLORS.fieldTypes['/Tx'],'fill-opacity':'.1',stroke:COLORS.fieldTypes['/Tx'],'stroke-width':'1.5','stroke-dasharray':'5,3'}));
+  }
+}
+
+function fieldTypeButtons(current, editable) {
+  const known = new Set(FIELD_TYPES.map(([value]) => value));
+  const options = known.has(current) ? FIELD_TYPES : [[current || '(空)','当前值'],...FIELD_TYPES];
+  return options.map(([value,label]) => `<button type="button" data-action="field-type" data-value="${escapeHtml(value)}" class="${current === value ? 'active' : ''}" style="--type-color:${COLORS.fieldTypes[value] || COLORS.fieldTypes.other}" ${editable ? '' : 'disabled'}>${escapeHtml(label)}</button>`).join('');
+}
+
+function booleanButtons(action,current,trueLabel = '是，需要填写',falseLabel = '否，无需填写') {
+  return [[true,trueLabel,COLORS.fieldTypes['/Btn']],[false,falseLabel,COLORS.deleted]]
+    .map(([value,label,color]) => `<button type="button" data-action="${action}" data-value="${value}" class="${current === value ? 'active' : ''}" style="--type-color:${color}">${label}</button>`).join('');
+}
+
+function renderRulesItem(item) {
+  const editable = item.source === 'added';
+  return `<div class="row"><b class="grow item-title">${editable ? '新增' : '已有'} · ${escapeHtml(item.name || '未命名')}</b><button data-action="go">定位</button><button class="danger" data-action="delete">${editable ? '移除' : item.deleted ? '恢复' : '删除'}</button></div>
+    <div class="field-editor">
+      <div class="hint">field_type${editable ? '' : '（已有框只读）'}</div>
+      <div class="field-type-options">${fieldTypeButtons(item.field_type,editable)}</div>
+      ${editable ? `<div class="coords">${coordinateInputs(item.rect)}</div>` : ''}
+    </div>
+    <div class="meta">${escapeHtml(item.leaf_id || '未关联叶子')} · rect: ${item.rect.map(value => Number(value).toFixed(2)).join(', ')}</div>`;
+}
+
+function coordinateInputs(rect) {
+  return ['x0','y0','x1','y1'].map((label,index) => `<label class="hint"><span>${label}</span><input type="number" step="0.01" data-action="coord" data-index="${index}" value="${Number(rect[index]).toFixed(2)}"></label>`).join('');
+}
+
+function renderSimpleItem(item) {
+  const form = item.pageForm;
+  const modified = simpleItemChanged(item);
+  const needFilled = form.is_acro_need_filled !== false;
+  const isHandwriting = form.is_acro_handwritting === true;
+  const leafText = item.invalidLeaf ? '坐标中心不属于任何叶子节点' : item.leaf?.leaf_id || 'page 清单中存在，未匹配到 leaf 副本';
+  const editor = item.id !== S.selected ? '' : `<div class="field-editor">
+      <div class="hint">field_type</div><div class="field-type-options">${fieldTypeButtons(form.field_type,true)}</div>
+      <label class="hint"><span>AcroForm 是否要填写<br><code>is_acro_need_filled</code></span><span class="boolean-options">${booleanButtons('acro-need-filled',needFilled)}</span></label>
+      <label class="hint"><span>AcroForm 是否需要手写<br><code>is_acro_handwritting</code></span><span class="boolean-options">${booleanButtons('acro-handwriting',isHandwriting,'是，需要手写','否，无需手写')}</span></label>
+      <label class="hint"><span>field_name</span><input data-action="property" data-key="field_name" value="${escapeHtml(form.field_name || '')}" placeholder="字段名称"></label>
+      <label class="hint"><span>input_type</span><input data-action="property" data-key="input_type" value="${escapeHtml(form.input_type || '')}"></label>
+      <label class="hint"><span>textTransform</span><input data-action="property" data-key="textTransform" value="${escapeHtml(form.textTransform || '')}" placeholder="例如 uppercase"></label>
+      <label class="hint"><span>field_example</span><input data-action="property" data-key="field_example" value="${escapeHtml(form.field_example || '')}"></label>
+      <div class="hint" style="margin-top:7px">PDF 坐标</div><div class="coords">${coordinateInputs(form.rect)}</div>
+    </div>`;
+  const dragHandle = item.leafForm && (item.leaf?.acroforms?.length || 0) > 1
+    ? '<button type="button" class="drag-handle" data-action="drag" draggable="true" title="拖动调整同一叶子节点内的顺序" aria-label="拖动排序">↕</button>' : '';
+  return `<div class="row">${dragHandle}<b class="grow item-title">${escapeHtml(form.name || '未命名')}</b>${modified ? '<span class="hint" style="color:var(--yellow)">已修改</span>' : ''}<button data-action="go">定位</button></div>
+    ${editor}<div class="meta ${item.invalidLeaf || !item.leafForm ? 'warning' : ''}">${escapeHtml(leafText)} · ${escapeHtml(form.field_type || '无类型')} · ${escapeHtml(form.field_name || '无 field_name')} · ${needFilled ? '需要填写' : '无需填写'} · ${isHandwriting ? '需要手写' : '无需手写'}</div>`;
+}
+
+function createSimpleItemElement(item) {
+  const element = document.createElement('div');
+  const modified = simpleItemChanged(item);
+  element.className = `item${item.id === S.selected ? ' selected' : ''}${modified ? ' modified' : ''}${item.invalidLeaf || !item.leafForm ? ' invalid' : ''}`;
+  element.style.borderLeftColor = fieldColor(item);
+  element.dataset.itemId = item.id;
+  element.innerHTML = renderSimpleItem(item);
+  element.onclick = () => { S.selected = item.id; S.selectedLeaf = item.leaf; draw(); renderList(); };
+  element.querySelector('[data-action="go"]').onclick = event => { event.stopPropagation(); S.selected = item.id; S.selectedLeaf = item.leaf; draw(); renderList(); };
+  wireSimpleItem(element,item);
+  return element;
+}
+
+function renderSimpleLeafModule(leaf, leafIndex) {
+  const module = document.createElement('section');
+  const selected = leaf === S.selectedLeaf;
+  module.className = `leaf-module${simpleLeafChanged(leaf) ? ' modified' : ''}${selected ? ' selected' : ''}`;
+  module.dataset.leafIndex = leafIndex;
+  const header = document.createElement('div');
+  header.className = 'leaf-header';
+  const leafNeedFilled = leaf.is_need_filled !== false;
+  header.innerHTML = `<div class="leaf-heading"><button type="button" class="leaf-drag-handle" data-action="leaf-drag" draggable="true" title="拖动调整叶子顺序" aria-label="拖动叶子排序">☰</button><span class="leaf-index">叶子 ${leafIndex + 1}</span><span class="leaf-order-badge">顺序 ${leaf.leaf_order || leafIndex + 1}</span>${selected ? '<span class="leaf-selected-badge">已选中</span>' : ''}<textarea class="leaf-text" data-action="leaf-text" spellcheck="false" placeholder="叶子节点 text 属性">${escapeHtml(leaf.text ?? '')}</textarea></div>
+    <div class="leaf-properties"><span class="hint">叶子节点是否要填写 <code>is_need_filled</code></span><span class="boolean-options">${booleanButtons('leaf-need-filled',leafNeedFilled)}</span></div>
+    <div class="meta" style="margin-top:5px">${escapeHtml(leaf.leaf_id || `page ${S.page}`)} · ${leafNeedFilled ? '需要填写' : '无需填写'} · ${(leaf.acroforms || []).length} 个 AcroForm${simpleLeafOrderChanged(leaf) ? ' · AcroForm 顺序已修改' : ''}${simpleLeafRankChanged(leaf) ? ' · 叶子顺序已修改' : ''}</div>`;
+  header.onclick = event => {
+    if (event.target.closest('[data-action="leaf-drag"]')) return;
+    selectLeaf(leaf);
+  };
+  const textInput = header.querySelector('[data-action="leaf-text"]');
+  textInput.onclick = event => event.stopPropagation();
+  textInput.onmousedown = event => event.stopPropagation();
+  textInput.oninput = event => {
+    leaf.text = event.target.value;
+    module.classList.toggle('modified',simpleLeafChanged(leaf));
+    updateCounts(); refreshInfo();
+  };
+  for (const button of header.querySelectorAll('[data-action="leaf-need-filled"]')) button.onclick = event => {
+    event.stopPropagation();
+    const needFilled = button.dataset.value === 'true';
+    leaf.is_need_filled = needFilled;
+    for (const item of simpleItemsForLeaf(leaf)) {
+      setSimpleProperty(item,'is_acro_need_filled',needFilled);
+    }
+    S.selectedLeaf = leaf; S.selected = null;
+    draw(); renderList();
+  };
+  wireLeafDrag(module,header.querySelector('[data-action="leaf-drag"]'),leaf);
+  module.append(header);
+
+  const forms = document.createElement('div');
+  forms.className = 'leaf-forms';
+  const items = simpleItemsForLeaf(leaf);
+  for (const item of items) forms.append(createSimpleItemElement(item));
+  if (!items.length) forms.innerHTML = '<div class="leaf-empty">此叶子节点没有 AcroForm</div>';
+  module.append(forms);
+  return module;
+}
+
+function renderSimpleList(list) {
+  const page = pageData();
+  const leaves = page?.leaf_nodes || [];
+  for (const [index,leaf] of leaves.entries()) {
+    if (simpleLeafVisible(leaf)) list.append(renderSimpleLeafModule(leaf,index));
+  }
+
+  const orphanItems = S.items.filter(item => item.page === S.page && !item.leaf && simpleItemVisible(item));
+  if (orphanItems.length) {
+    const module = document.createElement('section');
+    module.className = 'leaf-module modified';
+    module.innerHTML = '<div class="leaf-header"><div class="leaf-heading"><span class="leaf-index" style="background:var(--red);color:#fff">异常</span><b>未匹配到叶子节点</b></div></div>';
+    const forms = document.createElement('div'); forms.className = 'leaf-forms';
+    for (const item of orphanItems) forms.append(createSimpleItemElement(item));
+    module.append(forms); list.append(module);
+  }
+}
+
+function renderList(scrollSelectedToTop = false) {
+  const list = $('list'); list.replaceChildren();
+  const shown = visibleItems();
+  let selectedElement = null;
+  if (S.mode === 'simple') {
+    renderSimpleList(list);
+    selectedElement = S.selected
+      ? list.querySelector(`[data-item-id="${S.selected}"]`)
+      : S.selectedLeaf ? [...list.querySelectorAll('.leaf-module')].find(element => pageData()?.leaf_nodes?.[Number(element.dataset.leafIndex)] === S.selectedLeaf) : null;
+  } else {
+    for (const item of shown) {
+      const element = document.createElement('div');
+      element.className = `item${item.id === S.selected ? ' selected' : ''}${item.deleted ? ' deleted' : ''}`;
+      element.style.borderLeftColor = fieldColor(item);
+      element.innerHTML = renderRulesItem(item);
+      element.onclick = () => { S.selected = item.id; draw(); renderList(); };
+      element.querySelector('[data-action="go"]').onclick = event => { event.stopPropagation(); S.selected = item.id; draw(); renderList(); };
+      wireRulesItem(element,item);
+      if (item.id === S.selected) selectedElement = element;
+      list.append(element);
+    }
+  }
+  if (!list.children.length) list.innerHTML = `<div class="empty">${S.data ? '当前页和筛选条件下没有内容' : `请加载 ${S.mode === 'rules' ? 'parsed.json' : 'parsed.simple.json'}`}</div>`;
+  if (scrollSelectedToTop && selectedElement) selectedElement.scrollIntoView({block:'start',behavior:'smooth'});
+  updateCounts(); refreshInfo(); updateRulesOutput(); updateLeafOrderControls();
+}
+
+function wireRulesItem(element,item) {
+  element.querySelector('[data-action="delete"]').onclick = event => {
+    event.stopPropagation();
+    if (item.source === 'added') {
+      S.items = S.items.filter(candidate => candidate !== item);
+      S.selected = null;
+    } else {
+      item.deleted = !item.deleted; S.selected = item.id;
+    }
+    draw(); renderList();
+  };
+  for (const button of element.querySelectorAll('[data-action="field-type"]')) button.onclick = event => {
+    event.stopPropagation();
+    if (item.source !== 'added') return;
+    item.field_type = button.dataset.value; S.selected = item.id; draw(); renderList();
+  };
+  wireCoordinateInputs(element,item);
+}
+
+function wireSimpleItem(element,item) {
+  for (const button of element.querySelectorAll('[data-action="field-type"]')) button.onclick = event => {
+    event.stopPropagation(); setSimpleProperty(item,'field_type',button.dataset.value); draw(); renderList();
+  };
+  for (const input of element.querySelectorAll('[data-action="property"]')) {
+    input.onclick = event => event.stopPropagation();
+    input.oninput = event => {
+      setSimpleProperty(item,input.dataset.key,event.target.value);
+      element.classList.toggle('modified',simpleItemChanged(item));
+      updateCounts(); refreshInfo();
+    };
+  }
+  for (const button of element.querySelectorAll('[data-action="acro-need-filled"]')) button.onclick = event => {
+    event.stopPropagation();
+    setSimpleProperty(item,'is_acro_need_filled',button.dataset.value === 'true');
+    S.selected = item.id; S.selectedLeaf = item.leaf;
+    draw(); renderList();
+  };
+  for (const button of element.querySelectorAll('[data-action="acro-handwriting"]')) button.onclick = event => {
+    event.stopPropagation();
+    setSimpleProperty(item,'is_acro_handwritting',button.dataset.value === 'true');
+    S.selected = item.id; S.selectedLeaf = item.leaf;
+    draw(); renderList();
+  };
+  wireCoordinateInputs(element,item);
+
+  const handle = element.querySelector('[data-action="drag"]');
+  if (handle) {
+    handle.onclick = event => event.stopPropagation();
+    handle.ondragstart = event => {
+      event.stopPropagation();
+      S.dragItem = item; S.selected = item.id;
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain',String(item.id));
+      requestAnimationFrame(() => element.classList.add('dragging'));
+    };
+    handle.ondragend = () => {
+      S.dragItem = null; element.classList.remove('dragging'); clearDropIndicators();
+    };
+  }
+  element.ondragover = event => {
+    if (!canReorderSimpleItems(S.dragItem,item)) return;
+    event.preventDefault(); event.stopPropagation();
+    event.dataTransfer.dropEffect = 'move';
+    const rect = element.getBoundingClientRect();
+    const after = event.clientY > rect.top + rect.height / 2;
+    element.classList.toggle('drop-before',!after);
+    element.classList.toggle('drop-after',after);
+  };
+  element.ondragleave = () => element.classList.remove('drop-before','drop-after');
+  element.ondrop = event => {
+    if (!canReorderSimpleItems(S.dragItem,item)) return;
+    event.preventDefault(); event.stopPropagation();
+    const rect = element.getBoundingClientRect();
+    reorderSimpleItems(S.dragItem,item,event.clientY > rect.top + rect.height / 2);
+    S.dragItem = null; renderList();
+  };
+}
+
+function canReorderLeaves(source,target) {
+  const page = pageData();
+  return Boolean(page && source && target && source !== target && page.leaf_nodes.includes(source) && page.leaf_nodes.includes(target));
+}
+
+function clearLeafDropIndicators() {
+  for (const element of document.querySelectorAll('.leaf-module.leaf-drop-before,.leaf-module.leaf-drop-after')) element.classList.remove('leaf-drop-before','leaf-drop-after');
+}
+
+function reorderLeaves(source,target,after) {
+  if (!canReorderLeaves(source,target)) return;
+  const page = pageData();
+  const reordered = page.leaf_nodes.filter(leaf => leaf !== source);
+  const targetIndex = reordered.indexOf(target);
+  reordered.splice(targetIndex + (after ? 1 : 0),0,source);
+  applyPageLeafOrder(page,reordered);
+  S.selectedLeaf = source; S.selected = null; S.leafOrderDrafts.delete(Number(page.page));
+}
+
+function wireLeafDrag(module,handle,leaf) {
+  handle.onclick = event => event.stopPropagation();
+  handle.ondragstart = event => {
+    event.stopPropagation(); S.dragLeaf = leaf; S.selectedLeaf = leaf; S.selected = null;
+    event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain',leaf.leaf_id || 'leaf');
+    requestAnimationFrame(() => module.classList.add('dragging'));
+  };
+  handle.ondragend = () => { S.dragLeaf = null; module.classList.remove('dragging'); clearLeafDropIndicators(); };
+  module.ondragover = event => {
+    if (!canReorderLeaves(S.dragLeaf,leaf)) return;
+    event.preventDefault(); event.stopPropagation(); event.dataTransfer.dropEffect = 'move';
+    const rect = module.getBoundingClientRect();
+    const after = event.clientY > rect.top + rect.height / 2;
+    module.classList.toggle('leaf-drop-before',!after); module.classList.toggle('leaf-drop-after',after);
+  };
+  module.ondragleave = () => module.classList.remove('leaf-drop-before','leaf-drop-after');
+  module.ondrop = event => {
+    if (!canReorderLeaves(S.dragLeaf,leaf)) return;
+    event.preventDefault(); event.stopPropagation();
+    const rect = module.getBoundingClientRect();
+    reorderLeaves(S.dragLeaf,leaf,event.clientY > rect.top + rect.height / 2);
+    S.dragLeaf = null; clearLeafDropIndicators(); draw(); renderList();
+  };
+}
+
+function canReorderSimpleItems(source,target) {
+  return Boolean(source && target && source !== target && source.leaf && source.leaf === target.leaf && source.leafForm && target.leafForm);
+}
+
+function clearDropIndicators() {
+  for (const element of document.querySelectorAll('.item.drop-before,.item.drop-after')) element.classList.remove('drop-before','drop-after');
+}
+
+function reorderSimpleItems(source,target,after) {
+  if (!canReorderSimpleItems(source,target)) return;
+  const forms = source.leaf.acroforms || [];
+  if (!forms.includes(source.leafForm) || !forms.includes(target.leafForm)) return;
+  const reordered = forms.filter(form => form !== source.leafForm);
+  const targetIndex = reordered.indexOf(target.leafForm);
+  reordered.splice(targetIndex + (after ? 1 : 0),0,source.leafForm);
+  forms.splice(0,forms.length,...reordered);
+}
+
+function wireCoordinateInputs(element,item) {
+  for (const input of element.querySelectorAll('[data-action="coord"]')) {
+    input.onclick = event => event.stopPropagation();
+    input.onchange = event => {
+      event.stopPropagation();
+      const originalRect = [...formRect(item)];
+      const rect = [...originalRect]; rect[Number(input.dataset.index)] = Number(input.value);
+      if (!validRect(rect)) { alert('坐标必须满足 x1 > x0 且 y1 > y0'); renderList(); return; }
+      setItemRect(item,rect);
+      if (S.mode === 'rules') {
+        const leaf = findLeaf(rect,item.page);
+        if (!leaf) {
+          setItemRect(item,originalRect);
+          alert('新增框中心必须位于一个叶子节点内，本次坐标修改已撤销。');
+        } else item.leaf_id = leaf.leaf_id;
+      } else reassignSimpleLeaf(item);
+      draw(); renderList();
+    };
+  }
+}
+
+function setSimpleProperty(item,key,value) {
+  item.pageForm[key] = value;
+  if (item.leafForm) item.leafForm[key] = value;
+  if (key === 'field_name') {
+    const source = value.trim() ? 'manual' : 'missing';
+    item.pageForm.field_name_source = source;
+    if (item.leafForm) item.leafForm.field_name_source = source;
+  }
+}
+
+function reassignSimpleLeaf(item) {
+  const newLeaf = findLeaf(item.pageForm.rect,item.page);
+  if (!newLeaf) { item.invalidLeaf = true; return false; }
+  item.invalidLeaf = false;
+  if (!item.leafForm) {
+    item.leafForm = deepClone(item.pageForm);
+    newLeaf.acroforms.push(item.leafForm);
+  } else if (item.leaf !== newLeaf) {
+    if (item.leaf) item.leaf.acroforms = item.leaf.acroforms.filter(form => form !== item.leafForm);
+    newLeaf.acroforms.push(item.leafForm);
+  }
+  item.leaf = newLeaf;
+  const needFilled = newLeaf.is_need_filled !== false;
+  const handwritten = Boolean(newLeaf.is_handwritting);
+  for (const target of [item.pageForm,item.leafForm]) {
+    target.is_acro_need_filled = needFilled;
+    target.is_acro_handwritting = handwritten;
+  }
+  return true;
+}
+
+function replaceObject(target,snapshot) {
+  for (const key of Object.keys(target)) delete target[key];
+  Object.assign(target,deepClone(snapshot));
+}
+function restoreSimpleItem(item) {
+  if (item.leafForm && item.leaf && item.leaf !== item.originalLeaf) item.leaf.acroforms = item.leaf.acroforms.filter(form => form !== item.leafForm);
+  replaceObject(item.pageForm,item.originalPageForm);
+  if (item.originalLeafForm) {
+    if (!item.leafForm) item.leafForm = deepClone(item.originalLeafForm);
+    else replaceObject(item.leafForm,item.originalLeafForm);
+    if (!item.originalLeaf.acroforms.includes(item.leafForm)) item.originalLeaf.acroforms.push(item.leafForm);
+  } else if (item.leafForm && item.leaf) {
+    item.leaf.acroforms = item.leaf.acroforms.filter(form => form !== item.leafForm);
+    item.leafForm = null;
+  }
+  item.leaf = item.originalLeaf; item.invalidLeaf = false;
+}
+
+function restorePageLeafOrder(page) {
+  if (!page) return;
+  const snapshots = S.originalLeaves.filter(snapshot => snapshot.page === page).sort((left,right) => left.index - right.index);
+  if (!snapshots.length) return;
+  page.leaf_nodes.splice(0,page.leaf_nodes.length,...snapshots.map(snapshot => snapshot.leaf));
+  for (const snapshot of snapshots) {
+    if (snapshot.hadLeafOrder) snapshot.leaf.leaf_order = snapshot.leafOrder;
+    else delete snapshot.leaf.leaf_order;
+  }
+  page.n_leaves = page.leaf_nodes.length;
+  S.leafOrderDrafts.delete(Number(page.page));
+}
+
+function updateLeafOrderControls() {
+  const toggle = $('toggleLeafOrder'), reset = $('resetPageLeafOrder'), status = $('leafOrderStatus');
+  if (!toggle || !reset || !status) return;
+  toggle.classList.toggle('primary',S.leafOrdering);
+  toggle.textContent = S.leafOrdering ? '完成拖选排序' : '拖选叶子排序';
+  const page = pageData(), draft = page ? (S.leafOrderDrafts.get(Number(page.page)) || []) : [];
+  reset.disabled = S.mode !== 'simple' || !page;
+  toggle.disabled = S.mode !== 'simple' || !page;
+  if (!page) status.textContent = '加载 parsed.simple.json 后可调整叶子顺序';
+  else if (S.leafOrdering) status.textContent = `拖选中：已指定 ${draft.length}/${page.leaf_nodes.length} 个，未拖选节点保持相对顺序`;
+  else if (S.selectedLeaf && page.leaf_nodes.includes(S.selectedLeaf)) status.textContent = `已选 ${S.selectedLeaf.leaf_id || '叶子节点'} · 顺序 ${page.leaf_nodes.indexOf(S.selectedLeaf) + 1}`;
+  else status.textContent = `本页 ${page.leaf_nodes.length} 个叶子节点；点击可定位，拖选或右栏拖动可排序`;
+}
+
+$('toggleLeafOrder').onclick = () => {
+  if (S.mode !== 'simple' || !pageData()) return;
+  S.leafOrdering = !S.leafOrdering; S.leafSweep = null;
+  if (S.leafOrdering) S.leafOrderDrafts.set(Number(S.page),[]);
+  document.body.classList.toggle('leaf-ordering',S.leafOrdering);
+  updateLeafOrderControls(); draw(); renderList();
+};
+$('resetPageLeafOrder').onclick = () => {
+  if (S.mode !== 'simple' || !pageData()) return;
+  restorePageLeafOrder(pageData()); S.selectedLeaf = null; S.selected = null; S.leafSweep = null;
+  draw(); renderList();
+};
+
+$('undoCurrent').onclick = () => {
+  const item = selectedItem();
+  if (!item || S.mode !== 'simple') return;
+  restoreSimpleItem(item); draw(); renderList();
+};
+$('resetAll').onclick = () => {
+  if (S.mode !== 'simple' || !hasUnsavedChanges()) return;
+  if (!confirm('确定撤销 parsed.simple.json 的全部修改吗？')) return;
+  for (const item of S.items) restoreSimpleItem(item);
+  for (const snapshot of S.originalLeaves) {
+    snapshot.leaf.text = snapshot.text;
+    if (snapshot.hadNeedFilled) snapshot.leaf.is_need_filled = snapshot.needFilled;
+    else delete snapshot.leaf.is_need_filled;
+    const forms = snapshot.leaf.acroforms ||= [];
+    forms.splice(0,forms.length,...snapshot.acroforms);
+  }
+  for (const page of S.data.pages) restorePageLeafOrder(page);
+  S.selectedLeaf = null; S.leafSweep = null; S.dragLeaf = null;
+  draw(); renderList();
+};
+
+function asManualForm(item) {
+  return {page:item.page,name:item.name,rect:item.rect.map(round),field_type:item.field_type,note:'人工标注：新增 AcroForm',leaf_id:item.leaf_id,input_type:item.input_type || '文本',field_name:item.field_name || ''};
+}
+function buildRules() {
+  if (S.mode !== 'rules' || !S.data) throw Error('请先在增删标注模式加载 parsed.json');
+  const city = $('city').value.trim(), pdf = $('targetPdf').value.trim();
+  if (!city || !pdf) throw Error('请填写城市和 PDF 文件名');
+  const added = S.items.filter(item => item.source === 'added');
+  for (const item of added) {
+    if (!validRect(item.rect)) throw Error(`${item.name} 的坐标无效`);
+    if (!findLeaf(item.rect,item.page)) throw Error(`${item.name} 的中心不属于任何叶子节点`);
+  }
+  const removals = S.items.filter(item => item.source === 'existing' && item.deleted).map(item => ({page:item.page,name:item.name,note:'人工标注：删除已有 AcroForm'}));
+  return {version:1,cities:{[city]:{pdfs:{[pdf]:{acroforms:added.map(asManualForm),acroform_removals:removals,leaves_not_need_filled:[],leaves_handwritten:[]}}}}};
+}
+function updateRulesOutput() {
+  if (S.mode !== 'rules') return;
+  try { $('out').value = JSON.stringify(buildRules(),null,2); }
+  catch (error) { $('out').value = `// ${error.message}`; }
+}
+function updateCounts() {
+  if (S.mode === 'rules') {
+    const added = S.items.filter(item => item.source === 'added').length;
+    const deleted = S.items.filter(item => item.source === 'existing' && item.deleted).length;
+    $('rulesCounts').textContent = `当前页显示 ${visibleItems().length} 个；待新增 ${added}，待删除 ${deleted}`;
+  } else {
+    const modified = S.items.filter(simpleItemChanged).length;
+    const modifiedLeaves = S.originalLeaves.filter(snapshot => simpleLeafTextChanged(snapshot.leaf) || simpleLeafNeedFilledChanged(snapshot.leaf) || simpleLeafOrderChanged(snapshot.leaf)).length;
+    const reorderedPages = S.data?.pages?.filter(page => S.originalLeaves.some(snapshot => snapshot.page === page && simpleLeafRankChanged(snapshot.leaf))).length || 0;
+    const invalid = S.items.filter(item => item.invalidLeaf || !item.leafForm).length;
+    $('simpleCounts').textContent = `字段修改 ${modified}；叶子属性修改 ${modifiedLeaves}；叶子排序页 ${reorderedPages}；归属异常 ${invalid}`;
+  }
+}
+
+function downloadJson(payload,fileName) {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));
+  const anchor = document.createElement('a'); anchor.href = url; anchor.download = fileName; anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url),0);
+}
+
+$('generateRules').onclick = () => {
+  try { $('out').value = JSON.stringify(buildRules(),null,2); }
+  catch (error) { alert(error.message); }
+};
+$('copyRules').onclick = async () => {
+  try {
+    await navigator.clipboard.writeText($('out').value);
+    $('copyRules').textContent = '已复制'; setTimeout(() => $('copyRules').textContent = '复制',900);
+  } catch (_) { $('out').select(); document.execCommand('copy'); }
+};
+$('downloadRules').onclick = () => {
+  try {
+    const stem = (S.pdfName || $('targetPdf').value || 'manual_rules').replace(/\.pdf$/i,'');
+    downloadJson(buildRules(),`${stem}.manual_rules.json`);
+  } catch (error) { alert(error.message); }
+};
+
+function recomputeSimpleSummary() {
+  const sourceCounts = {llm:0,manual:0,fallback:0,missing:0};
+  for (const page of S.data.pages) {
+    page.n_acroforms = page.acroforms.length;
+    page.n_leaves = page.leaf_nodes.length;
+    for (const leaf of page.leaf_nodes) {
+      for (const form of leaf.acroforms || []) {
+        const source = form.field_name_source || 'missing';
+        sourceCounts[source] = (sourceCounts[source] || 0) + 1;
+      }
+    }
+  }
+  const summary = S.data.summary ||= {};
+  summary.total_acroforms = S.data.pages.reduce((total,page) => total + page.acroforms.length,0);
+  summary.field_name_sources = sourceCounts;
+}
+function materializeLeafOrders() {
+  for (const page of S.data.pages) applyPageLeafOrder(page,[...page.leaf_nodes]);
+}
+function validateSimpleExport() {
+  if (S.mode !== 'simple' || !S.data) throw Error('请先在属性微调模式加载 parsed.simple.json');
+  for (const item of S.items) {
+    if (!validRect(item.pageForm.rect)) throw Error(`${item.pageForm.name} 的坐标无效`);
+    if (Object.prototype.hasOwnProperty.call(item.pageForm,'is_acro_need_filled') && typeof item.pageForm.is_acro_need_filled !== 'boolean') throw Error(`${item.pageForm.name} 的 is_acro_need_filled 不是布尔值`);
+    if (Object.prototype.hasOwnProperty.call(item.pageForm,'is_acro_handwritting') && typeof item.pageForm.is_acro_handwritting !== 'boolean') throw Error(`${item.pageForm.name} 的 is_acro_handwritting 不是布尔值`);
+    if (simpleItemChanged(item) && (item.invalidLeaf || !item.leafForm)) throw Error(`${item.pageForm.name} 未关联有效叶子节点，无法导出`);
+    if (item.leafForm) {
+      for (const key of SIMPLE_EDITABLE_KEYS) {
+        if (JSON.stringify(item.pageForm[key] ?? null) !== JSON.stringify(item.leafForm[key] ?? null)) throw Error(`${item.pageForm.name} 的 page/leaf 属性 ${key} 不一致`);
+      }
+    }
+  }
+  for (const page of S.data.pages) {
+    for (const [index,leaf] of page.leaf_nodes.entries()) {
+      if (Object.prototype.hasOwnProperty.call(leaf,'is_need_filled') && typeof leaf.is_need_filled !== 'boolean') throw Error(`第 ${page.page} 页叶子 ${leaf.leaf_id || index + 1} 的 is_need_filled 不是布尔值`);
+      if (leaf.leaf_order !== index + 1) throw Error(`第 ${page.page} 页叶子顺序写入失败：期望 ${index + 1}，实际 ${leaf.leaf_order}`);
+    }
+  }
+}
+$('downloadSimple').onclick = () => {
+  try {
+    for (const item of S.items) {
+      if (simpleRectChanged(item)) {
+        item.pageForm.rect = item.pageForm.rect.map(round);
+        if (item.leafForm) item.leafForm.rect = [...item.pageForm.rect];
+        reassignSimpleLeaf(item);
+      }
+    }
+    materializeLeafOrders();
+    validateSimpleExport();
+    recomputeSimpleSummary();
+    downloadJson(S.data,S.jsonName || 'edited.parsed.simple.json');
+  } catch (error) { alert(error.message); }
+};
+
+$('rulesFilter').onchange = event => { S.rulesFilter = event.target.value; S.selected = null; S.selectedLeaf = null; draw(); renderList(); };
+$('simpleFilter').onchange = event => { S.simpleFilter = event.target.value; S.selected = null; S.selectedLeaf = null; draw(); renderList(); };
+$('city').oninput = updateRulesOutput;
+$('targetPdf').oninput = updateRulesOutput;
+
+window.addEventListener('keydown', event => {
+  const modifier = event.ctrlKey || event.metaKey;
+  if (modifier && ['+','=','-','_','0'].includes(event.key)) {
+    event.preventDefault();
+    if (event.key === '0') { if (S.pdf) { S.scale = 1; renderPage(); } }
+    else zoomPreview(event.key === '+' || event.key === '=' ? 1.2 : 1 / 1.2);
+    return;
+  }
+  if ((event.key === 'Delete' || event.key === 'Backspace') && S.mode === 'rules' && S.selected && !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)) {
+    const item = selectedItem();
+    if (item) {
+      if (item.source === 'added') { S.items = S.items.filter(candidate => candidate !== item); S.selected = null; }
+      else item.deleted = !item.deleted;
+      draw(); renderList(); event.preventDefault();
+    }
+  }
+});
+window.addEventListener('beforeunload', event => {
+  if (!hasUnsavedChanges()) return;
+  event.preventDefault(); event.returnValue = '';
+});
+
+refreshInfo(); renderList();
+</script>
+</body>
+</html>

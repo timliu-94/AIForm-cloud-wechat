@@ -1,0 +1,26 @@
+{
+  "field_name": [
+    "居住身份/赴日目的",
+    "预定在日逗留日期",
+    "预定在日逗留期间",
+    "入境口岸",
+    "船舶或航空公司名称"
+  ],
+  "input_type": [
+    "普通文本",
+    "日期",
+    "普通文本",
+    "普通文本",
+    "普通文本"
+  ],
+  "raw_content": "{\"field_name\":[\"居住身份/赴日目的\",\"预定在日逗留日期\",\"预定在日逗留期间\",\"入境口岸\",\"船舶或航空公司名称\"],\"input_type\":[\"普通文本\",\"日期\",\"普通文本\",\"普通文本\",\"普通文本\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 647,
+    "completion_tokens": 54
+  },
+  "attempt_count": 1,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}

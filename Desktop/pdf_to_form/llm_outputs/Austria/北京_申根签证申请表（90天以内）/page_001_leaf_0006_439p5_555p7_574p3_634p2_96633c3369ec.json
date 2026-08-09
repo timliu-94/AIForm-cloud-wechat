@@ -1,0 +1,20 @@
+{
+  "field_name": [
+    "Botschaft/Konsulat",
+    "Dienstleistungserbringer"
+  ],
+  "input_type": [
+    "单选",
+    "单选"
+  ],
+  "raw_content": "{\"field_name\":[\"Botschaft/Konsulat\",\"Dienstleistungserbringer\"],\"input_type\":[\"单选\",\"单选\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 944,
+    "completion_tokens": 30
+  },
+  "attempt_count": 1,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}

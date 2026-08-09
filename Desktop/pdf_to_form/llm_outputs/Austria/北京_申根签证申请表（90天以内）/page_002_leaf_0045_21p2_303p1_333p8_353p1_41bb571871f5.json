@@ -1,0 +1,20 @@
+{
+  "field_name": [
+    "主要目的地成员国",
+    "其他目的地成员国"
+  ],
+  "input_type": [
+    "国家或地区",
+    "国家或地区"
+  ],
+  "raw_content": "{\"field_name\":[\"主要目的地成员国\",\"其他目的地成员国\"],\"input_type\":[\"国家或地区\",\"国家或地区\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 664,
+    "completion_tokens": 27
+  },
+  "attempt_count": 1,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}

@@ -1,0 +1,32 @@
+{
+  "field_name": [
+    "por um patrocinador (anfitrião, empresa, organização), é favor especificar",
+    "referido no campo 30 ou 31",
+    "outro (especificar)",
+    "Dinheiro líquido",
+    "Alojamento fornecido",
+    "Todas as despesas cobertas durante a estada",
+    "Transporte pré-pago",
+    "Outro (especificar)"
+  ],
+  "input_type": [
+    "单选+文本",
+    "单选",
+    "单选+文本",
+    "多选",
+    "多选",
+    "多选",
+    "多选",
+    "多选+文本"
+  ],
+  "raw_content": "{\"field_name\":[\"por um patrocinador (anfitrião, empresa, organização), é favor especificar\",\"referido no campo 30 ou 31\",\"outro (especificar)\",\"Dinheiro líquido\",\"Alojamento fornecido\",\"Todas as despesas cobertas durante a estada\",\"Transporte pré-pago\",\"Outro (especificar)\"],\"input_type\":[\"单选+文本\",\"单选\",\"单选+文本\",\"多选\",\"多选\",\"多选\",\"多选\",\"多选+文本\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 719,
+    "completion_tokens": 116
+  },
+  "attempt_count": 1,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}

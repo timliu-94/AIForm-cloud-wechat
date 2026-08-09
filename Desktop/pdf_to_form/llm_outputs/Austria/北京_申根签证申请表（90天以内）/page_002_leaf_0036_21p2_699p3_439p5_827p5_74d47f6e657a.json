@@ -1,0 +1,26 @@
+{
+  "field_name": [
+    "配偶",
+    "子女",
+    "孙子女",
+    "直系尊亲属",
+    "已登记伴侣"
+  ],
+  "input_type": [
+    "单选",
+    "单选",
+    "单选",
+    "单选",
+    "单选"
+  ],
+  "raw_content": "{\"field_name\":[\"配偶\",\"子女\",\"孙子女\",\"直系尊亲属\",\"已登记伴侣\"],\"input_type\":[\"单选\",\"单选\",\"单选\",\"单选\",\"单选\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 1301,
+    "completion_tokens": 37
+  },
+  "attempt_count": 2,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}

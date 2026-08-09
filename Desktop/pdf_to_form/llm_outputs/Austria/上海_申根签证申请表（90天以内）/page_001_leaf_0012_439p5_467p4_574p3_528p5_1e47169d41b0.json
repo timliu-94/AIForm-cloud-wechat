@@ -1,0 +1,18 @@
+{
+  "field_name": [
+    "Zulässig"
+  ],
+  "input_type": [
+    "单选"
+  ],
+  "raw_content": "{\"field_name\":[\"Zulässig\"],\"input_type\":[\"单选\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 932,
+    "completion_tokens": 18
+  },
+  "attempt_count": 2,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}

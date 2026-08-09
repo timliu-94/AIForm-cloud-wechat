@@ -1,0 +1,18 @@
+{
+  "field_name": [
+    "Einreisegenehmigung für das Endbestimmungsland / Entry permit for the final country of destination, where applicable"
+  ],
+  "input_type": [
+    "待确认"
+  ],
+  "raw_content": "{\"field_name\":[\"Einreisegenehmigung für das Endbestimmungsland / Entry permit for the final country of destination, where applicable\"],\"input_type\":[\"待确认\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 899,
+    "completion_tokens": 40
+  },
+  "attempt_count": 1,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}

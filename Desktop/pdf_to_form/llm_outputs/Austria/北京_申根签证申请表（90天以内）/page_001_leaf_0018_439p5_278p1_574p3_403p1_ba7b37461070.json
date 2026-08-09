@@ -1,0 +1,30 @@
+{
+  "field_name": [
+    "Reisedokument",
+    "Mittel zur Bestreitung des Lebensunterhalts",
+    "Einladung",
+    "Beförderungsmittel",
+    "Reisekrankenversicherung",
+    "Beschäftigungsbewilligung",
+    "Sonstiges"
+  ],
+  "input_type": [
+    "单选",
+    "单选",
+    "单选",
+    "单选",
+    "单选",
+    "单选",
+    "单选+文本"
+  ],
+  "raw_content": "{\"field_name\":[\"Reisedokument\",\"Mittel zur Bestreitung des Lebensunterhalts\",\"Einladung\",\"Beförderungsmittel\",\"Reisekrankenversicherung\",\"Beschäftigungsbewilligung\",\"Sonstiges\"],\"input_type\":[\"单选\",\"单选\",\"单选\",\"单选\",\"单选\",\"单选\",\"单选+文本\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 676,
+    "completion_tokens": 76
+  },
+  "attempt_count": 1,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}

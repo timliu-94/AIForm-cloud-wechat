@@ -1,0 +1,32 @@
+{
+  "field_name": [
+    "旅游",
+    "商务",
+    "探亲访友",
+    "文化",
+    "体育",
+    "官方访问",
+    "医疗",
+    "学习"
+  ],
+  "input_type": [
+    "多选",
+    "多选",
+    "多选",
+    "多选",
+    "多选",
+    "多选",
+    "多选",
+    "多选"
+  ],
+  "raw_content": "{\"field_name\":[\"旅游\",\"商务\",\"探亲访友\",\"文化\",\"体育\",\"官方访问\",\"医疗\",\"学习\"],\"input_type\":[\"多选\",\"多选\",\"多选\",\"多选\",\"多选\",\"多选\",\"多选\",\"多选\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 1317,
+    "completion_tokens": 55
+  },
+  "attempt_count": 1,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}

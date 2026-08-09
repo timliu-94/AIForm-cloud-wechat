@@ -1,0 +1,24 @@
+{
+  "field_name": [
+    "姓",
+    "名",
+    "住址",
+    "国籍"
+  ],
+  "input_type": [
+    "普通文本",
+    "普通文本",
+    "地址",
+    "国家或地区"
+  ],
+  "raw_content": "{\"field_name\":[\"姓\",\"名\",\"住址\",\"国籍\"],\"input_type\":[\"普通文本\",\"普通文本\",\"地址\",\"国家或地区\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 720,
+    "completion_tokens": 32
+  },
+  "attempt_count": 1,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}

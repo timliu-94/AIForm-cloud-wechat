@@ -1,0 +1,32 @@
+{
+  "field_name": [
+    "申请人支付",
+    "支付方式",
+    "现金",
+    "旅行支票",
+    "信用卡",
+    "预缴住宿",
+    "预缴交通",
+    "其它(请注明)"
+  ],
+  "input_type": [
+    "单选",
+    "待确认",
+    "单选",
+    "单选",
+    "单选",
+    "单选",
+    "单选",
+    "单选+文本"
+  ],
+  "raw_content": "{\"field_name\":[\"申请人支付\",\"支付方式\",\"现金\",\"旅行支票\",\"信用卡\",\"预缴住宿\",\"预缴交通\",\"其它(请注明)\"],\"input_type\":[\"单选\",\"待确认\",\"单选\",\"单选\",\"单选\",\"单选\",\"单选\",\"单选+文本\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 745,
+    "completion_tokens": 56
+  },
+  "attempt_count": 1,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}

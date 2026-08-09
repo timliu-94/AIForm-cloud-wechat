@@ -1,0 +1,30 @@
+{
+  "field_name": [
+    "生活来源",
+    "现金",
+    "旅行支票",
+    "信用卡",
+    "已预付住宿",
+    "已预付交通",
+    "其他"
+  ],
+  "input_type": [
+    "待确认",
+    "多选",
+    "多选",
+    "多选",
+    "多选",
+    "多选",
+    "多选+文本"
+  ],
+  "raw_content": "{\"field_name\":[\"生活来源\",\"现金\",\"旅行支票\",\"信用卡\",\"已预付住宿\",\"已预付交通\",\"其他\"],\"input_type\":[\"待确认\",\"多选\",\"多选\",\"多选\",\"多选\",\"多选\",\"多选+文本\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 722,
+    "completion_tokens": 54
+  },
+  "attempt_count": 1,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}

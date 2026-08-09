@@ -1,0 +1,18 @@
+{
+  "field_name": [
+    "家庭成员个人信息"
+  ],
+  "input_type": [
+    "待确认"
+  ],
+  "raw_content": "{\"field_name\":[\"家庭成员个人信息\"],\"input_type\":[\"待确认\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 735,
+    "completion_tokens": 17
+  },
+  "attempt_count": 1,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}

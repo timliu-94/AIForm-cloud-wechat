@@ -1,0 +1,24 @@
+{
+  "field_name": [
+    "工作单位名称及地址",
+    "电话",
+    "地址",
+    "目前的职位"
+  ],
+  "input_type": [
+    "普通文本",
+    "电话",
+    "地址",
+    "普通文本"
+  ],
+  "raw_content": "{\"field_name\":[\"工作单位名称及地址\",\"电话\",\"地址\",\"目前的职位\"],\"input_type\":[\"普通文本\",\"电话\",\"地址\",\"普通文本\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 919,
+    "completion_tokens": 34
+  },
+  "attempt_count": 1,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}

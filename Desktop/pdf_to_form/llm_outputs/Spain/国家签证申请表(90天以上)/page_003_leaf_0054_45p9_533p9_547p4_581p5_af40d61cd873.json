@@ -1,0 +1,22 @@
+{
+  "field_name": [
+    "对未成年人提供监护的个人的姓名",
+    "校方的名称",
+    "校方联系人的姓名"
+  ],
+  "input_type": [
+    "普通文本",
+    "普通文本",
+    "普通文本"
+  ],
+  "raw_content": "{\"field_name\":[\"对未成年人提供监护的个人的姓名\",\"校方的名称\",\"校方联系人的姓名\"],\"input_type\":[\"普通文本\",\"普通文本\",\"普通文本\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 677,
+    "completion_tokens": 38
+  },
+  "attempt_count": 1,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}

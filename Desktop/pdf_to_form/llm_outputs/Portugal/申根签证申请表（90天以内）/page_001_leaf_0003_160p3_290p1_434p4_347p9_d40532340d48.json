@@ -1,0 +1,32 @@
+{
+  "field_name": [
+    "单身",
+    "已婚",
+    "注册伴侣关系",
+    "分居",
+    "离婚",
+    "丧偶",
+    "其他",
+    "其他说明"
+  ],
+  "input_type": [
+    "单选",
+    "单选",
+    "单选",
+    "单选",
+    "单选",
+    "单选",
+    "单选+文本",
+    "普通文本"
+  ],
+  "raw_content": "{\"field_name\":[\"单身\",\"已婚\",\"注册伴侣关系\",\"分居\",\"离婚\",\"丧偶\",\"其他\",\"其他说明\"],\"input_type\":[\"单选\",\"单选\",\"单选\",\"单选\",\"单选\",\"单选\",\"单选+文本\",\"普通文本\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 1276,
+    "completion_tokens": 51
+  },
+  "attempt_count": 1,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}

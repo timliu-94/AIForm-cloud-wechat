@@ -1,0 +1,38 @@
+{
+  "field_name": [
+    "Documento de viaje",
+    "Autorización gubernativa",
+    "Solicitud de autorización gubernativa",
+    "Medios de subsistencia",
+    "Prueba de alojamiento",
+    "Certificado médico",
+    "Certificado de antecedentes penales",
+    "Seguro médico de viaje",
+    "Otros",
+    "Una",
+    "dos"
+  ],
+  "input_type": [
+    "多选",
+    "多选",
+    "多选",
+    "多选",
+    "多选",
+    "多选",
+    "多选",
+    "多选",
+    "多选+文本",
+    "单选",
+    "单选"
+  ],
+  "raw_content": "{\"field_name\":[\"Documento de viaje\",\"Autorización gubernativa\",\"Solicitud de autorización gubernativa\",\"Medios de subsistencia\",\"Prueba de alojamiento\",\"Certificado médico\",\"Certificado de antecedentes penales\",\"Seguro médico de viaje\",\"Otros\",\"Una\",\"dos\"],\"input_type\":[\"多选\",\"多选\",\"多选\",\"多选\",\"多选\",\"多选\",\"多选\",\"多选\",\"多选+文本\",\"单选\",\"单选\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 1688,
+    "completion_tokens": 107
+  },
+  "attempt_count": 2,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}

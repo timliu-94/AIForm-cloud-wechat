@@ -1,0 +1,20 @@
+{
+  "field_name": [
+    "出生地",
+    "出生国"
+  ],
+  "input_type": [
+    "普通文本",
+    "国家或地区"
+  ],
+  "raw_content": "{\"field_name\":[\"出生地\",\"出生国\"],\"input_type\":[\"普通文本\",\"国家或地区\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 919,
+    "completion_tokens": 24
+  },
+  "attempt_count": 1,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}

@@ -1,0 +1,32 @@
+{
+  "field_name": [
+    "婚姻状况",
+    "单身",
+    "已婚",
+    "已登记伴侣关系",
+    "分居",
+    "离婚",
+    "丧偶",
+    "其他"
+  ],
+  "input_type": [
+    "待确认",
+    "单选",
+    "单选",
+    "单选",
+    "单选",
+    "单选",
+    "单选",
+    "单选+文本"
+  ],
+  "raw_content": "{\"field_name\":[\"婚姻状况\",\"单身\",\"已婚\",\"已登记伴侣关系\",\"分居\",\"离婚\",\"丧偶\",\"其他\"],\"input_type\":[\"待确认\",\"单选\",\"单选\",\"单选\",\"单选\",\"单选\",\"单选\",\"单选+文本\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 671,
+    "completion_tokens": 52
+  },
+  "attempt_count": 1,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}

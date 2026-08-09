@@ -1,0 +1,22 @@
+{
+  "field_name": [
+    "没有",
+    "有效期由",
+    "至"
+  ],
+  "input_type": [
+    "单选",
+    "日期",
+    "日期"
+  ],
+  "raw_content": "{\"field_name\":[\"没有\",\"有效期由\",\"至\"],\"input_type\":[\"单选\",\"日期\",\"日期\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 690,
+    "completion_tokens": 24
+  },
+  "attempt_count": 1,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}

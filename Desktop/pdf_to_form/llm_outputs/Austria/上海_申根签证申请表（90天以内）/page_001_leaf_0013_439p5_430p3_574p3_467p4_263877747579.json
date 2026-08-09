@@ -1,0 +1,22 @@
+{
+  "field_name": [
+    "KIS-FAHNDUNG",
+    "NEGATIV",
+    "POSITIV"
+  ],
+  "input_type": [
+    "普通文本",
+    "单选",
+    "单选"
+  ],
+  "raw_content": "{\"field_name\":[\"KIS-FAHNDUNG\",\"NEGATIV\",\"POSITIV\"],\"input_type\":[\"普通文本\",\"单选\",\"单选\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 968,
+    "completion_tokens": 34
+  },
+  "attempt_count": 1,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}

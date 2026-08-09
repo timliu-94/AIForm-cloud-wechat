@@ -1,0 +1,28 @@
+{
+  "field_name": [
+    "Wohnsitz in einem anderen Staat als dem der derzeitigen Staatsangehörigkeit",
+    "Nein",
+    "Ja",
+    "Aufenthaltstitel oder gleichwertiges Dokument",
+    "Nr.",
+    "Gültig bis"
+  ],
+  "input_type": [
+    "待确认",
+    "单选",
+    "单选",
+    "普通文本",
+    "普通文本",
+    "日期"
+  ],
+  "raw_content": "{\"field_name\":[\"Wohnsitz in einem anderen Staat als dem der derzeitigen Staatsangehörigkeit\",\"Nein\",\"Ja\",\"Aufenthaltstitel oder gleichwertiges Dokument\",\"Nr.\",\"Gültig bis\"],\"input_type\":[\"待确认\",\"单选\",\"单选\",\"普通文本\",\"普通文本\",\"日期\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 688,
+    "completion_tokens": 69
+  },
+  "attempt_count": 1,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}

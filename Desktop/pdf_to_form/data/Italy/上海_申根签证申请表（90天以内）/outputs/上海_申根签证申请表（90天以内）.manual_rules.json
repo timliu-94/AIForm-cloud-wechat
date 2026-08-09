@@ -1,0 +1,187 @@
+{
+  "version": 1,
+  "cities": {
+    "上海": {
+      "pdfs": {
+        "上海_申根签证申请表（90天以内）.pdf": {
+          "acroforms": [
+            {
+              "page": 1,
+              "name": "textbox_0_7",
+              "rect": [
+                369.05,
+                378.77,
+                442.38,
+                397.81
+              ],
+              "field_type": "/Tx",
+              "note": "人工标注：新增 AcroForm",
+              "leaf_id": "p001_l0008",
+              "input_type": "文本",
+              "field_name": ""
+            },
+            {
+              "page": 1,
+              "name": "textbox_0_10",
+              "rect": [
+                400.48,
+                204.48,
+                445.24,
+                222.57
+              ],
+              "field_type": "/Tx",
+              "note": "人工标注：新增 AcroForm",
+              "leaf_id": "p001_l0011",
+              "input_type": "文本",
+              "field_name": ""
+            },
+            {
+              "page": 1,
+              "name": "textbox_0_11",
+              "rect": [
+                153.14,
+                39.28,
+                265.15,
+                64.42
+              ],
+              "field_type": "/Tx",
+              "note": "人工标注：新增 AcroForm",
+              "leaf_id": "p001_l0020",
+              "input_type": "文本",
+              "field_name": ""
+            },
+            {
+              "page": 2,
+              "name": "textbox_1_1",
+              "rect": [
+                420.58,
+                454.13,
+                558.86,
+                473.56
+              ],
+              "field_type": "/Tx",
+              "note": "人工标注：新增 AcroForm",
+              "leaf_id": "p002_l0007",
+              "input_type": "文本",
+              "field_name": ""
+            },
+            {
+              "page": 2,
+              "name": "textbox_1_2",
+              "rect": [
+                30.86,
+                32.42,
+                371.43,
+                46.13
+              ],
+              "field_type": "/Tx",
+              "note": "人工标注：新增 AcroForm",
+              "leaf_id": "p002_l0016",
+              "input_type": "文本",
+              "field_name": ""
+            },
+            {
+              "page": 3,
+              "name": "textbox_2_4",
+              "rect": [
+                305.15,
+                460.99,
+                562.29,
+                478.13
+              ],
+              "field_type": "/Tx",
+              "note": "人工标注：新增 AcroForm",
+              "leaf_id": "p003_l0007",
+              "input_type": "文本",
+              "field_name": ""
+            },
+            {
+              "page": 3,
+              "name": "textbox_2_5",
+              "rect": [
+                302.32,
+                567.27,
+                310.53,
+                573.72
+              ],
+              "field_type": "/Btn",
+              "note": "人工标注：新增 AcroForm",
+              "leaf_id": "p003_l0006",
+              "input_type": "文本",
+              "field_name": ""
+            },
+            {
+              "page": 3,
+              "name": "textbox_2_6",
+              "rect": [
+                302.91,
+                553.78,
+                309.36,
+                561.41
+              ],
+              "field_type": "/Btn",
+              "note": "人工标注：新增 AcroForm",
+              "leaf_id": "p003_l0006",
+              "input_type": "文本",
+              "field_name": ""
+            },
+            {
+              "page": 3,
+              "name": "textbox_2_7",
+              "rect": [
+                303.5,
+                541.47,
+                309.36,
+                549.68
+              ],
+              "field_type": "/Btn",
+              "note": "人工标注：新增 AcroForm",
+              "leaf_id": "p003_l0006",
+              "input_type": "文本",
+              "field_name": ""
+            },
+            {
+              "page": 3,
+              "name": "textbox_2_8",
+              "rect": [
+                302.32,
+                517.42,
+                310.53,
+                525.04
+              ],
+              "field_type": "/Btn",
+              "note": "人工标注：新增 AcroForm",
+              "leaf_id": "p003_l0006",
+              "input_type": "文本",
+              "field_name": ""
+            },
+            {
+              "page": 4,
+              "name": "textbox_3_2",
+              "rect": [
+                325.45,
+                113.52,
+                564.73,
+                141.97
+              ],
+              "field_type": "/Tx",
+              "note": "人工标注：新增 AcroForm",
+              "leaf_id": "p004_l0004",
+              "input_type": "文本",
+              "field_name": ""
+            }
+          ],
+          "acroform_removals": [
+            {
+              "page": 4,
+              "name": "textbox_3_0",
+              "note": "人工标注：删除已有 AcroForm"
+            }
+          ],
+          "leaves_not_need_filled": [],
+          "leaves_handwritten": []
+        }
+      }
+    }
+  }
+}

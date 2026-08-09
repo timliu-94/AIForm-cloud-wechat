@@ -1,0 +1,32 @@
+{
+  "field_name": [
+    "par un garant (hôte, entreprise, organisation), veuillez préciser",
+    "visé dans la case 30 ou 31",
+    "Autre (à préciser)",
+    "Argent liquide",
+    "Hébergement fourni",
+    "Tous les frais sont financés pendant le séjour",
+    "Transport prépayé",
+    "Autre (à préciser)"
+  ],
+  "input_type": [
+    "单选+文本",
+    "单选",
+    "单选+文本",
+    "多选",
+    "多选",
+    "多选",
+    "多选",
+    "多选+文本"
+  ],
+  "raw_content": "{\"field_name\":[\"par un garant (hôte, entreprise, organisation), veuillez préciser\",\"visé dans la case 30 ou 31\",\"Autre (à préciser)\",\"Argent liquide\",\"Hébergement fourni\",\"Tous les frais sont financés pendant le séjour\",\"Transport prépayé\",\"Autre (à préciser)\"],\"input_type\":[\"单选+文本\",\"单选\",\"单选+文本\",\"多选\",\"多选\",\"多选\",\"多选\",\"多选+文本\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 713,
+    "completion_tokens": 112
+  },
+  "attempt_count": 1,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}

@@ -1,0 +1,18 @@
+{
+  "field_name": [
+    "亲权人或合法监护人信息"
+  ],
+  "input_type": [
+    "普通文本"
+  ],
+  "raw_content": "{\"field_name\":[\"亲权人或合法监护人信息\"],\"input_type\":[\"普通文本\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 916,
+    "completion_tokens": 21
+  },
+  "attempt_count": 1,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}

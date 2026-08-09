@@ -1,0 +1,20 @@
+{
+  "field_name": [
+    "预计抵达日期",
+    "预计离开日期"
+  ],
+  "input_type": [
+    "日期",
+    "日期"
+  ],
+  "raw_content": "{\"field_name\":[\"预计抵达日期\",\"预计离开日期\"],\"input_type\":[\"日期\",\"日期\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 724,
+    "completion_tokens": 23
+  },
+  "attempt_count": 1,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}

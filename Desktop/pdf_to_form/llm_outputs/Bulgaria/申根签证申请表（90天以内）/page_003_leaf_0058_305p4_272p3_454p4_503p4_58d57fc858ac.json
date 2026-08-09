@@ -1,0 +1,22 @@
+{
+  "field_name": [
+    "由赞助方（邀请人、公司或机构）支付，请注明",
+    "参见第30及31项",
+    "其它（请注明）"
+  ],
+  "input_type": [
+    "单选+文本",
+    "单选",
+    "单选+文本"
+  ],
+  "raw_content": "{\"field_name\":[\"由赞助方（邀请人、公司或机构）支付，请注明\",\"参见第30及31项\",\"其它（请注明）\"],\"input_type\":[\"单选+文本\",\"单选\",\"单选+文本\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 1085,
+    "completion_tokens": 50
+  },
+  "attempt_count": 1,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}

@@ -1,0 +1,18 @@
+{
+  "field_name": [
+    "申请人住址及电子邮件"
+  ],
+  "input_type": [
+    "普通文本"
+  ],
+  "raw_content": "{\"field_name\":[\"申请人住址及电子邮件\"],\"input_type\":[\"普通文本\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 867,
+    "completion_tokens": 20
+  },
+  "attempt_count": 1,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}

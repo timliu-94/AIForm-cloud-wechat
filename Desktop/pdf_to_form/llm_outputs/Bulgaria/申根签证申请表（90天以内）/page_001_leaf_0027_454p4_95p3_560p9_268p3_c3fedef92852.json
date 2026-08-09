@@ -1,0 +1,40 @@
+{
+  "field_name": [
+    "Refused",
+    "Issued",
+    "A",
+    "C",
+    "LTV",
+    "Valid",
+    "From",
+    "Until",
+    "Number of entries",
+    "1",
+    "2",
+    "Multiple"
+  ],
+  "input_type": [
+    "单选",
+    "单选",
+    "单选",
+    "单选",
+    "单选",
+    "普通文本",
+    "日期",
+    "日期",
+    "普通文本",
+    "单选",
+    "单选",
+    "单选"
+  ],
+  "raw_content": "{\"field_name\":[\"Refused\",\"Issued\",\"A\",\"C\",\"LTV\",\"Valid\",\"From\",\"Until\",\"Number of entries\",\"1\",\"2\",\"Multiple\"],\"input_type\":[\"单选\",\"单选\",\"单选\",\"单选\",\"单选\",\"普通文本\",\"日期\",\"日期\",\"普通文本\",\"单选\",\"单选\",\"单选\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 660,
+    "completion_tokens": 66
+  },
+  "attempt_count": 1,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}

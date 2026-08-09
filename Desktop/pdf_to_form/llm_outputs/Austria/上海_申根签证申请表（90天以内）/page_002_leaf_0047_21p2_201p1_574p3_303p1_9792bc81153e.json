@@ -1,0 +1,16 @@
+{
+  "field_name": [
+    "两次",
+    "多次",
+    "申根地区预计首次停留之后的预计离开日期"
+  ],
+  "input_type": [
+    "单选",
+    "单选",
+    "日期"
+  ],
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm_spatially_aligned",
+  "success": true,
+  "spatially_aligned": true
+}

@@ -1,0 +1,18 @@
+{
+  "field_name": [
+    "签发日期"
+  ],
+  "input_type": [
+    "日期"
+  ],
+  "raw_content": "{\"field_name\":[\"签发日期\"],\"input_type\":[\"日期\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 850,
+    "completion_tokens": 16
+  },
+  "attempt_count": 1,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}

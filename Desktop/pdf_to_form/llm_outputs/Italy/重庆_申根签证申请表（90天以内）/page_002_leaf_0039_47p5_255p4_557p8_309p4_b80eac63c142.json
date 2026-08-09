@@ -1,0 +1,26 @@
+{
+  "field_name": [
+    "联系人姓名",
+    "地址",
+    "电话",
+    "传真",
+    "电子邮件"
+  ],
+  "input_type": [
+    "普通文本",
+    "地址",
+    "电话",
+    "电话",
+    "普通文本"
+  ],
+  "raw_content": "{\"field_name\":[\"联系人姓名\",\"地址\",\"电话\",\"传真\",\"电子邮件\"],\"input_type\":[\"普通文本\",\"地址\",\"电话\",\"电话\",\"普通文本\"]}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "reasoning_content_length": 0,
+    "prompt_tokens": 698,
+    "completion_tokens": 34
+  },
+  "attempt_count": 1,
+  "model": "deepseek-v4-flash",
+  "source": "remote_llm"
+}
