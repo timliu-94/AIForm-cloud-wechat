@@ -78,38 +78,9 @@
   display: flex;
   align-items: center;
   box-sizing: border-box;
-  overflow: visible;
-
-  &--filled {
-    border: 1rpx solid rgba(0, 82, 217, 0.4);
-    background: rgba(0, 82, 217, 0.06);
-  }
-
-  &--pending {
-    border: 1rpx dashed rgba(212, 56, 13, 0.5);
-    background: rgba(212, 56, 13, 0.04);
-  }
-
-  // 无需线上录入字段：保留位置提示，但区别于「未填」。
-  &--manual {
-    border: 1rpx solid rgba(128, 128, 128, 0.7);
-    background: rgba(128, 128, 128, 0.06);
-  }
-
-  &--manual &__clip {
-    text-align: center;
-    color: #606266;
-    font-weight: 600;
-  }
-
-  &--handwriting {
-    border: 1rpx solid rgba(0, 82, 217, 0.54);
-    background: rgba(0, 82, 217, 0.07);
-  }
-
-  &--handwriting &__clip {
-    color: #0a2540;
-  }
+  overflow: hidden;
+  color: #000;
+  pointer-events: none;
 
   &__clip {
     position: relative;
@@ -117,7 +88,7 @@
     height: 100%;
     box-sizing: border-box;
     overflow: hidden;
-    color: #0a2540;
+    color: #000;
   }
 
   &__content {
@@ -128,7 +99,11 @@
     height: 100%;
     box-sizing: border-box;
     overflow: hidden;
-    font-family: Arial, "Helvetica Neue", sans-serif;
+    // 导出端使用 Noto Sans SC 字形轮廓；设备没有该字体时使用系统无衬线字体兜底。
+    font-family: "Noto Sans SC", "Noto Sans CJK SC", sans-serif;
+    font-weight: 400;
+    font-kerning: none;
+    font-variant-ligatures: none;
   }
 
   &__line {
@@ -149,58 +124,21 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: rgba(25, 28, 30, 0.78);
-    font-size: 18rpx;
-    font-weight: 600;
-    line-height: 1;
-    text-align: center;
     pointer-events: none;
   }
 
-  &--checkbox &__clip {
-    align-items: center;
-    padding: 0;
-    font-size: 18rpx;
-    line-height: 1;
-    text-align: center;
-    color: @brand7-normal;
-    font-weight: 700;
+  // pdf-lib 默认 checkbox appearance 是黑色折线勾；用 CSS 线段复刻，
+  // 避免 Unicode ✓ 因设备字体不同而改变形状和粗细。
+  &__check-mark {
+    width: 48%;
+    height: 25%;
+    border-left: 1.5rpx solid #000;
+    border-bottom: 1.5rpx solid #000;
+    transform: translateY(-10%) rotate(-45deg);
+    transform-origin: center;
+    box-sizing: border-box;
   }
 
-  &--overflow {
-    border: 2rpx solid #d4380d;
-    background: rgba(212, 56, 13, 0.12);
-  }
-
-  &__label {
-    position: absolute;
-    left: 0;
-    bottom: 100%;
-    padding: 0 6rpx;
-    font-size: 16rpx;
-    line-height: 1.4;
-    color: @surface-lowest;
-    background: rgba(0, 82, 217, 0.7);
-    border-radius: 4rpx;
-    white-space: nowrap;
-    max-width: 240rpx;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  &--pending &__label {
-    background: rgba(212, 56, 13, 0.7);
-  }
-
-  &--skip &__label {
-    background: rgba(96, 98, 102, 0.7);
-  }
-}
-
-// 勾选结果贴近原 PDF 的印刷效果，不再额外铺一层醒目的品牌色。
-.overlay--checkbox.overlay--filled {
-  border-color: rgba(67, 70, 84, 0.28);
-  background: transparent;
 }
 
 .footer {
@@ -312,36 +250,6 @@
   border-radius: 8rpx;
   background: @surface-lowest;
   box-shadow: 0 8rpx 24rpx rgba(25, 28, 30, 0.08);
-}
-
-.overlay--filled {
-  border: 1rpx solid rgba(0, 61, 166, 0.58);
-  background: rgba(0, 61, 166, 0.06);
-}
-
-.overlay--pending {
-  border: 1rpx dashed rgba(0, 61, 166, 0.38);
-  background: transparent;
-}
-
-.overlay--handwriting {
-  border: 1rpx solid rgba(0, 82, 217, 0.54);
-  background: rgba(0, 82, 217, 0.07);
-}
-
-.overlay--overflow {
-  border: 3rpx solid @error;
-  background: rgba(186, 26, 26, 0.14);
-  box-shadow: 0 0 0 2rpx rgba(186, 26, 26, 0.16);
-  z-index: 6;
-}
-
-.overlay__label {
-  background: rgba(0, 82, 217, 0.8);
-}
-
-.overlay--pending .overlay__label {
-  background: rgba(186, 26, 26, 0.78);
 }
 
 .footer {

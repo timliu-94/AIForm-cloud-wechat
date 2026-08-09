@@ -29,8 +29,8 @@
           <t-icon name="browse" size="32rpx" color="#003da6" />
         </view>
         <view class="search-empty__body">
-          <view class="search-empty__title">{{searchGuideCountryName}}需要通过官方网站在线填写申请表</view>
-          <view class="search-empty__desc">请前往{{searchGuideCountryName}}签证申请官方网站查看并完成在线填写。</view>
+          <view class="search-empty__title">暂不支持「{{searchGuideCountryName}}」</view>
+          <view class="search-empty__desc">该国家/地区可能已改为在线填表。如仍有纸质申请表，请前往「我的–帮助与反馈」告知我们。</view>
         </view>
       </view>
     </view>

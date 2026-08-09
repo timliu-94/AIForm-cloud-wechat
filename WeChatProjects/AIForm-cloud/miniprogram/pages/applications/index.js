@@ -4,10 +4,20 @@ const { findTemplate, visaCatalog } = require('../../utils/visaData');
 const { loadForm } = require('../../utils/italyForm');
 const { exportApplicationPdf, getPdfExportErrorMessage, getPdfExportErrorTitle } = require('../../utils/pdfExport');
 const { createInvite } = require('../../utils/invite');
+const {
+  applySelectionPreference,
+  buildReusableBlockOptions,
+  buildSelectionScope,
+  isJapanForm,
+  saveSelectionPreference,
+} = require('../../utils/reusableFieldSelection');
 const { shareFillNotice } = require('../../config/shareFillNotice');
 const { companionCreateNotice } = require('../../config/companionCreateNotice');
 
 const SHARE_FILL_COVER = '/static/share-fill-cover.jpg';
+const COMPANION_SELECTION_TIP = '系统默认带入行程、住宿等共用信息；姓名、证件号码、国籍等个人信息默认不带入。';
+const INVITE_SELECTION_TIP = '行程、住宿等共用信息默认选中；姓名、证件号码、国籍等个人信息默认不选。';
+const JAPAN_SELECTION_TIP = '日本签证默认选择居住身份、酒店名称、在日担保人、在日邀请人及“是否”项，其余默认不选。';
 
 function padTime(value) {
   return String(value).padStart(2, '0');
@@ -76,54 +86,11 @@ function toStoredApplications(applications) {
   });
 }
 
-function isSensitiveCompanionField(field) {
-  const title = normalizeTitle(field.label || field.name);
-  if (['姓', '名', '姓氏', '姓名'].indexOf(title) >= 0) return true;
-  if (title.indexOf('护照名') >= 0) return true;
-  if (title.indexOf('护照号') >= 0) return true;
-  if (title.indexOf('护照号码') >= 0) return true;
-  if (title.indexOf('旅行证件编号') >= 0) return true;
-  if (title.indexOf('旅行证件或身份证编号') >= 0) return true;
-  if (title.indexOf('身份证') >= 0) return true;
-  if (title.indexOf('身份') >= 0 && title.toUpperCase().indexOf('ID') >= 0) return true;
-  if (title.indexOf('手机号') >= 0 || title === '电话号码' || title === '电话') return true;
-  return false;
-}
-
-function isSensitiveCompanionBlock(leaf) {
-  const text = normalizeTitle(leaf.text);
-  if (text.indexOf('护照名') >= 0 || text.indexOf('护照号') >= 0 || text.indexOf('护照号码') >= 0) return true;
-  if (text.indexOf('身份证') >= 0 || text.indexOf('National identity number') >= 0) return true;
-  if (text.indexOf('手机号') >= 0) return true;
-  return (leaf.fields || []).some(isSensitiveCompanionField);
-}
-
 function getApplicationFieldValue(application, block, fieldId) {
   const values = (application && application.values) || {};
   if (Object.prototype.hasOwnProperty.call(values, fieldId)) return values[fieldId];
   const acroformName = block.acroformNames && block.acroformNames[fieldId];
   return acroformName ? values[acroformName] : undefined;
-}
-
-function buildCompanionBlockOptions(form) {
-  const blocks = [];
-  form.pages.forEach((page) => {
-    page.leaves.forEach((leaf) => {
-      const inputFields = leaf.inputFields || (leaf.fields || []).filter((field) => !field.isHandwriting);
-      if (!leaf.needInput || !inputFields.length) return;
-      blocks.push({
-        name: leaf.leafId,
-        title: leaf.text || inputFields.map((field) => field.label).join(' / '),
-        fieldNames: inputFields.map((field) => field.id),
-        acroformNames: inputFields.reduce((map, field) => {
-          map[field.id] = field.name;
-          return map;
-        }, {}),
-        selected: !isSensitiveCompanionBlock({ ...leaf, fields: inputFields }),
-      });
-    });
-  });
-  return blocks;
 }
 
 Page({
@@ -139,6 +106,8 @@ Page({
     companionDialogVisible: false,
     companionSourceId: '',
     companionSourceTitle: '',
+    companionSelectionScope: '',
+    companionSelectionTip: COMPANION_SELECTION_TIP,
     companionFields: [],
     companionSelectedCount: 0,
     companionAllSelected: false,
@@ -149,6 +118,8 @@ Page({
     inviteDialogVisible: false,
     inviteSourceId: '',
     inviteSourceTitle: '',
+    inviteSelectionScope: '',
+    inviteSelectionTip: INVITE_SELECTION_TIP,
     inviteMode: '',
     inviteFields: [],
     inviteSelectedCount: 0,
@@ -222,7 +193,12 @@ Page({
     wx.showLoading({ title: '表单加载中', mask: true });
     loadForm(source.templateId, source.templateVersion)
       .then((form) => {
-        const companionFields = buildCompanionBlockOptions(form);
+        const companionSelectionScope = buildSelectionScope(form);
+        const companionFields = applySelectionPreference(
+          buildReusableBlockOptions(form),
+          'companion',
+          companionSelectionScope,
+        );
         if (!companionFields.length) {
           wx.showToast({ title: '暂无可复制文本块', icon: 'none' });
           return;
@@ -232,6 +208,8 @@ Page({
           companionDialogVisible: true,
           companionSourceId: source.id,
           companionSourceTitle: source.title || '',
+          companionSelectionScope,
+          companionSelectionTip: isJapanForm(form) ? JAPAN_SELECTION_TIP : COMPANION_SELECTION_TIP,
           companionFields,
           companionSelectedCount,
           companionAllSelected: companionSelectedCount === companionFields.length,
@@ -256,6 +234,7 @@ Page({
       companionDialogVisible: false,
       companionSourceId: '',
       companionSourceTitle: '',
+      companionSelectionScope: '',
       companionFields: [],
       companionSelectedCount: 0,
       companionAllSelected: false,
@@ -285,6 +264,7 @@ Page({
       companionSelectedCount,
       companionAllSelected: companionFields.length > 0 && companionSelectedCount === companionFields.length,
     });
+    saveSelectionPreference(companionFields, 'companion', this.data.companionSelectionScope);
   },
 
   createCompanionApplication() {
@@ -359,12 +339,19 @@ Page({
     wx.showLoading({ title: '表单加载中', mask: true });
     loadForm(source.templateId, source.templateVersion)
       .then((form) => {
-        const inviteFields = buildCompanionBlockOptions(form);
+        const inviteSelectionScope = buildSelectionScope(form);
+        const inviteFields = applySelectionPreference(
+          buildReusableBlockOptions(form),
+          'invite',
+          inviteSelectionScope,
+        );
         const inviteSelectedCount = inviteFields.filter((field) => field.selected).length;
         this.setData({
           inviteDialogVisible: true,
           inviteSourceId: source.id,
           inviteSourceTitle: source.title || '',
+          inviteSelectionScope,
+          inviteSelectionTip: isJapanForm(form) ? JAPAN_SELECTION_TIP : INVITE_SELECTION_TIP,
           inviteMode: '',
           inviteFields,
           inviteSelectedCount,
@@ -396,6 +383,7 @@ Page({
       inviteDialogVisible: false,
       inviteSourceId: '',
       inviteSourceTitle: '',
+      inviteSelectionScope: '',
       inviteMode: '',
       inviteFields: [],
       inviteSelectedCount: 0,
@@ -436,6 +424,7 @@ Page({
       inviteAllSelected: inviteFields.length > 0 && inviteSelectedCount === inviteFields.length,
       inviteCreating: false,
     });
+    saveSelectionPreference(inviteFields, 'invite', this.data.inviteSelectionScope);
   },
 
   buildInvitePayload() {

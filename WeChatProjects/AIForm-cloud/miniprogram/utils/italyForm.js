@@ -6,6 +6,7 @@ const {
   getCountryConfigByCloudDirectory,
   getPreviewImage,
   getTemplateAsset,
+  getTemplateConfig,
   loadTemplateSchema,
 } = require('../config/countryConfig');
 const { countryFormSchemaAsset, downloadCloudJSON } = require('./cloudAssets');
@@ -60,10 +61,14 @@ function isAcroFillable(af) {
   return af.is_acro_need_filled !== false;
 }
 
-// 每页可选校准（百分比偏移 + 纵向缩放），默认不校准。
-// 背景：本套 acroforms 坐标来自处理后的 ffd_output.pdf，与预览图渲染所用的
-// Italy_forms.pdf 存在偏差。若日后用同一 PDF 重新生成 schema/预览图，这里保持
-// 恒等即可；若沿用现有素材需要对齐红框，可按页填入 dyPct/scaleY 微调。
+// 与云端 fillPdfAcroForm.isChecked 保持一致，兼容旧草稿/分享数据中的字符串布尔值。
+function isCheckedValue(value) {
+  return value === true || value === 'true' || value === '1'
+    || value === 1 || value === 'yes' || value === 'on';
+}
+
+// 每页可选校准（百分比偏移 + 纵向缩放）。当前 schema、预览图和
+// commonforms PDF 来自同一版本，保持恒等换算；仅为旧版本素材保留校准入口。
 const PAGE_CALIBRATION = {
   // 1: { dxPct: 0, dyPct: 0, scaleY: 1 },
 };
@@ -115,7 +120,8 @@ function buildLeafFields(leaf, size) {
     // 填写示范：仅文本类字段取用（日期/勾选有各自的占位提示，不取示范）。
     const example = (!isBtn && component !== 'date') ? (af.field_example || '') : '';
     return {
-      // id 在 buildForm 完成全量重名检查后赋值；name 始终保留 PDF 原始字段名。
+      // id 在 buildForm 完成全量重名检查后赋值；name 是 schema 与重建后 PDF
+      // 共同使用的 canonical AcroForm 名称，不再依赖原始 PDF/XFA 字段名。
       id: '',
       name: af.name,
       fieldName: af.field_name || '',
@@ -272,8 +278,10 @@ function buildPagePreviewFields(page, values, options = {}) {
       const raw = Object.prototype.hasOwnProperty.call(pageValues, fieldId)
         ? pageValues[fieldId]
         : pageValues[field.name];
-      const filled = isCheckbox ? raw === true : !!(raw && String(raw).length);
-      const display = isCheckbox ? (filled ? '✓' : '') : (raw || '');
+      const filled = isCheckbox
+        ? isCheckedValue(raw)
+        : raw !== undefined && raw !== null && raw !== '';
+      const display = isCheckbox ? (filled ? '✓' : '') : (filled ? String(raw) : '');
       const textLayout = buildFieldPreviewLayout(
         field,
         isCheckbox ? filled : display,
@@ -302,10 +310,17 @@ function buildPagePreviewFields(page, values, options = {}) {
 function normalizeTemplateVersion(templateId, override) {
   const dynamic = override || findCachedCountryFormVersion(templateId);
   if (dynamic) return dynamic;
+  const configured = getTemplateConfig(templateId);
+  const template = configured ? configured.template : {};
   const previewImages = getTemplateAsset(templateId, 'previewImages') || {};
   return {
     id: templateId,
-    country: 'Italy',
+    country: template.country || 'Italy',
+    versionDir: template.versionDir || '',
+    pdfFilename: template.pdfFilename
+      || (template.assets && template.assets.editableFilename)
+      || '',
+    version: template.version || '',
     name: FORM_TITLE,
     sourcePdf: getTemplateAsset(templateId, 'sourcePdf'),
     editablePdf: getTemplateAsset(templateId, 'editablePdf'),

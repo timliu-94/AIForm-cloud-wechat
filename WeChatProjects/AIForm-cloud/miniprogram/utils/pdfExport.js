@@ -1,3 +1,6 @@
+const { shouldShowA3PrintNotice } = require('../config/a3PrintNotice');
+const { loadForm } = require('./italyForm');
+
 function confirmA3PrintOrder() {
   return new Promise((resolve) => {
     wx.showModal({
@@ -11,16 +14,45 @@ function confirmA3PrintOrder() {
   });
 }
 
-// 草稿中的 key 是前端隐藏唯一 ID；云函数只识别 PDF 里的 AcroForm name。
-// 没有映射的旧草稿保持原样，确保向后兼容。
-function buildAcroformValues(application) {
+// 草稿中的 key 是前端隐藏唯一 ID；云函数使用 schema/PDF 共同的 canonical name。
+// 新记录直接使用随草稿保存的映射，缺少映射的旧记录会在导出前从 schema 恢复。
+function buildAcroformFieldMap(form) {
+  const fieldMap = {};
+  ((form && form.fields) || []).forEach((field) => {
+    fieldMap[field.id || field.name] = field.name;
+  });
+  return fieldMap;
+}
+
+function buildAcroformValues(application, recoveredFieldMap) {
   const storedValues = (application && application.values) || {};
-  const fieldMap = (application && application.acroformFieldMap) || {};
+  const fieldMap = {
+    ...(recoveredFieldMap || {}),
+    ...((application && application.acroformFieldMap) || {}),
+  };
   const values = {};
   Object.keys(storedValues).forEach((fieldId) => {
     values[fieldMap[fieldId] || fieldId] = storedValues[fieldId];
   });
   return values;
+}
+
+function needsAcroformFieldMapRecovery(application) {
+  const storedValues = (application && application.values) || {};
+  const fieldMap = (application && application.acroformFieldMap) || {};
+  return Object.keys(storedValues).some((fieldId) => (
+    fieldId.indexOf('acroform_') === 0 && !fieldMap[fieldId]
+  ));
+}
+
+function resolveAcroformValues(application) {
+  if (!needsAcroformFieldMapRecovery(application)) {
+    return Promise.resolve(buildAcroformValues(application));
+  }
+  // 兼容没有保存 acroformFieldMap 的旧草稿/旧分享记录。隐藏 ID 的生成规则
+  // 来自对应版本 schema，因此重新加载同版本表单即可可靠恢复 PDF 原始字段名。
+  return loadForm(application.templateId, application.templateVersion)
+    .then((form) => buildAcroformValues(application, buildAcroformFieldMap(form)));
 }
 
 function exportApplicationPdf(application, title) {
@@ -31,31 +63,37 @@ function exportApplicationPdf(application, title) {
     return Promise.reject(new Error('Cloud is unavailable'));
   }
 
-  return confirmA3PrintOrder().then((a3PrintOrder) => {
+  const a3PrintOrderPromise = shouldShowA3PrintNotice(application.templateVersion)
+    ? confirmA3PrintOrder()
+    : Promise.resolve(false);
+
+  return a3PrintOrderPromise.then((a3PrintOrder) => {
     wx.showLoading({
       title: '生成中',
       mask: true,
     });
 
-    return wx.cloud.callFunction({
-      name: 'picture_acroforms_merge_function',
-      data: {
-        type: 'fillPdfAcroForm',
-        templateId: application.templateId || 'italy',
-        templateAsset: application.templateVersion ? {
-          country: application.templateVersion.country,
-          versionDir: application.templateVersion.versionDir,
-          pdfFilename: application.templateVersion.pdfFilename,
-        } : null,
-        title,
-        values: buildAcroformValues(application),
-        options: {
-          flatten: false,
-          updateAppearances: false,
-          a3PrintOrder,
+    return resolveAcroformValues(application).then((values) => (
+      wx.cloud.callFunction({
+        name: 'picture_acroforms_merge_function',
+        data: {
+          type: 'fillPdfAcroForm',
+          templateId: application.templateId || 'italy',
+          templateAsset: application.templateVersion ? {
+            country: application.templateVersion.country,
+            versionDir: application.templateVersion.versionDir,
+            pdfFilename: application.templateVersion.pdfFilename,
+          } : null,
+          title,
+          values,
+          options: {
+            // 云端统一将文字渲染为矢量轮廓并扁平化，导出为最终打印稿，
+            // 不含可交互表单，跨阅读器（含微信内置阅读器）显示一致。
+            a3PrintOrder,
+          },
         },
-      },
-    });
+      })
+    ));
   }).then((res) => {
     const result = res.result || {};
     if (!result.success || !result.fileID) {
@@ -133,6 +171,10 @@ function getPdfExportErrorMessage(err) {
     }
     const firstFailed = result.failedFields && result.failedFields[0];
     if (firstFailed) parts.push(`${firstFailed.field}: ${firstFailed.message}`);
+    const missingFields = result.missingFields || [];
+    if (missingFields.length) {
+      parts.push(`未匹配字段：${missingFields.slice(0, 5).join('、')}`);
+    }
     return parts.join('\n');
   }
 
@@ -145,8 +187,11 @@ function getPdfExportErrorMessage(err) {
 }
 
 module.exports = {
+  buildAcroformFieldMap,
   buildAcroformValues,
   exportApplicationPdf,
   getPdfExportErrorMessage,
   getPdfExportErrorTitle,
+  needsAcroformFieldMapRecovery,
+  resolveAcroformValues,
 };

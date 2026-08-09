@@ -116,7 +116,6 @@ Page({
     datePickerValues: {},
     datePickerRanges: {},
     datePickerDisplayRanges: {},
-    phoneInputValues: {},
     filledCount: 0,
     totalCount: 0,
     activeFieldName: '',
@@ -156,7 +155,11 @@ Page({
       ))
       .then((form) => (this._pageActive && form ? this.initializeForm(options, form) : null))
       .then(() => {
-        if (this._pageActive && this.form) this.setData({ formReady: true });
+        if (this._pageActive && this.form) {
+          // .split 受 formReady 控制，必须等节点真正渲染后再测量；否则 onReady
+          // 阶段查询不到节点，会把导航栏高度也算进分屏并裁掉底部操作栏。
+          this.setData({ formReady: true }, () => this.updateSplitHeight());
+        }
       })
       .catch((err) => {
         if (!this._pageActive) return;
@@ -270,7 +273,6 @@ Page({
           previewY: geometry.y,
           values,
           ...this.buildDatePickerData(values),
-          phoneInputValues: this.buildPhoneInputValues(values),
           totalCount: form.fields.length,
           applicationId,
           draftTitle,
@@ -508,23 +510,6 @@ Page({
     return { datePickerValues, datePickerRanges, datePickerDisplayRanges };
   },
 
-  // 电话/手机字段：存储值含前导 +（+(区号)(号码)），输入框只展示去掉 + 的部分。
-  buildPhoneInputValues(values) {
-    const map = {};
-    this.form.fields.forEach((field) => {
-      if (field.component === 'phone') map[field.id] = String(values[field.id] || '').replace(/^\++/, '');
-    });
-    return map;
-  },
-
-  // 电话/手机输入：+ 号自动带上，仅把用户填的区号与号码拼到 + 之后存储。
-  onPhoneInput(e) {
-    const { name } = e.currentTarget.dataset;
-    const raw = (e.detail.value || '').replace(/^\++/, '');
-    this.setData({ [`phoneInputValues.${name}`]: raw });
-    this.setFieldValue(name, raw ? `+${raw}` : '');
-  },
-
   onCheckboxTap(e) {
     const { name } = e.currentTarget.dataset;
     const checked = this.data.values[name] !== true;
@@ -745,18 +730,30 @@ Page({
     return wx.getStorageSync(APPLICATIONS_KEY) || [];
   },
 
-  onReady() {
+  updateSplitHeight() {
+    if (!this._pageActive || !this.data.formReady) return;
     // .split 紧跟在自定义导航之后，用它的顶部位置反推剩余视口高度，让分屏铺满。
     const info = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
     wx.createSelectorQuery()
       .in(this)
       .select('.split')
       .boundingClientRect((rect) => {
-        const top = rect ? rect.top : 0;
-        this.setData({ splitHeight: info.windowHeight - top }, () => {
+        if (!rect || !this._pageActive) return;
+        const splitHeight = Math.max(0, info.windowHeight - rect.top);
+        this.setData({ splitHeight }, () => {
           this.queryLeafOffsets();
         });
       })
       .exec();
+  },
+
+  onReady() {
+    // 兼容资源已在页面 ready 前完成加载的情况。
+    this.updateSplitHeight();
+  },
+
+  onResize() {
+    // 横竖屏切换、键盘引起可视区域变化后，操作栏仍保持在视口内。
+    this.updateSplitHeight();
   },
 });

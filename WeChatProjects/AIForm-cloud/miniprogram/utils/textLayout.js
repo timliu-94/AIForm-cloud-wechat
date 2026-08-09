@@ -8,25 +8,11 @@ const FONT_SIZE_STEP = 0.25;
 const MIN_RENDER_FONT_PX = 12;
 const MIN_RENDER_FONT_RPX = 24;
 
-// Helvetica AFM widths (1/1000 em). The PDF exporter uses the same font, so
-// preview wrapping is deterministic without depending on the device font.
-const HELVETICA_WIDTHS = {
-  ' ': 278, '!': 278, '"': 355, '#': 556, $: 556, '%': 889, '&': 667, "'": 191,
-  '(': 333, ')': 333, '*': 389, '+': 584, ',': 278, '-': 333, '.': 278, '/': 278,
-  ':': 278, ';': 278, '<': 584, '=': 584, '>': 584, '?': 556, '@': 1015,
-  A: 667, B: 667, C: 722, D: 722, E: 667, F: 611, G: 778, H: 722, I: 278,
-  J: 500, K: 667, L: 556, M: 833, N: 722, O: 778, P: 667, Q: 778, R: 722,
-  S: 667, T: 611, U: 722, V: 667, W: 944, X: 667, Y: 667, Z: 611,
-  '[': 278, '\\': 278, ']': 278, '^': 469, _: 556, '`': 333,
-  a: 556, b: 556, c: 500, d: 556, e: 556, f: 278, g: 556, h: 556, i: 222,
-  j: 222, k: 500, l: 222, m: 833, n: 556, o: 556, p: 556, q: 556, r: 333,
-  s: 500, t: 278, u: 556, v: 500, w: 722, x: 500, y: 500, z: 500,
-  '{': 334, '|': 260, '}': 334, '~': 584,
-};
-
-'0123456789'.split('').forEach((char) => {
-  HELVETICA_WIDTHS[char] = 556;
-});
+// 导出 PDF 使用 Noto Sans SC 的字形轮廓。这里保存该字体 U+0020-U+00FF
+// 的 advance width（unitsPerEm=1000）；其余 CJK/宽字符按该字体的全角宽度 1000
+// 计算，使图片预览和云端导出使用同一套字号缩放及换行判断。
+const NOTO_SANS_SC_LATIN_WIDTHS = '224,323,474,555,555,921,680,278,338,338,467,555,278,347,278,392,555,555,555,555,555,555,555,555,555,555,278,278,555,555,555,474,946,608,657,638,688,589,552,689,728,293,535,646,543,812,723,742,633,742,635,596,599,721,575,878,573,531,603,338,392,338,555,559,606,563,618,510,620,554,325,564,607,275,275,552,284,926,610,606,620,620,388,468,377,607,521,802,498,521,475,338,270,338,555,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,224,323,555,555,555,555,270,1000,606,832,386,479,555,347,473,606,370,1000,411,411,606,628,1000,1000,606,411,407,479,873,903,889,474,608,608,608,608,608,608,918,638,589,589,589,589,293,293,293,293,712,723,742,742,742,742,742,1000,742,721,721,721,721,531,652,643,563,563,563,563,563,563,877,510,554,554,554,554,275,275,275,275,608,610,606,606,606,606,606,1000,606,607,607,607,607,521,620,521'
+  .split(',').map(Number);
 
 function finiteNumber(value, fallback) {
   const number = Number(value);
@@ -44,15 +30,13 @@ function normalizeText(value) {
     .replace(/\t/g, '    ');
 }
 
-function isCjkOrWide(char) {
-  const code = char.codePointAt(0);
-  return code > 0xff;
-}
-
-function measureHelveticaText(text, fontSize) {
+function measureNotoSansSCText(text, fontSize) {
   const units = Array.from(String(text || '')).reduce((total, char) => {
-    if (HELVETICA_WIDTHS[char]) return total + HELVETICA_WIDTHS[char];
-    return total + (isCjkOrWide(char) ? 1000 : 556);
+    const code = char.codePointAt(0);
+    const latinWidth = code >= 32 && code <= 255
+      ? NOTO_SANS_SC_LATIN_WIDTHS[code - 32]
+      : 0;
+    return total + (latinWidth || 1000);
   }, 0);
   return (units / 1000) * fontSize;
 }
@@ -160,7 +144,7 @@ function resolveLayoutPolicy(field = {}) {
 }
 
 function layoutAtSize(text, policy, fontSize, options) {
-  const measureText = options.measureText || measureHelveticaText;
+  const measureText = options.measureText || measureNotoSansSCText;
   const measureHeight = options.measureHeight || ((size) => size * 0.925);
   const usableWidth = Math.max(0, policy.width - policy.padding * 2);
   const usableHeight = Math.max(0, policy.height - policy.padding * 2);
@@ -232,7 +216,8 @@ function buildScaledTextStyle(layout, scale, unit = 'px') {
     `line-height:${lineHeight.toFixed(2)}${unit}`,
     `padding:${padding.toFixed(2)}${unit}`,
     `text-align:${layout.alignment}`,
-    `justify-content:${layout.multiline ? 'flex-start' : 'center'}`,
+    // 云端矢量渲染会把单行和多行文本块都垂直居中。
+    'justify-content:center',
   ];
 
   if (renderScale < 1) {
@@ -250,7 +235,9 @@ function buildScaledTextStyle(layout, scale, unit = 'px') {
 module.exports = {
   DEFAULT_FONT_SIZE,
   DEFAULT_MIN_FONT_SIZE,
-  measureHelveticaText,
+  // 保留旧导出名兼容旧调用方。
+  measureHelveticaText: measureNotoSansSCText,
+  measureNotoSansSCText,
   resolveLayoutPolicy,
   wrapText,
   layoutText,

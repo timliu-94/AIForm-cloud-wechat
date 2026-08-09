@@ -3,21 +3,21 @@
 
   <view class="profile-card">
     <view class="profile-card__avatar">
-      <t-icon name="user" size="54rpx" color="#003da6" />
+      <image
+        class="profile-card__avatar-image"
+        src="/static/icons/form-assistant-logo.png"
+        mode="aspectFill"
+      />
     </view>
     <view class="profile-card__body">
-      <view class="profile-card__name">Form Assistant User</view>
-      <view class="profile-card__verified">
-        <t-icon name="check-circle-filled" size="28rpx" color="#003da6" />
-        <text>Verified Account</text>
-      </view>
-      <view class="profile-card__tier">Tier: Silver Member</view>
+      <view class="profile-card__name">表小签</view>
+      <view class="profile-card__slogan">您的填签助手</view>
     </view>
   </view>
 
   <view class="points-card">
     <view>
-      <view class="points-card__label">本地表格 (Forms)</view>
+      <view class="points-card__label">本地表格</view>
       <view class="points-card__value">{{applicationCount}}<text>份</text></view>
     </view>
     <view class="points-card__icon">
@@ -67,7 +67,7 @@
       <t-icon name="chat" size="32rpx" color="#ffffff" />
       <text>联系微信客服</text>
     </button>
-    <view class="customer-service-panel__hint">进入客服后，请直接描述问题或告诉我们你的建议。</view>
+    <view class="customer-service-panel__hint">进入客服后，请直接描述问题或告诉我们您的建议。</view>
   </view>
 
   <view class="settings-section">
@@ -93,10 +93,11 @@
     <view class="privacy-panel__updated">更新日期：{{privacyPolicy.updatedAt}}</view>
     <view
       wx:for="{{privacyPolicy.paragraphs}}"
-      wx:key="*this"
+      wx:key="heading"
       class="privacy-panel__section"
     >
-      <view class="privacy-panel__text">{{item}}</view>
+      <view class="privacy-panel__heading">{{item.heading}}</view>
+      <view class="privacy-panel__text">{{item.text}}</view>
     </view>
   </view>
 </view>

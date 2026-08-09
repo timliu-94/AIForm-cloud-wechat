@@ -2,6 +2,7 @@ const assert = require('assert');
 const {
   PDFDocument,
   PDFName,
+  PDFTextField,
   StandardFonts,
 } = require('pdf-lib');
 const clientLayout = require('../../../miniprogram/utils/textLayout');
@@ -12,6 +13,36 @@ const {
 } = require('../../../miniprogram/utils/italyForm');
 const cloudLayout = require('../pdf/textLayout');
 const fillPdfAcroForm = require('../pdf/fillPdfAcroForm');
+const {
+  buildAcroformValues,
+  needsAcroformFieldMapRecovery,
+} = require('../../../miniprogram/utils/pdfExport');
+const zlib = require('zlib');
+
+// 导出改为把文字画成矢量轮廓到页面内容层。测试通过解码页面内容流、统计
+// 路径填充操作符（f / f*）来验证"确实画了矢量图形"，取代旧的 getText 断言。
+function decodePageContent(pdfDoc, pageIndex) {
+  const page = pdfDoc.getPage(pageIndex);
+  const contentsRef = page.node.Contents();
+  if (!contentsRef) return '';
+  const streams = contentsRef.asArray ? contentsRef.asArray() : [contentsRef];
+  return streams.map((ref) => {
+    const stream = pdfDoc.context.lookup(ref);
+    // 保存前是 PDFContentStream（操作符未编码），保存后重载是 PDFRawStream（可能 Flate 压缩）。
+    if (typeof stream.getContentsString === 'function') return stream.getContentsString();
+    const bytes = Buffer.from(stream.contents);
+    try {
+      return zlib.inflateSync(bytes).toString('latin1');
+    } catch (err) {
+      return bytes.toString('latin1');
+    }
+  }).join('\n');
+}
+
+function countFillOperators(content) {
+  const matches = content.match(/(?:^|\s)f\*?(?=\s|$)/g);
+  return matches ? matches.length : 0;
+}
 
 function testSharedLayoutParity() {
   const cases = [
@@ -118,21 +149,52 @@ async function testMissingFieldErrorAndManualFieldCreation() {
   assert.strictEqual(field.getName(), 'manual_textbox_1_3');
   assert.strictEqual(field.acroField.getWidgets()[0].P().toString(), pdfDoc.getPage(1).ref.toString());
 
+  const glyphFont = require('../pdf/vectorText').loadGlyphFont();
+  const beforeFill = countFillOperators(decodePageContent(pdfDoc, 1));
   const fillResult = fillPdfAcroForm.__test.fillTextField({
     field,
     value: 'HOTEL ROMA',
     definition: { font_size: 10.5 },
-    font,
-    form,
+    glyphFont,
+    pdfDoc,
   });
   assert.strictEqual(fillResult.overflow, false);
 
-  const bytes = await pdfDoc.save({ updateFieldAppearances: false });
-  const reloaded = await PDFDocument.load(bytes);
-  assert.strictEqual(
-    reloaded.getForm().getTextField('manual_textbox_1_3').getText(),
-    'HOTEL ROMA',
-  );
+  // 文本以矢量轮廓画到该字段所在页（index 1），页面内容的填充操作符应增多。
+  const afterFill = countFillOperators(decodePageContent(pdfDoc, 1));
+  assert(afterFill > beforeFill, '矢量文字应向页面内容层写入字形轮廓');
+
+  const fallbackCheckBox = fillPdfAcroForm.__test.createManualFormField({
+    pdfDoc,
+    form,
+    name: 'choicebutton_0_10',
+    definition: {
+      name: 'choicebutton_0_10',
+      field_type: '/Btn',
+      page: 1,
+      rect: [20, 20, 30, 30],
+    },
+    font,
+    allowSchemaFallback: true,
+  });
+  assert(fallbackCheckBox);
+  assert.strictEqual(fallbackCheckBox.getName(), 'choicebutton_0_10');
+
+  const fallbackChoice = fillPdfAcroForm.__test.createManualFormField({
+    pdfDoc,
+    form,
+    name: 'textbox_0_14',
+    definition: {
+      name: 'textbox_0_14',
+      field_type: '/Ch',
+      page: 1,
+      rect: [40, 20, 100, 35],
+    },
+    font,
+    allowSchemaFallback: true,
+  });
+  assert(fallbackChoice);
+  assert.strictEqual(fallbackChoice.getName(), 'textbox_0_14');
 }
 
 function testPreviewPagesUseSharedFieldRendering() {
@@ -194,6 +256,14 @@ function testPreviewPagesUseSharedFieldRendering() {
   assert.strictEqual(sharedFields[0].display, '✓');
   assert.strictEqual(sharedFields[2].manual, true);
   assert.strictEqual(sharedFields[2].display, '需要手写');
+
+  const legacyValueFields = buildPagePreviewFields(page, {
+    accepted: '1',
+    surname: 0,
+  });
+  assert.strictEqual(legacyValueFields[0].filled, true);
+  assert.strictEqual(legacyValueFields[1].filled, true);
+  assert.strictEqual(legacyValueFields[1].display, '0');
 }
 
 function testDuplicateAcroformIdentity() {
@@ -233,37 +303,162 @@ function testDuplicateAcroformIdentity() {
     [second.id]: '乙',
   });
   assert.deepStrictEqual(overlays.map((item) => item.display), ['甲', '乙']);
+
+  const cloudFieldMap = fillPdfAcroForm.__test.buildSchemaFieldMap(schema);
+  assert.strictEqual(cloudFieldMap[first.id], first.name);
+  assert.strictEqual(cloudFieldMap[second.id], second.name);
 }
 
-async function testPdfAppearanceKeepsOriginalValue() {
+async function testMultilineAddressRendersWrappedVectors() {
+  const { loadGlyphFont } = require('../pdf/vectorText');
+  const glyphFont = loadGlyphFont();
   const pdfDoc = await PDFDocument.create();
   const page = pdfDoc.addPage([300, 300]);
   const form = pdfDoc.getForm();
   const field = form.createTextField('address');
   field.addToPage(page, { x: 20, y: 200, width: 90, height: 42 });
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const original = 'VIA ROMA 18 20121 MILANO ITALY';
 
+  const beforeFill = countFillOperators(decodePageContent(pdfDoc, 0));
   const result = fillPdfAcroForm.__test.fillTextField({
     field,
     value: original,
     definition: { input_type: '地址', font_size: 10 },
-    font,
-    form,
+    glyphFont,
+    pdfDoc,
   });
 
   assert.strictEqual(result.overflow, false);
+  const previewLayout = clientLayout.layoutText(original, {
+    rect: [0, 0, 90, 42],
+    input_type: '地址',
+    font_size: 10,
+    padding: 1,
+  });
+  assert.deepStrictEqual(
+    {
+      lines: result.layout.lines,
+      fontSize: result.layout.fontSize,
+      overflow: result.layout.overflow,
+    },
+    {
+      lines: previewLayout.lines,
+      fontSize: previewLayout.fontSize,
+      overflow: previewLayout.overflow,
+    },
+  );
+  // 窄框长地址应换行成多行，逐字画出矢量轮廓。
   assert(result.layout.lines.length > 1);
-  assert.strictEqual(field.getText(), original);
-  assert.strictEqual(field.needsAppearancesUpdate(), false);
-  const widget = field.acroField.getWidgets()[0];
-  assert(widget.getAppearances().normal);
+  const afterFill = countFillOperators(decodePageContent(pdfDoc, 0));
+  assert(afterFill > beforeFill + 5, '多行地址应向页面内容层写入字形轮廓');
+}
+
+async function testChinesePdfRendersVectorOutlines() {
+  assert.strictEqual(fillPdfAcroForm.__test.needsUnicodeAppearanceFont({ name: '刘晨' }), true);
+  assert.strictEqual(fillPdfAcroForm.__test.needsUnicodeAppearanceFont({ name: 'LIU CHEN 123' }), false);
+
+  const { loadGlyphFont } = require('../pdf/vectorText');
+  const glyphFont = loadGlyphFont();
+  // 含生僻字 琛（U+741B）——旧的动态子集方案在微信内置阅读器会丢字，
+  // 矢量轮廓方案只要源字体有字形就能画出。
+  assert(glyphFont.hasGlyphForCodePoint('琛'.codePointAt(0)), '源字体应包含 琛 字形');
+
+  const pdfDoc = await PDFDocument.create();
+  const page = pdfDoc.addPage([300, 300]);
+  const form = pdfDoc.getForm();
+  const field = form.createTextField('chinese_name');
+  field.addToPage(page, { x: 20, y: 200, width: 120, height: 20 });
+  const original = '刘琛 / LIU CHEN';
+
+  const beforeFill = countFillOperators(decodePageContent(pdfDoc, 0));
+  const result = fillPdfAcroForm.__test.fillTextField({
+    field,
+    value: original,
+    definition: { font_size: 10 },
+    glyphFont,
+    pdfDoc,
+  });
+  assert.strictEqual(result.overflow, false);
+
+  // 文字应作为矢量轮廓写入页面内容层（填充操作符增多），而非依赖嵌入字体外观。
+  const afterFill = countFillOperators(decodePageContent(pdfDoc, 0));
+  assert(afterFill > beforeFill + 5, '中文（含生僻字）应逐字画出矢量轮廓');
+
+  // 扁平化后字段被移除；导出 PDF 不含 CJK 字体，体积仅 KB 级。
+  fillPdfAcroForm.__test.flattenForm(form, await pdfDoc.embedFont(StandardFonts.Helvetica));
+  const bytes = await pdfDoc.save({ updateFieldAppearances: false });
+  const reloaded = await PDFDocument.load(bytes);
+  assert.strictEqual(reloaded.getForm().getFields().length, 0);
+  assert(bytes.length < 200 * 1024, `导出体积应远小于旧方案，实际 ${(bytes.length / 1024).toFixed(0)}KB`);
+}
+
+async function testFlattenRemovesFieldsAndRepairsBrokenWidgets() {
+  const pdfDoc = await PDFDocument.create();
+  const page = pdfDoc.addPage([300, 300]);
+  const form = pdfDoc.getForm();
+  const filledField = form.createTextField('chinese_name');
+  filledField.addToPage(page, { x: 20, y: 200, width: 120, height: 20 });
+  const emptyField = form.createTextField('empty_field');
+  emptyField.addToPage(page, { x: 20, y: 160, width: 120, height: 20 });
+  const brokenField = form.createTextField('broken_missing_normal_appearance');
+  brokenField.addToPage(page, { x: 20, y: 120, width: 120, height: 20 });
+  const brokenWidget = brokenField.acroField.getWidgets()[0];
+  brokenWidget.ensureAP().delete(PDFName.of('N'));
+  assert.throws(
+    () => brokenWidget.getNormalAppearance(),
+    /Unexpected N type: undefined/,
+  );
+  const { loadGlyphFont } = require('../pdf/vectorText');
+  const glyphFont = loadGlyphFont();
+  const symbolFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+  const result = fillPdfAcroForm.__test.fillTextField({
+    field: filledField,
+    value: '刘晨 / LIU CHEN',
+    definition: { font_size: 10 },
+    glyphFont,
+    pdfDoc,
+  });
+  assert.strictEqual(result.overflow, false);
+
+  const repair = fillPdfAcroForm.__test.flattenForm(form, symbolFont);
+  assert.strictEqual(repair.failures.length, 0);
+  assert.strictEqual(repair.blankedWidgets.length, 0);
+  assert.deepStrictEqual(repair.refreshedFields, ['broken_missing_normal_appearance']);
+  assert.strictEqual(form.getFields().length, 0);
 
   const bytes = await pdfDoc.save({ updateFieldAppearances: false });
   const reloaded = await PDFDocument.load(bytes);
-  const reloadedField = reloaded.getForm().getTextField('address');
-  assert.strictEqual(reloadedField.getText(), original);
-  assert.strictEqual(reloadedField.needsAppearancesUpdate(), false);
+  assert.strictEqual(reloaded.getForm().getFields().length, 0);
+
+  const fallbackDoc = await PDFDocument.create();
+  const fallbackPage = fallbackDoc.addPage([200, 100]);
+  const fallbackForm = fallbackDoc.getForm();
+  const fallbackField = fallbackForm.createTextField('unrepairable_missing_normal_appearance');
+  fallbackField.addToPage(fallbackPage, { x: 10, y: 20, width: 100, height: 20 });
+  fallbackField.acroField.getWidgets()[0].ensureAP().delete(PDFName.of('N'));
+  const fallbackFont = await fallbackDoc.embedFont(StandardFonts.Helvetica);
+  const originalUpdateAppearances = PDFTextField.prototype.updateAppearances;
+  let fallbackRepair;
+  try {
+    PDFTextField.prototype.updateAppearances = () => {
+      throw new Error('synthetic appearance provider failure');
+    };
+    fallbackRepair = fillPdfAcroForm.__test.ensureFlattenableWidgetAppearances(
+      fallbackForm,
+      fallbackFont,
+    );
+  } finally {
+    PDFTextField.prototype.updateAppearances = originalUpdateAppearances;
+  }
+  assert.deepStrictEqual(fallbackRepair.failures, [{
+    field: 'unrepairable_missing_normal_appearance',
+    message: 'synthetic appearance provider failure',
+  }]);
+  assert.strictEqual(fallbackRepair.blankedWidgets.length, 1);
+  assert.strictEqual(fallbackRepair.refreshedFields.length, 0);
+  fallbackForm.flatten({ updateFieldAppearances: false });
+  assert.strictEqual(fallbackForm.getFields().length, 0);
 }
 
 async function testPdfOverflowIsRejected() {
@@ -325,6 +520,59 @@ async function testPdfCheckboxIsSavedWithVisibleAppearance() {
   assert.strictEqual(reloadedCheckbox.needsAppearancesUpdate(), false);
 }
 
+async function testQualifiedXfaFieldNameAndBooleanRadio() {
+  const pdfDoc = await PDFDocument.create();
+  const page = pdfDoc.addPage([100, 100]);
+  const form = pdfDoc.getForm();
+  const qualifiedName = 'topmostSubform[0].Page1[0].#area[0].textbox_0_0';
+  const textField = form.createTextField(qualifiedName);
+  textField.addToPage(page, { x: 10, y: 60, width: 60, height: 15 });
+  const canonicalField = form.createTextField('textbox_0_1');
+  canonicalField.addToPage(page, { x: 10, y: 45, width: 60, height: 10 });
+  const legacySameShortName = form.createTextField('legacy.Page1.textbox_0_1');
+  legacySameShortName.addToPage(page, { x: 10, y: 15, width: 60, height: 10 });
+  const radio = form.createRadioGroup('topmostSubform[0].Page1[0].RB1[0].choicebutton_0_1');
+  radio.addOptionToPage('0', page, { x: 10, y: 30, width: 10, height: 10 });
+
+  const index = fillPdfAcroForm.__test.buildFormFieldNameIndex(form);
+  assert.strictEqual(
+    fillPdfAcroForm.__test.resolveFormFieldName('textbox_0_0', index),
+    qualifiedName,
+  );
+  assert.strictEqual(
+    fillPdfAcroForm.__test.resolveFormFieldName('missing_field', index),
+    'missing_field',
+  );
+  assert.strictEqual(
+    fillPdfAcroForm.__test.resolveFormFieldName('textbox_0_1', index),
+    'textbox_0_1',
+  );
+
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  assert.strictEqual(fillPdfAcroForm.__test.fillNonTextField(radio, false, font), true);
+  assert.strictEqual(radio.getSelected(), undefined);
+  assert.strictEqual(fillPdfAcroForm.__test.fillNonTextField(radio, true, font), true);
+  assert.strictEqual(radio.getSelected(), '0');
+}
+
+function testLegacyAcroformFieldMapRecoveryDetection() {
+  const oldApplication = {
+    values: {
+      acroform_abc: 'ZHANG',
+      textbox_0_1: 'SAN',
+    },
+  };
+  assert.strictEqual(needsAcroformFieldMapRecovery(oldApplication), true);
+  assert.deepStrictEqual(
+    buildAcroformValues(oldApplication, { acroform_abc: 'textbox_0_0' }),
+    { textbox_0_0: 'ZHANG', textbox_0_1: 'SAN' },
+  );
+  assert.strictEqual(needsAcroformFieldMapRecovery({
+    ...oldApplication,
+    acroformFieldMap: { acroform_abc: 'textbox_0_0' },
+  }), false);
+}
+
 async function run() {
   testSharedLayoutParity();
   testMultilineAndOverflow();
@@ -332,9 +580,13 @@ async function run() {
   await testMissingFieldErrorAndManualFieldCreation();
   testPreviewPagesUseSharedFieldRendering();
   testDuplicateAcroformIdentity();
-  await testPdfAppearanceKeepsOriginalValue();
+  await testMultilineAddressRendersWrappedVectors();
+  await testChinesePdfRendersVectorOutlines();
+  await testFlattenRemovesFieldsAndRepairsBrokenWidgets();
   await testPdfOverflowIsRejected();
   await testPdfCheckboxIsSavedWithVisibleAppearance();
+  await testQualifiedXfaFieldNameAndBooleanRadio();
+  testLegacyAcroformFieldMapRecoveryDetection();
   console.log('text layout tests passed');
 }
 

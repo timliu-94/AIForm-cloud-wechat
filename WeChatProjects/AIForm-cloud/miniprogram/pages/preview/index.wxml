@@ -13,14 +13,17 @@
   <scroll-view class="canvas-scroll" scroll-y>
     <!-- PDF 页面图 + 把已填写的值按 acroform 坐标叠加回原位 -->
     <view class="pdf-canvas" wx:if="{{currentPage}}">
-      <image class="pdf-bg" src="{{currentPage.previewImage}}" mode="widthFix" bindload="onPreviewImageLoad" bindtap="previewImage" binderror="onPreviewImageError" />
+      <image class="pdf-bg" src="{{currentPage.previewImage}}" mode="widthFix" bindload="onPreviewImageLoad" binderror="onPreviewImageError" />
       <view
         wx:for="{{currentPage.overlays}}"
         wx:key="id"
-        class="overlay {{item.manual ? 'overlay--manual' : (item.filled ? 'overlay--filled' : 'overlay--pending')}} {{item.isHandwriting ? 'overlay--handwriting' : ''}} {{item.skipFill ? 'overlay--skip' : ''}} {{item.isCheckbox ? 'overlay--checkbox' : ''}} {{item.overflow ? 'overlay--overflow' : ''}}"
+        wx:if="{{item.filled}}"
+        class="overlay {{item.isCheckbox ? 'overlay--checkbox' : ''}}"
         style="{{item.style}}"
       >
-        <view wx:if="{{item.isCheckbox && item.filled}}" class="overlay__check" aria-label="已勾选">✓</view>
+        <view wx:if="{{item.isCheckbox}}" class="overlay__check" aria-label="已勾选">
+          <view class="overlay__check-mark"></view>
+        </view>
         <view wx:else class="overlay__clip {{item.multiline ? 'overlay__clip--multiline' : ''}}">
           <view class="overlay__content" style="{{item.valueStyle}}">
             <text
@@ -31,7 +34,6 @@
             >{{lineItem.text}}</text>
           </view>
         </view>
-        <view class="overlay__label" wx:if="{{showLabels}}">{{item.label}}</view>
       </view>
     </view>
   </scroll-view>

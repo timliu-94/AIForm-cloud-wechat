@@ -156,23 +156,17 @@
               auto-height
             />
 
-            <view
+            <input
               wx:elif="{{field.component === 'phone'}}"
-              class="field-input__control field-input__control--phone"
-            >
-              <text class="field-input__phone-prefix">+</text>
-              <input
-                class="field-input__phone-input"
-                type="number"
-                value="{{phoneInputValues[field.id]}}"
-                placeholder="区号+号码，如 8613800000000"
-                placeholder-class="field-input__placeholder"
-                data-name="{{field.id}}"
-                bindinput="onPhoneInput"
-                bindfocus="onKeyboardFieldFocus"
-                bindblur="onKeyboardFieldBlur"
-              />
-            </view>
+              class="field-input__control"
+              value="{{values[field.id]}}"
+              placeholder="请输入国家/地区代码和电话号码"
+              placeholder-class="field-input__placeholder"
+              data-name="{{field.id}}"
+              bindinput="onTextInput"
+              bindfocus="onKeyboardFieldFocus"
+              bindblur="onKeyboardFieldBlur"
+            />
 
             <input
               wx:else
@@ -185,7 +179,11 @@
               bindfocus="onKeyboardFieldFocus"
               bindblur="onKeyboardFieldBlur"
             />
-            <view wx:if="{{field.example}}" class="field-input__example">
+            <view wx:if="{{field.component === 'phone'}}" class="field-input__example">
+              <text class="field-input__example-label">示例</text>
+              <text>+86 138 0000 0000 或 +86 (10) 8888 8888</text>
+            </view>
+            <view wx:elif="{{field.example}}" class="field-input__example">
               <text class="field-input__example-label">示例</text>
               <text>{{field.example}}</text>
             </view>

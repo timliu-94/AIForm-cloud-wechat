@@ -17,10 +17,11 @@
         <view
           wx:for="{{item.paragraphs}}"
           wx:for-item="paragraph"
-          wx:key="*this"
+          wx:key="heading"
           class="notice-modal__paragraph"
         >
-          {{paragraph}}
+          <view class="notice-modal__paragraph-heading">{{paragraph.heading}}</view>
+          <view class="notice-modal__paragraph-text">{{paragraph.text}}</view>
         </view>
       </view>
     </scroll-view>

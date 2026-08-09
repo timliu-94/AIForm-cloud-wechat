@@ -35,6 +35,9 @@ const countries = [
     templates: [
       {
         id: 'it-schengen-tourism-shanghai-demo',
+        country: ITALY_COUNTRY_DIR,
+        versionDir: ITALY_VERSION_DIR,
+        pdfFilename: ITALY_PDF_FILENAME,
         visaType: {
           id: 'tourism',
           name: '短期旅游',

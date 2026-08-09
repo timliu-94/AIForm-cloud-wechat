@@ -175,7 +175,7 @@
 
         <view class="tool-tip">
           <t-icon name="secured" size="27rpx" color="#737686" />
-          <text>系统默认带入适合同行人共用的信息，姓名、证件号码等个人信息需重新填写。</text>
+          <text>{{companionSelectionTip}}</text>
         </view>
 
         <view class="tool-field-list">
@@ -322,7 +322,7 @@
 
         <view class="tool-tip">
           <t-icon name="secured" size="27rpx" color="#737686" />
-          <text>所选信息会发送给对方，请确认内容适合分享。</text>
+          <text>{{inviteSelectionTip}}</text>
         </view>
 
         <view wx:if="{{inviteFields.length > 0}}" class="tool-field-list">
