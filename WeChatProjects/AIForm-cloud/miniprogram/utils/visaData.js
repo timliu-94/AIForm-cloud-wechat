@@ -45,6 +45,7 @@ function buildVisaCatalog() {
     return {
       id: country.id,
       name: country.name,
+      cloudDirectory: country.cloudDirectory || '',
       iso2: country.iso2,
       continent: country.continent,
       hot: country.hot,

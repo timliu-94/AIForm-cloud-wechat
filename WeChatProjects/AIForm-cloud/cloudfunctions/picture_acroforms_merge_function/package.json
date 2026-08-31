@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "node test/textLayout.test.js"
+    "test": "node test/catalog.test.js && node test/textLayout.test.js"
   },
   "author": "",
   "license": "ISC",

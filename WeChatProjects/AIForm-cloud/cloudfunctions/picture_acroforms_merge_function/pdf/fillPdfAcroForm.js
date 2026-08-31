@@ -7,8 +7,10 @@ const {
   PDFOptionList,
   PDFRadioGroup,
   PDFTextField,
+  LineCapStyle,
   StandardFonts,
   TextAlignment,
+  rgb,
 } = require('pdf-lib');
 const { getPdfTemplate } = require('./templateAssets');
 const { layoutText, measureNotoSansSCText } = require('./textLayout');
@@ -162,10 +164,56 @@ function ensureFlattenableWidgetAppearances(form, font) {
   return { failures, blankedWidgets, refreshedFields };
 }
 
+// 文本类字段的内容已经由 fillTextField() 直接画到页面内容层。扁平化时若再把
+// widget 外观画一遍，pdf-lib 为缺失字段重建的默认白底会覆盖原 PDF；空文本框
+// 也没有任何需要保留的可见内容。因此先移除文本 widget；选项控件会在后续步骤
+// 单独移除，只有其他非文本控件继续走正常扁平化。
+function removeTextFieldWidgets(form) {
+  const removedTextFields = [];
+  form.getFields().filter((field) => (
+    field instanceof PDFTextField
+    || field instanceof PDFDropdown
+    || field instanceof PDFOptionList
+  )).forEach((field) => {
+    removedTextFields.push(field.getName());
+    // PDFForm.removeField() 内部也会读取 /AP/N。对原本缺失外观的 widget
+    // 临时补一个空 XObject，确保能安全移除；该 XObject 不会被扁平化或绘制。
+    field.acroField.getWidgets().forEach((widget) => {
+      try {
+        form.findWidgetAppearanceRef(field, widget);
+      } catch (err) {
+        widget.setNormalAppearance(createBlankWidgetAppearance(form, widget));
+      }
+    });
+    form.removeField(field);
+  });
+  return removedTextFields;
+}
+
+function removeChoiceFieldWidgets(form) {
+  const removedChoiceFields = [];
+  form.getFields().filter((field) => (
+    field instanceof PDFCheckBox || field instanceof PDFRadioGroup
+  )).forEach((field) => {
+    removedChoiceFields.push(field.getName());
+    field.acroField.getWidgets().forEach((widget) => {
+      try {
+        form.findWidgetAppearanceRef(field, widget);
+      } catch (err) {
+        widget.setNormalAppearance(createBlankWidgetAppearance(form, widget));
+      }
+    });
+    form.removeField(field);
+  });
+  return removedChoiceFields;
+}
+
 function flattenForm(form, font) {
+  const removedTextFields = removeTextFieldWidgets(form);
+  const removedChoiceFields = removeChoiceFieldWidgets(form);
   const repair = ensureFlattenableWidgetAppearances(form, font);
   form.flatten({ updateFieldAppearances: false });
-  return repair;
+  return { ...repair, removedTextFields, removedChoiceFields };
 }
 
 function collectAcroformDefinitions(schema) {
@@ -313,7 +361,14 @@ function createManualFormField({
 
   if (definition.field_type === '/Tx' || definition.field_type === '/Ch') {
     const field = form.createTextField(name);
-    field.addToPage(page, { ...widgetOptions, font });
+    // PDFTextField.addToPage() 在未提供 backgroundColor/borderColor 时会默认
+    // 创建白底黑框。显式传入 undefined 才能得到透明、无边框的临时 widget。
+    field.addToPage(page, {
+      ...widgetOptions,
+      backgroundColor: undefined,
+      borderColor: undefined,
+      font,
+    });
     return field;
   }
 
@@ -474,6 +529,58 @@ function fillTextField({
   return { overflow: false, layout };
 }
 
+function selectedChoiceWidgets(field) {
+  const widgets = field.acroField.getWidgets();
+  if (field instanceof PDFCheckBox) return field.isChecked() ? widgets : [];
+  if (!(field instanceof PDFRadioGroup)) return [];
+  const selected = field.getSelected();
+  if (selected === undefined) return [];
+  const matched = widgets.filter((widget) => {
+    const onValue = widget.getOnValue();
+    return onValue && onValue.decodeText() === selected;
+  });
+  return matched.length ? matched : (widgets.length === 1 ? widgets : []);
+}
+
+// 原 PDF 通常已经印有选项框。这里只把粗黑勾作为两段矢量线画到内容层，不绘制
+// widget 自带的矩形/圆形边框；随后 removeChoiceFieldWidgets() 会移除控件外观。
+// 直接画线而不使用字体中的“✓”，可避免小尺寸选项框里字形笔画过细、打印不清。
+function drawChoiceFieldMark({ field, pdfDoc }) {
+  if (!pdfDoc) return 0;
+  let rendered = 0;
+  selectedChoiceWidgets(field).forEach((widget) => {
+    const page = resolveWidgetPage(pdfDoc, widget);
+    if (!page) return;
+    const rect = widget.getRectangle();
+    const width = Math.abs(Number(rect.width) || 0);
+    const height = Math.abs(Number(rect.height) || 0);
+    const size = Math.min(width, height);
+    if (size <= 0) return;
+    const left = Number(rect.x) + (width - size) / 2;
+    const bottom = Number(rect.y) + (height - size) / 2;
+    // 小框保证至少 1.4pt 线宽，大框随尺寸增粗；坐标尽量占满框内空间。
+    const thickness = Math.max(1.4, Math.min(3.2, size * 0.18));
+    const middle = { x: left + size * 0.38, y: bottom + size * 0.22 };
+    const lineOptions = {
+      thickness,
+      color: rgb(0, 0, 0),
+      lineCap: LineCapStyle.Round,
+    };
+    page.drawLine({
+      start: { x: left + size * 0.10, y: bottom + size * 0.49 },
+      end: middle,
+      ...lineOptions,
+    });
+    page.drawLine({
+      start: middle,
+      end: { x: left + size * 0.92, y: bottom + size * 0.86 },
+      ...lineOptions,
+    });
+    rendered += 1;
+  });
+  return rendered;
+}
+
 function elapsed(start) {
   return `${Date.now() - start}ms`;
 }
@@ -522,6 +629,7 @@ async function fillPdfAcroForm(event) {
   const skippedFields = [];
   const filledFields = [];
   const checkedFields = [];
+  const renderedChoiceMarks = [];
   const createdFields = [];
   const unsupportedFields = [];
   const overflowFields = [];
@@ -598,6 +706,10 @@ async function fillPdfAcroForm(event) {
           && isChecked(values[fieldName])) {
           checkedFields.push(pdfFieldName);
         }
+        if (field instanceof PDFCheckBox || field instanceof PDFRadioGroup) {
+          const markCount = drawChoiceFieldMark({ field, pdfDoc });
+          if (markCount) renderedChoiceMarks.push({ field: pdfFieldName, markCount });
+        }
       } else {
         unsupportedFields.push(pdfFieldName);
       }
@@ -623,6 +735,7 @@ async function fillPdfAcroForm(event) {
     overflowCount: overflowFields.length,
     sampleMissingFields: missingFields.slice(0, 20),
     sampleCheckedFields: checkedFields.slice(0, 20),
+    sampleRenderedChoiceMarks: renderedChoiceMarks.slice(0, 20),
     sampleCreatedFields: createdFields.slice(0, 20),
     sampleFailedFields: failedFields.slice(0, 10),
     sampleUnsupportedFields: unsupportedFields.slice(0, 20),
@@ -681,8 +794,8 @@ async function fillPdfAcroForm(event) {
     };
   }
 
-  // 文本已作为矢量轮廓画到页面内容层，控件本身不再承载可见外观，统一扁平化
-  // 移除所有字段。这样最终 PDF 不含 CJK 字体、跨阅读器一致，也不会残留空控件。
+  // 文本和选中符号已作为矢量轮廓画到页面内容层；文本/选项控件先直接移除，
+  // 其余字段再扁平化。这样不会残留空控件，也不会额外画出选项矩形框。
   const flattened = true;
   const flattenRepair = flattenForm(form, symbolFont);
 
@@ -716,9 +829,13 @@ async function fillPdfAcroForm(event) {
       failedAppearanceUpdates: flattenRepair.failures.length,
       blankedWidgets: flattenRepair.blankedWidgets.length,
       refreshedFields: flattenRepair.refreshedFields.length,
+      removedTextFields: flattenRepair.removedTextFields.length,
+      removedChoiceFields: flattenRepair.removedChoiceFields.length,
       sampleFailures: flattenRepair.failures.slice(0, 10),
       sampleBlankedWidgets: flattenRepair.blankedWidgets.slice(0, 10),
       sampleRefreshedFields: flattenRepair.refreshedFields.slice(0, 20),
+      sampleRemovedTextFields: flattenRepair.removedTextFields.slice(0, 20),
+      sampleRemovedChoiceFields: flattenRepair.removedChoiceFields.slice(0, 20),
     },
     timing: {
       save: elapsed(saveStartedAt),
@@ -736,6 +853,7 @@ async function fillPdfAcroForm(event) {
     flattenRepair,
     filledFields,
     checkedFields,
+    renderedChoiceMarks,
     createdFields,
     missingFields,
     failedFields,
@@ -756,6 +874,9 @@ module.exports.__test = {
   fillTextField,
   ensureFlattenableWidgetAppearances,
   flattenForm,
+  drawChoiceFieldMark,
+  removeChoiceFieldWidgets,
+  removeTextFieldWidgets,
   buildFormFieldNameIndex,
   isChecked,
   isBooleanChoiceValue,

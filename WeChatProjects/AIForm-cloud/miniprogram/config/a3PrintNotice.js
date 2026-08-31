@@ -1,11 +1,11 @@
 // A3 打印提示按「云目录国家 + PDF 版本目录」配置。
-// 未命中的国家或版本默认不显示弹窗。
+// 意大利全部 PDF 版本在导出前均需询问；未命中的国家或版本默认不显示弹窗。
 const A3_PRINT_NOTICE_CONFIG = {
   defaultEnabled: false,
   rules: [
     {
       country: 'Italy',
-      pdfVersion: '上海_申根签证申请表（90天以内）',
+      pdfVersion: '*',
       enabled: true,
     },
     {

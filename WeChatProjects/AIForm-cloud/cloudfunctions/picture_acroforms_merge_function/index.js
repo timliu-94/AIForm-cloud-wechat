@@ -8,7 +8,10 @@ cloud.init({
 });
 
 const fillPdfAcroForm = require("./pdf/fillPdfAcroForm");
-const { listCountryFormVersions } = require('./catalog/countryFormCatalog');
+const {
+  listCountryFormCountries,
+  listCountryFormVersions,
+} = require('./catalog/countryFormCatalog');
 const { createInvite, getInvite } = require('./invites');
 
 const db = cloud.database();
@@ -193,6 +196,8 @@ exports.main = async (event, context) => {
       return await fillPdfAcroForm(event);
     case "listCountryFormVersions":
       return await listCountryFormVersions(event);
+    case "listCountryFormCountries":
+      return await listCountryFormCountries();
     case "createInvite":
       return await createInvite(event);
     case "getInvite":

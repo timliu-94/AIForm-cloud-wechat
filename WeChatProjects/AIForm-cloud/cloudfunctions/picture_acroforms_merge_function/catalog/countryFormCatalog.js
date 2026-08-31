@@ -3,7 +3,7 @@ const COS = require('cos-nodejs-sdk-v5');
 
 const CLOUD_FILE_ROOT = 'cloud://cloudbase-d6gt24wo5bc8f4e49.636c-cloudbase-d6gt24wo5bc8f4e49-1449758889';
 const CLOUD_BUCKET = CLOUD_FILE_ROOT.slice('cloud://'.length).split('.')[1];
-const SUPPORTED_COUNTRIES = new Set(['Italy', 'Japan']);
+const COUNTRY_FORMS_ROOT = 'country_forms/';
 
 function cloudFile(key) {
   return `${CLOUD_FILE_ROOT}/${String(key || '').replace(/^\/+/, '')}`;
@@ -25,6 +25,27 @@ function asArray(value) {
 
 function getObjectKey(item) {
   return typeof item === 'string' ? item : item && item.Key;
+}
+
+function getPrefix(item) {
+  return typeof item === 'string' ? item : item && item.Prefix;
+}
+
+function parseCountryDirectories(commonPrefixes) {
+  const countries = new Set();
+  asArray(commonPrefixes).forEach((item) => {
+    const prefix = getPrefix(item);
+    if (!prefix || prefix.indexOf(COUNTRY_FORMS_ROOT) !== 0) return;
+    const country = prefix.slice(COUNTRY_FORMS_ROOT.length).replace(/\/$/, '');
+    if (country && country.indexOf('/') < 0) countries.add(country);
+  });
+  return Array.from(countries).sort((left, right) => left.localeCompare(right, 'en'));
+}
+
+function normalizeCountryDirectory(value) {
+  const country = String(value || '').trim();
+  if (!country || country === '.' || country === '..' || country.indexOf('/') >= 0) return '';
+  return country;
 }
 
 function parseCountryFormObjects(country, contents) {
@@ -128,10 +149,53 @@ async function listObjectsByPrefix(prefix) {
   return contents;
 }
 
+async function listCommonPrefixesByPrefix(prefix) {
+  const Region = process.env.TENCENTCLOUD_REGION;
+  if (!Region) throw new Error('云函数运行环境缺少 TENCENTCLOUD_REGION');
+  const cos = createCosClient();
+  const commonPrefixes = [];
+  let marker = '';
+  let pageCount = 0;
+
+  do {
+    const data = await cos.getBucket({
+      Bucket: CLOUD_BUCKET,
+      Region,
+      Prefix: prefix,
+      Delimiter: '/',
+      Marker: marker,
+      MaxKeys: 1000,
+    });
+    commonPrefixes.push(...asArray(data.CommonPrefixes));
+    marker = (data.IsTruncated === true || data.IsTruncated === 'true') ? (data.NextMarker || '') : '';
+    pageCount += 1;
+    if (pageCount > 100) throw new Error('云存储国家目录超过扫描上限');
+  } while (marker);
+
+  return commonPrefixes;
+}
+
+async function listCountryFormCountries() {
+  const commonPrefixes = await listCommonPrefixesByPrefix(COUNTRY_FORMS_ROOT);
+  const countries = parseCountryDirectories(commonPrefixes);
+  return {
+    success: true,
+    apiVersion: 'country-form-countries-v1',
+    root: cloudFile(COUNTRY_FORMS_ROOT),
+    countries,
+    total: countries.length,
+    generatedAt: new Date().toISOString(),
+  };
+}
+
 async function listCountryFormVersions(event) {
-  const country = String(event.country || 'Italy');
-  if (!SUPPORTED_COUNTRIES.has(country)) {
-    return { success: false, errMsg: `Unsupported country: ${country}` };
+  const country = normalizeCountryDirectory(event && event.country);
+  if (!country) {
+    return {
+      success: false,
+      apiVersion: 'country-form-catalog-v1',
+      errMsg: 'Invalid country directory',
+    };
   }
   const prefix = `country_forms/${country}/`;
   const contents = await listObjectsByPrefix(prefix);
@@ -148,7 +212,9 @@ async function listCountryFormVersions(event) {
 
 module.exports = {
   CLOUD_BUCKET,
+  listCountryFormCountries,
   listCountryFormVersions,
+  parseCountryDirectories,
   parseCountryFormObjects,
   stableTemplateId,
 };

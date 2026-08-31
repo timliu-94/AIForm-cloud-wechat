@@ -3,6 +3,7 @@ const { findTemplate } = require('../../utils/visaData');
 const { buildDefaultApplicationTitle, normalizeTitle } = require('../../utils/applicationTitle');
 const { resolvePreviewImages } = require('../../utils/cloudAssets');
 const { exportApplicationPdf, getPdfExportErrorMessage, getPdfExportErrorTitle } = require('../../utils/pdfExport');
+const { hideExportProgress, showExportProgress } = require('../../utils/exportProgress');
 
 const APPLICATIONS_KEY = 'visa_applications';
 
@@ -16,6 +17,10 @@ Page({
     pendingCount: 0,
     overflowCount: 0,
     isTemplatePreview: false,
+    exportProgressVisible: false,
+    exportProgressStage: 'generating',
+    exportProgress: 8,
+    exportProgressStyle: 'width: 8%;',
   },
 
   onLoad(options) {
@@ -39,6 +44,7 @@ Page({
 
   onUnload() {
     this._pageActive = false;
+    hideExportProgress(this);
   },
 
   initializePreview(options) {
@@ -139,6 +145,8 @@ Page({
     this.setData({ showLabels: !this.data.showLabels });
   },
 
+  preventTouchMove() {},
+
   previewImage() {
     const urls = this.data.pages.map((page) => page.previewImage);
     wx.previewImage({ current: urls[this.data.pageIndex], urls });
@@ -160,6 +168,7 @@ Page({
 
   exportPdf() {
     if (this.data.isTemplatePreview) return;
+    if (this.data.exportProgressVisible) return;
     const { application } = this.data;
     if (!application) return;
     if (this.data.overflowCount > 0) {
@@ -187,14 +196,19 @@ Page({
           return;
         }
         this.saveTitle(title);
-        exportApplicationPdf({ ...application, title }, title).catch((err) => {
-          console.error('Export PDF failed:', err);
-          wx.showModal({
-            title: getPdfExportErrorTitle(err),
-            content: getPdfExportErrorMessage(err),
-            showCancel: false,
+        exportApplicationPdf({ ...application, title }, title, {
+          onStage: (stage) => showExportProgress(this, stage),
+        })
+          .then(() => hideExportProgress(this))
+          .catch((err) => {
+            hideExportProgress(this);
+            console.error('Export PDF failed:', err);
+            wx.showModal({
+              title: getPdfExportErrorTitle(err),
+              content: getPdfExportErrorMessage(err),
+              showCancel: false,
+            });
           });
-        });
       },
     });
   },

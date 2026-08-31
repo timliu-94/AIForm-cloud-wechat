@@ -55,7 +55,7 @@ function resolveAcroformValues(application) {
     .then((form) => buildAcroformValues(application, buildAcroformFieldMap(form)));
 }
 
-function exportApplicationPdf(application, title) {
+function exportApplicationPdf(application, title, progressHooks) {
   if (!application) {
     return Promise.reject(new Error('Application is required'));
   }
@@ -66,12 +66,14 @@ function exportApplicationPdf(application, title) {
   const a3PrintOrderPromise = shouldShowA3PrintNotice(application.templateVersion)
     ? confirmA3PrintOrder()
     : Promise.resolve(false);
+  const hasCustomProgress = progressHooks && typeof progressHooks.onStage === 'function';
+  const updateProgress = (stage) => {
+    if (hasCustomProgress) progressHooks.onStage(stage);
+  };
 
   return a3PrintOrderPromise.then((a3PrintOrder) => {
-    wx.showLoading({
-      title: '生成中',
-      mask: true,
-    });
+    if (hasCustomProgress) updateProgress('generating');
+    else wx.showLoading({ title: '生成中', mask: true });
 
     return resolveAcroformValues(application).then((values) => (
       wx.cloud.callFunction({
@@ -116,10 +118,8 @@ function exportApplicationPdf(application, title) {
       sampleUnsupportedFields: (result.unsupportedFields || []).slice(0, 20),
       sampleOverflowFields: (result.overflowFields || []).slice(0, 10),
     });
-    wx.showLoading({
-      title: '下载中',
-      mask: true,
-    });
+    if (hasCustomProgress) updateProgress('downloading');
+    else wx.showLoading({ title: '下载中', mask: true });
     return wx.cloud.downloadFile({ fileID: result.fileID }).then((downloadRes) => (
       new Promise((resolve, reject) => {
         wx.openDocument({
@@ -138,10 +138,10 @@ function exportApplicationPdf(application, title) {
       throw err;
     });
   }).then((result) => {
-    wx.hideLoading();
+    if (!hasCustomProgress) wx.hideLoading();
     return result;
   }).catch((err) => {
-    wx.hideLoading();
+    if (!hasCustomProgress) wx.hideLoading();
     throw err;
   });
 }

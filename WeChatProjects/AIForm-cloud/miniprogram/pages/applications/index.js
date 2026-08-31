@@ -3,6 +3,7 @@ const { buildCopyApplicationTitle, normalizeTitle } = require('../../utils/appli
 const { findTemplate, visaCatalog } = require('../../utils/visaData');
 const { loadForm } = require('../../utils/italyForm');
 const { exportApplicationPdf, getPdfExportErrorMessage, getPdfExportErrorTitle } = require('../../utils/pdfExport');
+const { hideExportProgress, showExportProgress } = require('../../utils/exportProgress');
 const { createInvite } = require('../../utils/invite');
 const {
   applySelectionPreference,
@@ -129,10 +130,18 @@ Page({
     shareFillNoticeVisible: false,
     shareFillDontRemind: false,
     pendingShareIndex: -1,
+    exportProgressVisible: false,
+    exportProgressStage: 'generating',
+    exportProgress: 8,
+    exportProgressStyle: 'width: 8%;',
   },
 
   onShow() {
     this.loadApplications();
+  },
+
+  onUnload() {
+    hideExportProgress(this);
   },
 
   loadApplications() {
@@ -542,6 +551,7 @@ Page({
   },
 
   exportApplication(e) {
+    if (this.data.exportProgressVisible) return;
     const index = Number(e.currentTarget.dataset.index);
     const item = this.data.applications[index];
     if (!item) return;
@@ -566,14 +576,19 @@ Page({
         wx.setStorageSync(APPLICATIONS_KEY, storedApplications);
         this.setApplications(storedApplications);
         const exportItem = applications.find((application) => application.id === item.id);
-        exportApplicationPdf(exportItem, title).catch((err) => {
-          console.error('Export PDF failed:', err);
-          wx.showModal({
-            title: getPdfExportErrorTitle(err),
-            content: getPdfExportErrorMessage(err),
-            showCancel: false,
+        exportApplicationPdf(exportItem, title, {
+          onStage: (stage) => showExportProgress(this, stage),
+        })
+          .then(() => hideExportProgress(this))
+          .catch((err) => {
+            hideExportProgress(this);
+            console.error('Export PDF failed:', err);
+            wx.showModal({
+              title: getPdfExportErrorTitle(err),
+              content: getPdfExportErrorMessage(err),
+              showCancel: false,
+            });
           });
-        });
       },
     });
   },
@@ -630,6 +645,8 @@ Page({
   clearSearch() {
     this.applyApplications(this.data.allApplications, this.data.selectedIds, '');
   },
+
+  preventTouchMove() {},
 
   toggleSelectApplication(e) {
     const { id } = e.currentTarget.dataset;

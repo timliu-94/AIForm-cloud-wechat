@@ -56,7 +56,18 @@
       </view>
     </scroll-view>
 
-    <view class="country-list">
+    <view class="section__loading" wx:if="{{catalogLoading && !countries.length}}">
+      <t-loading theme="circular" size="40rpx" />
+      <text>正在读取云存储中的国家目录…</text>
+    </view>
+    <view
+      class="section__empty"
+      wx:elif="{{catalogInitialized && !countries.length && !searchGuideCountryName}}"
+    >
+      <text wx:if="{{catalogError}}">国家目录读取失败，请下拉刷新重试。</text>
+      <text wx:else>当前分类下暂无已配置的国家。</text>
+    </view>
+    <view class="country-list" wx:else>
       <view
         wx:for="{{countries}}"
         wx:key="id"
@@ -115,8 +126,15 @@
       <view class="section__locked" wx:else>请先完成第二步</view>
     </view>
     <block wx:if="{{selectedVisaType && selectedDistrict}}">
-      <view class="section__hint section__status" wx:if="{{catalogLoading}}">正在读取云存储申请表…</view>
+      <view class="section__loading" wx:if="{{selectedCountry.cloudCatalog && catalogLoading}}">
+        <t-loading theme="circular" size="40rpx" />
+        <text>正在从云存储读取申请表…</text>
+      </view>
+      <block wx:else>
       <view class="section__hint section__status" wx:if="{{catalogError}}">云目录读取失败，当前显示缓存配置</view>
+      <view class="section__empty" wx:if="{{!selectedDistrict.versions.length}}">
+        <text>暂无可用的申请表，请稍后下拉刷新重试。</text>
+      </view>
       <view
         wx:for="{{selectedDistrict.versions}}"
         wx:key="id"
@@ -137,6 +155,7 @@
           <text>预览</text>
         </button>
       </view>
+      </block>
     </block>
   </view>
 

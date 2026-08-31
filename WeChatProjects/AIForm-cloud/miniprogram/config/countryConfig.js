@@ -24,6 +24,7 @@ const countries = [
   {
     id: 'italy',
     name: '意大利',
+    cloudDirectory: 'Italy',
     iso2: 'it',
     continent: '欧洲',
     hot: true,
@@ -71,6 +72,7 @@ const countries = [
   {
     id: 'france',
     name: '法国',
+    cloudDirectory: 'France',
     iso2: 'fr',
     continent: '欧洲',
     hot: true,
@@ -137,6 +139,7 @@ const countries = [
   {
     id: 'germany',
     name: '德国',
+    cloudDirectory: 'Germany',
     iso2: 'de',
     continent: '欧洲',
     hot: true,
@@ -167,6 +170,7 @@ const countries = [
   {
     id: 'japan',
     name: '日本',
+    cloudDirectory: 'Japan',
     iso2: 'jp',
     continent: '亚洲',
     hot: true,
@@ -206,6 +210,7 @@ const countries = [
   {
     id: 'south-korea',
     name: '韩国',
+    cloudDirectory: 'SouthKorea',
     iso2: 'kr',
     continent: '亚洲',
     hot: true,
@@ -216,6 +221,7 @@ const countries = [
   {
     id: 'usa',
     name: '美国',
+    cloudDirectory: 'USA',
     iso2: 'us',
     continent: '北美洲',
     hot: false,
@@ -249,7 +255,8 @@ function getCountryConfig(countryId) {
 
 function getCountryConfigByCloudDirectory(directory) {
   return countries.find((country) => (
-    country.cloudCatalog && country.cloudCatalog.country === directory
+    country.cloudDirectory === directory
+    || (country.cloudCatalog && country.cloudCatalog.country === directory)
   )) || null;
 }
 

@@ -91,7 +91,7 @@
         <t-icon name="share" size="30rpx" />
         <text>分享填写</text>
       </button>
-      <button data-index="{{index}}" bindtap="exportApplication">
+      <button data-index="{{index}}" disabled="{{exportProgressVisible}}" bindtap="exportApplication">
         <t-icon name="download" size="30rpx" />
         <text>导出</text>
       </button>
@@ -370,6 +370,30 @@
         </button>
       </view>
     </view>
+  </view>
+</view>
+
+<view
+  wx:if="{{exportProgressVisible}}"
+  class="export-progress"
+  catchtouchmove="preventTouchMove"
+  aria-label="PDF 正在生成"
+>
+  <view class="export-progress__panel">
+    <view class="export-progress__visual">
+      <view class="export-progress__ring"></view>
+      <t-icon name="file-pdf" size="46rpx" color="#0052d9" />
+    </view>
+    <view class="export-progress__title">
+      {{exportProgressStage === 'downloading' ? '马上就好' : '飞快生成中'}}
+    </view>
+    <view class="export-progress__hint">
+      {{exportProgressStage === 'downloading' ? 'PDF 已生成，正在打开…' : '大约 10 秒左右，请稍候'}}
+    </view>
+    <view class="export-progress__track" aria-role="progressbar" aria-label="导出进度 {{exportProgress}}%">
+      <view class="export-progress__bar" style="{{exportProgressStyle}}"></view>
+    </view>
+    <view class="export-progress__percent">{{exportProgress}}%</view>
   </view>
 </view>
 

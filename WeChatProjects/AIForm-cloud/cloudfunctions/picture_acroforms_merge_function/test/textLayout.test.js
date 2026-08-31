@@ -147,7 +147,11 @@ async function testMissingFieldErrorAndManualFieldCreation() {
 
   assert(field);
   assert.strictEqual(field.getName(), 'manual_textbox_1_3');
-  assert.strictEqual(field.acroField.getWidgets()[0].P().toString(), pdfDoc.getPage(1).ref.toString());
+  const manualTextWidget = field.acroField.getWidgets()[0];
+  assert.strictEqual(manualTextWidget.P().toString(), pdfDoc.getPage(1).ref.toString());
+  const manualTextAppearance = manualTextWidget.getAppearanceCharacteristics();
+  assert.strictEqual(manualTextAppearance.getBackgroundColor(), undefined);
+  assert.strictEqual(manualTextAppearance.getBorderColor(), undefined);
 
   const glyphFont = require('../pdf/vectorText').loadGlyphFont();
   const beforeFill = countFillOperators(decodePageContent(pdfDoc, 1));
@@ -424,7 +428,13 @@ async function testFlattenRemovesFieldsAndRepairsBrokenWidgets() {
   const repair = fillPdfAcroForm.__test.flattenForm(form, symbolFont);
   assert.strictEqual(repair.failures.length, 0);
   assert.strictEqual(repair.blankedWidgets.length, 0);
-  assert.deepStrictEqual(repair.refreshedFields, ['broken_missing_normal_appearance']);
+  assert.deepStrictEqual(repair.refreshedFields, []);
+  assert.deepStrictEqual(repair.removedTextFields, [
+    'chinese_name',
+    'empty_field',
+    'broken_missing_normal_appearance',
+  ]);
+  assert.deepStrictEqual(repair.removedChoiceFields, []);
   assert.strictEqual(form.getFields().length, 0);
 
   const bytes = await pdfDoc.save({ updateFieldAppearances: false });
@@ -520,6 +530,54 @@ async function testPdfCheckboxIsSavedWithVisibleAppearance() {
   assert.strictEqual(reloadedCheckbox.needsAppearancesUpdate(), false);
 }
 
+async function testExportedCheckboxDrawsMarkWithoutWidgetRectangle() {
+  const pdfDoc = await PDFDocument.create();
+  const page = pdfDoc.addPage([100, 100]);
+  const form = pdfDoc.getForm();
+  const checkbox = form.createCheckBox('accepted_without_frame');
+  checkbox.addToPage(page, { x: 20, y: 20, width: 16, height: 16 });
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+  fillPdfAcroForm.__test.fillNonTextField(checkbox, true, font);
+  const beforeMark = decodePageContent(pdfDoc, 0);
+  assert.strictEqual(fillPdfAcroForm.__test.drawChoiceFieldMark({
+    field: checkbox,
+    pdfDoc,
+  }), 1);
+  const markedContent = decodePageContent(pdfDoc, 0).slice(beforeMark.length);
+  const strokeCount = (markedContent.match(/(?:^|\s)S(?=\s|$)/g) || []).length;
+  const lineWidths = Array.from(
+    markedContent.matchAll(/(?:^|\s)(\d+(?:\.\d+)?) w(?=\s|$)/g),
+    (match) => Number(match[1]),
+  );
+  assert.strictEqual(strokeCount, 2, '选中项应绘制两段矢量粗线勾');
+  assert.strictEqual(lineWidths.length, 2);
+  assert(lineWidths.every((width) => width >= 2.5), '常规选项框应按尺寸绘制明显的粗线');
+  assert(/(?:^|\s)1 J(?=\s|$)/.test(markedContent), '勾选线段应使用圆角端点');
+
+  const tinyCheckbox = form.createCheckBox('tiny_accepted_without_frame');
+  tinyCheckbox.addToPage(page, { x: 50, y: 20, width: 6, height: 6 });
+  fillPdfAcroForm.__test.fillNonTextField(tinyCheckbox, true, font);
+  const beforeTinyMark = decodePageContent(pdfDoc, 0);
+  assert.strictEqual(fillPdfAcroForm.__test.drawChoiceFieldMark({
+    field: tinyCheckbox,
+    pdfDoc,
+  }), 1);
+  const tinyMarkedContent = decodePageContent(pdfDoc, 0).slice(beforeTinyMark.length);
+  assert(/(?:^|\s)1\.4(?:0+)? w(?=\s|$)/.test(tinyMarkedContent), '小选项框也应保持可辨识的最小线宽');
+
+  const repair = fillPdfAcroForm.__test.flattenForm(form, font);
+  assert.deepStrictEqual(repair.removedChoiceFields, [
+    'accepted_without_frame',
+    'tiny_accepted_without_frame',
+  ]);
+  const bytes = await pdfDoc.save({ updateFieldAppearances: false });
+  const reloaded = await PDFDocument.load(bytes);
+  const content = decodePageContent(reloaded, 0);
+  assert.strictEqual(reloaded.getForm().getFields().length, 0);
+  assert(!/(?:^|\s)re(?=\s|$)/.test(content), '导出内容层不应绘制选项矩形框');
+}
+
 async function testQualifiedXfaFieldNameAndBooleanRadio() {
   const pdfDoc = await PDFDocument.create();
   const page = pdfDoc.addPage([100, 100]);
@@ -585,6 +643,7 @@ async function run() {
   await testFlattenRemovesFieldsAndRepairsBrokenWidgets();
   await testPdfOverflowIsRejected();
   await testPdfCheckboxIsSavedWithVisibleAppearance();
+  await testExportedCheckboxDrawsMarkWithoutWidgetRectangle();
   await testQualifiedXfaFieldNameAndBooleanRadio();
   testLegacyAcroformFieldMapRecoveryDetection();
   console.log('text layout tests passed');

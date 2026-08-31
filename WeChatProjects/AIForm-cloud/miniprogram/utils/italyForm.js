@@ -393,7 +393,8 @@ function buildForm(schema, templateId = TEMPLATE_ID, versionOverride) {
     templateId,
     templateVersion,
     country: (
-      getCountryConfigByCloudDirectory(templateVersion.country) || { name: COUNTRY_NAME }
+      getCountryConfigByCloudDirectory(templateVersion.country)
+      || { name: templateVersion.country || COUNTRY_NAME }
     ).name,
     title: templateVersion.name || FORM_TITLE,
     summary: schema.summary,

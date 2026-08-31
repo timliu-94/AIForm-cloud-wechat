@@ -54,6 +54,18 @@ function isTransientDownloadError(err) {
     .test(getErrorMessage(err));
 }
 
+// downloadFile 回调成功后，其返回的 http://tmp/... 临时文件可能已被微信清理，
+// 导致紧随其后的 readFile 报 “not found”。这类读取失败靠重新下载（拿到新的
+// 临时文件）即可恢复，因此与网络错误一样按可重试处理。
+function isMissingTempFileError(err) {
+  return /readFile:fail[\s\S]*not found|access:fail|文件不存在|no such file/i
+    .test(getErrorMessage(err));
+}
+
+function isRetryableJSONError(err) {
+  return isTransientDownloadError(err) || isMissingTempFileError(err);
+}
+
 function wait(delay) {
   return new Promise((resolve) => setTimeout(resolve, delay));
 }
@@ -123,6 +135,26 @@ function readJSONFile(filePath) {
   });
 }
 
+// 下载并读取云端 JSON。downloadFile 与 readFile 作为一个整体重试：任一环节
+// 命中可重试错误（网络中断、临时文件丢失）时都重新下载，拿到新的临时文件再读。
+function downloadAndReadJSON(fileID, attempt = 0) {
+  return downloadCloudFile(fileID)
+    .then((res) => {
+      if (!res.tempFilePath) throw new Error('云端 JSON 下载结果缺少临时文件路径');
+      return readJSONFile(res.tempFilePath);
+    })
+    .catch((err) => {
+      const retryDelay = DOWNLOAD_RETRY_DELAYS[attempt];
+      if (retryDelay === undefined || !isRetryableJSONError(err)) throw err;
+      console.warn('Cloud JSON download/read failed, retrying:', {
+        attempt: attempt + 2,
+        fileID,
+        errMsg: getErrorMessage(err),
+      });
+      return wait(retryDelay).then(() => downloadAndReadJSON(fileID, attempt + 1));
+    });
+}
+
 function downloadCloudJSON(fileID) {
   if (!isCloudFileID(fileID)) {
     return Promise.reject(new Error(`无效的云端 JSON File ID: ${fileID || '(empty)'}`));
@@ -131,11 +163,7 @@ function downloadCloudJSON(fileID) {
   if (jsonRequestCache[fileID]) return jsonRequestCache[fileID];
   if (!wx.cloud) return Promise.reject(new Error('当前微信基础库不支持云能力'));
 
-  const request = downloadCloudFile(fileID)
-    .then((res) => {
-      if (!res.tempFilePath) throw new Error('云端 JSON 下载结果缺少临时文件路径');
-      return readJSONFile(res.tempFilePath);
-    })
+  const request = downloadAndReadJSON(fileID)
     .then((data) => {
       jsonCache[fileID] = data;
       delete jsonRequestCache[fileID];
@@ -143,7 +171,7 @@ function downloadCloudJSON(fileID) {
     })
     .catch((err) => {
       delete jsonRequestCache[fileID];
-      if (isTransientDownloadError(err)) {
+      if (isRetryableJSONError(err)) {
         const wrapped = new Error('云端表单资源下载连接中断，请检查网络后重试');
         wrapped.code = 'CLOUD_DOWNLOAD_INTERRUPTED';
         wrapped.originalError = err;
