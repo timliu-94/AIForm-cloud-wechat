@@ -101,10 +101,18 @@ function buildGeometry(rect, size, pageNo) {
   };
 }
 
+function normalizePageNumber(value, fallback) {
+  const page = Number(value);
+  return Number.isInteger(page) && page > 0 ? page : fallback;
+}
+
 // 把一个叶子节点（文字块）里的 acroforms 转成带标签的表单字段。
 // 标签 / 示范 / 控件类型均直接取自新版标注（field_name / field_example / input_type）。
-function buildLeafFields(leaf, size) {
+// 跨页 leaf 中的字段以 acroform.page 为物理页；sourcePage 仍保留 leaf 原始页，
+// 用于维持旧草稿隐藏 ID 的稳定性。
+function buildLeafFields(leaf, ownerPage, ownerSize, pageSizeByNumber) {
   const ordered = (leaf.acroforms || []).filter(isAcroFillable);
+  const sourcePage = normalizePageNumber(leaf.page, ownerPage);
   let btnIdx = 0;
   return ordered.map((af) => {
     const isBtn = af.field_type === '/Btn';
@@ -115,7 +123,11 @@ function buildLeafFields(leaf, size) {
       label = isBtn ? `选项 ${btnIdx + 1}` : (normalizeInputType(af.input_type) || '文本');
     }
     if (isBtn) btnIdx += 1;
-    const geo = buildGeometry(af.rect, size, leaf.page);
+    const requestedPage = normalizePageNumber(af.page, sourcePage);
+    // 异常页码不能让字段从所有页面中消失；schema 中不存在该页时退回 leaf 所在页。
+    const fieldPage = pageSizeByNumber[requestedPage] ? requestedPage : sourcePage;
+    const fieldSize = pageSizeByNumber[fieldPage] || ownerSize;
+    const geo = buildGeometry(af.rect, fieldSize, fieldPage);
     const component = isBtn ? 'checkbox' : pickComponent(af.input_type);
     // 填写示范：仅文本类字段取用（日期/勾选有各自的占位提示，不取示范）。
     const example = (!isBtn && component !== 'date') ? (af.field_example || '') : '';
@@ -126,7 +138,8 @@ function buildLeafFields(leaf, size) {
       name: af.name,
       fieldName: af.field_name || '',
       leafId: leaf.leaf_id,
-      page: leaf.page,
+      page: fieldPage,
+      sourcePage,
       fieldType: af.field_type,
       kind: isBtn ? 'checkbox' : 'text',
       // AcroForm 有显式布尔值时以字段级标注为准；旧 schema 缺失该属性时
@@ -151,6 +164,32 @@ function buildLeafFields(leaf, size) {
       ...geo,
     };
   });
+}
+
+function buildLeafView(leaf, fields, page) {
+  const skipFill = leaf.is_need_filled === false;
+  const isHandwriting = leaf.is_handwritting === true;
+  const inputFields = skipFill ? [] : fields.filter((field) => !field.isHandwriting);
+  const handwritingFields = skipFill ? [] : fields.filter((field) => field.isHandwriting);
+  const needInput = inputFields.length > 0;
+  return {
+    leafId: leaf.leaf_id,
+    page,
+    sourcePage: normalizePageNumber(leaf.page, page),
+    text: leaf.text,
+    lines: (leaf.text || '').split('\n'),
+    skipFill,
+    isHandwriting,
+    hasHandwritingFields: handwritingFields.length > 0,
+    needInput,
+    manualFill: skipFill || (!needInput && handwritingFields.length > 0),
+    manualText: isHandwriting ? '需要手写' : '无需填写',
+    fieldCount: fields.length,
+    inputFieldCount: inputFields.length,
+    fields,
+    inputFields,
+    handwritingFields,
+  };
 }
 
 // 页面状态不再直接把可重复的字段名当作组件 key。加载 JSON 后全量检查：
@@ -188,7 +227,9 @@ function assignUniqueFieldIds(pages) {
     // 这样 JSON 新增其他字段后，已有草稿的隐藏 ID 仍保持稳定。
     const identity = JSON.stringify([
       name,
-      field.page || 0,
+      // sourcePage 是旧实现使用的 leaf.page。显示页改用 acroform.page 后继续用它
+      // 生成隐藏 ID，避免已保存草稿中的 key 因跨页修复而变化。
+      field.sourcePage || field.page || 0,
       field.leafId || '',
       field.rect || [],
     ]);
@@ -243,10 +284,22 @@ function buildPagePreviewFields(page, values, options = {}) {
   const renderedWidth = options.renderedWidth || FULL_PREVIEW_CANVAS_RPX;
   const unit = options.unit || 'px';
   const pageValues = values || {};
+  // 完整 PDF 预览会传 page.page；辅助填写页为了复用当前 leaves，只传
+  // { width, leaves }。后一种情况从 leaf 投影恢复页码，不能把 undefined
+  // 转成 NaN 后误判为所有字段均不属于当前页。
+  const leafPage = (page.leaves || []).reduce(
+    (found, leaf) => found || normalizePageNumber(leaf.page, 0),
+    0,
+  );
+  const previewPage = normalizePageNumber(page.page, leafPage);
 
   page.leaves.forEach((leaf) => {
     if (leaf.skipFill) return;
     leaf.fields.forEach((field) => {
+      // buildForm 已把跨页字段投影到实际页；这里再做一次防御，避免调用方传入
+      // 未规范化的页面数据时把字段画到错误页。
+      const fieldPage = normalizePageNumber(field.page, 0);
+      if (previewPage && fieldPage && fieldPage !== previewPage) return;
       const fieldId = field.id || field.name;
       const isCheckbox = field.kind === 'checkbox';
       if (field.isHandwriting || !leaf.needInput) {
@@ -343,42 +396,53 @@ function buildForm(schema, templateId = TEMPLATE_ID, versionOverride) {
     throw new Error('AcroForm JSON 缺少有效的 pages 数据');
   }
   const templateVersion = normalizeTemplateVersion(templateId, versionOverride);
-  const pages = schema.pages.map((page) => {
+  const pageSizeByNumber = {};
+  schema.pages.forEach((page) => {
     if (!Array.isArray(page.size) || page.size.length < 2 || !Array.isArray(page.leaf_nodes)) {
       throw new Error(`AcroForm JSON 第 ${page.page || '?'} 页结构无效`);
     }
-    const leaves = page.leaf_nodes.map((leaf) => {
-      const skipFill = leaf.is_need_filled === false;
-      const isHandwriting = leaf.is_handwritting === true;
-      const fields = buildLeafFields(leaf, page.size);
-      const inputFields = skipFill ? [] : fields.filter((field) => !field.isHandwriting);
-      const handwritingFields = skipFill ? [] : fields.filter((field) => field.isHandwriting);
-      const needInput = inputFields.length > 0;
-      return {
-        leafId: leaf.leaf_id,
-        page: leaf.page,
-        text: leaf.text,
-        lines: (leaf.text || '').split('\n'),
-        skipFill,
-        isHandwriting,
-        hasHandwritingFields: handwritingFields.length > 0,
-        needInput,
-        manualFill: skipFill || (!needInput && handwritingFields.length > 0),
-        manualText: isHandwriting ? '需要手写' : '无需填写',
-        fieldCount: fields.length,
-        inputFieldCount: inputFields.length,
-        fields,
-        inputFields,
-        handwritingFields,
-      };
+    const pageNumber = normalizePageNumber(page.page, 0);
+    if (pageNumber) pageSizeByNumber[pageNumber] = page.size;
+  });
+
+  const pages = schema.pages.map((page) => ({
+    page: page.page,
+    width: page.size[0],
+    height: page.size[1],
+    previewImage: getTemplatePreviewImage(templateId, templateVersion, page.page),
+    leaves: [],
+  }));
+  const pageByNumber = {};
+  pages.forEach((page) => {
+    pageByNumber[Number(page.page)] = page;
+  });
+
+  // schema 按页面顺序扫描。来自前一页的 continuation leaf 会先进入目标页，
+  // 因而自然排在目标页原生 leaf 之前，符合 PDF 从页顶向下的填写顺序。
+  schema.pages.forEach((schemaPage) => {
+    const ownerPage = normalizePageNumber(schemaPage.page, 0);
+    schemaPage.leaf_nodes.forEach((leaf) => {
+      const fields = buildLeafFields(
+        leaf,
+        ownerPage,
+        schemaPage.size,
+        pageSizeByNumber,
+      );
+      const fieldsByPage = {};
+      fields.forEach((field) => {
+        if (!fieldsByPage[field.page]) fieldsByPage[field.page] = [];
+        fieldsByPage[field.page].push(field);
+      });
+
+      const targetPages = Object.keys(fieldsByPage).map(Number);
+      // 没有可填写 AcroForm 的说明/手写 leaf 仍保留在原页，维持既有展示行为。
+      if (!targetPages.length) targetPages.push(normalizePageNumber(leaf.page, ownerPage));
+      targetPages.forEach((targetPage) => {
+        const page = pageByNumber[targetPage] || pageByNumber[ownerPage];
+        if (!page) return;
+        page.leaves.push(buildLeafView(leaf, fieldsByPage[targetPage] || [], page.page));
+      });
     });
-    return {
-      page: page.page,
-      width: page.size[0],
-      height: page.size[1],
-      previewImage: getTemplatePreviewImage(templateId, templateVersion, page.page),
-      leaves,
-    };
   });
 
   assignUniqueFieldIds(pages);

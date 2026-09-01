@@ -313,6 +313,95 @@ function testDuplicateAcroformIdentity() {
   assert.strictEqual(cloudFieldMap[second.id], second.name);
 }
 
+function testCrossPageLeafUsesAcroformPage() {
+  const textField = (name, page, rect, fieldName = '重复标题') => ({
+    name,
+    page,
+    field_name: fieldName,
+    field_type: '/Tx',
+    rect,
+    is_acro_need_filled: true,
+    input_type: '普通文本',
+  });
+  const schema = {
+    pages: [
+      {
+        page: 1,
+        size: [100, 100],
+        leaf_nodes: [{
+          leaf_id: 'leaf-cross-page',
+          page: 1,
+          text: '跨页填写项目',
+          acroforms: [
+            textField('pdf_page_1', 1, [10, 10, 40, 20]),
+            textField('pdf_page_2', 2, [20, 160, 80, 180]),
+          ],
+        }],
+      },
+      {
+        page: 2,
+        size: [200, 200],
+        leaf_nodes: [{
+          leaf_id: 'leaf-native-page-2',
+          page: 2,
+          text: '第二页原生项目',
+          acroforms: [
+            textField('pdf_native_page_2', 2, [20, 120, 80, 140], '第二页字段'),
+          ],
+        }],
+      },
+    ],
+  };
+  const form = buildForm(schema, 'cross-page-test', {
+    id: 'cross-page-test',
+    country: 'Italy',
+    name: '跨页测试',
+    previewPattern: 'page-{page}.png',
+  });
+
+  const firstPageFields = form.pages[0].leaves.flatMap((leaf) => leaf.fields);
+  const secondPageFields = form.pages[1].leaves.flatMap((leaf) => leaf.fields);
+  const crossPageField = secondPageFields.find((field) => field.name === 'pdf_page_2');
+
+  assert.deepStrictEqual(firstPageFields.map((field) => field.name), ['pdf_page_1']);
+  assert.deepStrictEqual(
+    secondPageFields.map((field) => field.name),
+    ['pdf_page_2', 'pdf_native_page_2'],
+  );
+  assert(crossPageField);
+  assert.strictEqual(crossPageField.page, 2);
+  assert.strictEqual(crossPageField.sourcePage, 1);
+  // 第二页高度为 200，rect 顶边为 180，正确的预览 top 应为 10%。
+  assert(crossPageField.previewStyle.includes('top:10.00%'));
+  assert.strictEqual(form.pages[1].leaves[0].leafId, 'leaf-cross-page');
+
+  const values = {
+    [form.fields.find((field) => field.name === 'pdf_page_1').id]: '第一页',
+    [crossPageField.id]: '第二页',
+    pdf_native_page_2: '原生字段',
+  };
+  assert.deepStrictEqual(
+    buildPagePreviewFields(form.pages[0], values).map((field) => field.name),
+    ['pdf_page_1'],
+  );
+  assert.deepStrictEqual(
+    buildPagePreviewFields(form.pages[1], values).map((field) => field.name),
+    ['pdf_page_2', 'pdf_native_page_2'],
+  );
+  // 辅助填写页只传 { width, leaves }，缺少显式 page 时也必须保留当前页方框。
+  assert.deepStrictEqual(
+    buildPagePreviewFields({
+      width: form.pages[1].width,
+      leaves: form.pages[1].leaves,
+    }, values).map((field) => field.name),
+    ['pdf_page_2', 'pdf_native_page_2'],
+  );
+
+  // 前端继续用 leaf 原始页生成隐藏 ID，须与云端旧草稿恢复规则保持一致。
+  const cloudFieldMap = fillPdfAcroForm.__test.buildSchemaFieldMap(schema);
+  assert.strictEqual(cloudFieldMap[crossPageField.id], crossPageField.name);
+}
+
 async function testMultilineAddressRendersWrappedVectors() {
   const { loadGlyphFont } = require('../pdf/vectorText');
   const glyphFont = loadGlyphFont();
@@ -638,6 +727,7 @@ async function run() {
   await testMissingFieldErrorAndManualFieldCreation();
   testPreviewPagesUseSharedFieldRendering();
   testDuplicateAcroformIdentity();
+  testCrossPageLeafUsesAcroformPage();
   await testMultilineAddressRendersWrappedVectors();
   await testChinesePdfRendersVectorOutlines();
   await testFlattenRemovesFieldsAndRepairsBrokenWidgets();
