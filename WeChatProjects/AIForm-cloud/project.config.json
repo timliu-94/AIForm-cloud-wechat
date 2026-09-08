@@ -95,7 +95,12 @@
   "compileType": "miniprogram",
   "srcMiniprogramRoot": "miniprogram/",
   "packOptions": {
-    "ignore": [],
+    "ignore": [
+      {
+        "type": "folder",
+        "value": "miniprogram_npm/tdesign-miniprogram/upload"
+      }
+    ],
     "include": []
   },
   "editorSetting": {

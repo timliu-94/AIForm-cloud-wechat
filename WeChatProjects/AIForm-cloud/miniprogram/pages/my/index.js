@@ -1,4 +1,5 @@
 const { privacyPolicy } = require('../../config/firstLaunchNotice');
+const { getHomeShareMessage } = require('../../utils/share');
 
 const APPLICATIONS_KEY = 'visa_applications';
 const OPEN_CUSTOMER_SERVICE_KEY = 'open_customer_service_from_home';
@@ -35,6 +36,10 @@ Page({
         });
       });
     }
+  },
+
+  onShareAppMessage() {
+    return getHomeShareMessage();
   },
 
   onEleClick(e) {

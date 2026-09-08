@@ -542,6 +542,44 @@ function selectedChoiceWidgets(field) {
   return matched.length ? matched : (widgets.length === 1 ? widgets : []);
 }
 
+function isTinyChoiceBox(box) {
+  const width = Number(box && box.width) || 0;
+  const height = Number(box && box.height) || 0;
+  if (width <= 0 || height <= 0 || width > 14 || height > 14) return false;
+  return Math.max(width, height) / Math.min(width, height) <= 1.5;
+}
+
+function drawCheckMarkInWidget(pdfDoc, widget) {
+  if (!pdfDoc) return false;
+  const page = resolveWidgetPage(pdfDoc, widget);
+  if (!page) return false;
+  const rect = widget.getRectangle();
+  const width = Math.abs(Number(rect.width) || 0);
+  const height = Math.abs(Number(rect.height) || 0);
+  const size = Math.min(width, height);
+  if (size <= 0) return false;
+  const left = Number(rect.x) + (width - size) / 2;
+  const bottom = Number(rect.y) + (height - size) / 2;
+  const thickness = Math.max(1.4, Math.min(3.2, size * 0.18));
+  const middle = { x: left + size * 0.38, y: bottom + size * 0.22 };
+  const lineOptions = {
+    thickness,
+    color: rgb(0, 0, 0),
+    lineCap: LineCapStyle.Round,
+  };
+  page.drawLine({
+    start: { x: left + size * 0.10, y: bottom + size * 0.49 },
+    end: middle,
+    ...lineOptions,
+  });
+  page.drawLine({
+    start: middle,
+    end: { x: left + size * 0.92, y: bottom + size * 0.86 },
+    ...lineOptions,
+  });
+  return true;
+}
+
 // 原 PDF 通常已经印有选项框。这里只把粗黑勾作为两段矢量线画到内容层，不绘制
 // widget 自带的矩形/圆形边框；随后 removeChoiceFieldWidgets() 会移除控件外观。
 // 直接画线而不使用字体中的“✓”，可避免小尺寸选项框里字形笔画过细、打印不清。
@@ -549,34 +587,8 @@ function drawChoiceFieldMark({ field, pdfDoc }) {
   if (!pdfDoc) return 0;
   let rendered = 0;
   selectedChoiceWidgets(field).forEach((widget) => {
-    const page = resolveWidgetPage(pdfDoc, widget);
-    if (!page) return;
-    const rect = widget.getRectangle();
-    const width = Math.abs(Number(rect.width) || 0);
-    const height = Math.abs(Number(rect.height) || 0);
-    const size = Math.min(width, height);
-    if (size <= 0) return;
-    const left = Number(rect.x) + (width - size) / 2;
-    const bottom = Number(rect.y) + (height - size) / 2;
     // 小框保证至少 1.4pt 线宽，大框随尺寸增粗；坐标尽量占满框内空间。
-    const thickness = Math.max(1.4, Math.min(3.2, size * 0.18));
-    const middle = { x: left + size * 0.38, y: bottom + size * 0.22 };
-    const lineOptions = {
-      thickness,
-      color: rgb(0, 0, 0),
-      lineCap: LineCapStyle.Round,
-    };
-    page.drawLine({
-      start: { x: left + size * 0.10, y: bottom + size * 0.49 },
-      end: middle,
-      ...lineOptions,
-    });
-    page.drawLine({
-      start: middle,
-      end: { x: left + size * 0.92, y: bottom + size * 0.86 },
-      ...lineOptions,
-    });
-    rendered += 1;
+    if (drawCheckMarkInWidget(pdfDoc, widget)) rendered += 1;
   });
   return rendered;
 }
@@ -687,11 +699,22 @@ async function fillPdfAcroForm(event) {
           pdfDoc,
         });
         if (result.overflow) {
-          overflowFields.push({
-            field: pdfFieldName,
-            label: definition.field_name || pdfFieldName,
-            reason: result.reason,
-          });
+          // 某些官方 PDF 把独立选项框错误声明成文本/下拉字段。其控件只有约
+          // 9pt 见方，schema 中的“否”“外交护照”等是选项标签，不应作为文字
+          // 塞进方框；有值即代表该项被选中，直接绘制勾选标记。
+          if (isTinyChoiceBox(widgetLayoutBox(field))) {
+            const markCount = field.acroField.getWidgets().reduce((count, widget) => (
+              count + (drawCheckMarkInWidget(pdfDoc, widget) ? 1 : 0)
+            ), 0);
+            filledFields.push(pdfFieldName);
+            if (markCount) renderedChoiceMarks.push({ field: pdfFieldName, markCount });
+          } else {
+            overflowFields.push({
+              field: pdfFieldName,
+              label: definition.field_name || pdfFieldName,
+              reason: result.reason,
+            });
+          }
         } else {
           filledFields.push(pdfFieldName);
           textLayouts[pdfFieldName] = {
@@ -885,4 +908,5 @@ module.exports.__test = {
   resolveFormFieldName,
   resolveWidgetPage,
   widgetLayoutBox,
+  isTinyChoiceBox,
 };

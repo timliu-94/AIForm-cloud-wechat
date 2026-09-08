@@ -3,6 +3,7 @@ const { buildDefaultApplicationTitle, normalizeTitle } = require('../../utils/ap
 const { resolvePreviewImages } = require('../../utils/cloudAssets');
 const { fetchInvite } = require('../../utils/invite');
 const { firstLaunchNotice } = require('../../config/firstLaunchNotice');
+const { getHomeShareMessage } = require('../../utils/share');
 
 const APPLICATIONS_KEY = 'visa_applications';
 const PREVIEW_PANE_RPX = 760; // 顶部预览区高度
@@ -207,6 +208,10 @@ Page({
     this._pageActive = false;
     this._loadOptions = null;
     if (this._previewScaleTimer) clearTimeout(this._previewScaleTimer);
+  },
+
+  onShareAppMessage() {
+    return getHomeShareMessage();
   },
 
   initializeForm(options, form) {

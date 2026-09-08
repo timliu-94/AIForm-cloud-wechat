@@ -1,15 +1,33 @@
 const {
   continents,
   visaCatalog,
+  replaceCountryCloudVersions,
 } = require('../../utils/visaData');
 const {
-  listCountryFormCountries,
-  listCountryFormVersions,
+  loadCloudCountryFormVersions,
   openCloudPdf,
 } = require('../../utils/countryFormCatalog');
+const { getHomeShareMessage } = require('../../utils/share');
 
 const HOT_FILTER = '热门';
-const OTHER_CONTINENT = '其他';
+
+function countryHasPdfVersion(country) {
+  return Boolean(country && (country.visaTypes || []).some((visaType) => (
+    (visaType.districts || []).some((district) => (
+      (district.versions || []).some((version) => (
+        Boolean(version && (version.sourcePdf || version.pdfFilename))
+      ))
+    ))
+  )));
+}
+
+function getAvailableContinents(catalog) {
+  return continents.filter((continent) => (
+    (catalog || []).some((country) => (
+      country.continent === continent && countryHasPdfVersion(country)
+    ))
+  ));
+}
 
 function getVisaTypeIcon(typeId) {
   if (typeId.includes('business')) return 'work';
@@ -47,82 +65,10 @@ function countryMatchesQuery(country, query) {
     .some((term) => String(term || '').toLowerCase().includes(query));
 }
 
-function buildGenericCloudCountry(directory) {
-  return {
-    id: `cloud-country:${directory}`,
-    name: directory,
-    cloudDirectory: directory,
-    iso2: '',
-    continent: OTHER_CONTINENT,
-    hot: true,
-    applicationMode: 'form_assist',
-    searchAliases: [directory],
-    cloudCatalog: {
-      country: directory,
-      visaTypeId: 'application',
-      districtId: 'default',
-    },
-    flag: '',
-    visaTypes: [{
-      id: 'application',
-      name: '签证申请表',
-      districts: [{
-        id: 'default',
-        name: '通用',
-        versions: [],
-      }],
-    }],
-  };
-}
-
-function buildCatalogFromCloudDirectories(catalog, cloudDirectories) {
-  const configuredByDirectory = {};
-  catalog.forEach((country) => {
-    if (country.cloudDirectory) configuredByDirectory[country.cloudDirectory] = country;
-  });
-  return (cloudDirectories || []).map((directory) => {
-    const configured = configuredByDirectory[directory];
-    if (!configured) return buildGenericCloudCountry(directory);
-    const generic = buildGenericCloudCountry(directory);
-    return {
-      ...generic,
-      ...configured,
-      // 目录存在即表示该国家在首页可选；旧的官网填表标记不再覆盖云端配置。
-      applicationMode: 'form_assist',
-      cloudCatalog: configured.cloudCatalog
-        || (configured.visaTypes.length ? null : generic.cloudCatalog),
-      visaTypes: configured.visaTypes.length ? configured.visaTypes : generic.visaTypes,
-    };
-  });
-}
-
-// 对于配置了 cloudCatalog 的国家，云存储目录才是唯一可信来源：无论云端返回
-// 多少版本（含空数组），都用它覆盖本地静态占位（示范版）版本，避免在加载完成后
-// 仍向用户展示本不该出现的演示 PDF。
-function replaceCountryVersions(catalog, catalogCountry, cloudVersions) {
-  const visaTypeIds = catalogCountry.cloudCatalog.visaTypeIds
-    || [catalogCountry.cloudCatalog.visaTypeId];
-  return catalog.map((country) => {
-    if (country.id !== catalogCountry.id) return country;
-    return {
-      ...country,
-      visaTypes: country.visaTypes.map((visaType) => ({
-        ...visaType,
-        districts: visaType.districts.map((district) => (
-          visaTypeIds.indexOf(visaType.id) >= 0
-            && district.id === catalogCountry.cloudCatalog.districtId
-            ? { ...district, versions: cloudVersions }
-            : district
-        )),
-      })),
-    };
-  });
-}
-
 Page({
   data: {
-    continents,
-    destinationFilters: [HOT_FILTER, ...continents, OTHER_CONTINENT],
+    continents: getAvailableContinents(visaCatalog),
+    destinationFilters: [HOT_FILTER, ...getAvailableContinents(visaCatalog)],
     hotFilter: HOT_FILTER,
     query: '',
     selectedContinent: HOT_FILTER,
@@ -135,68 +81,48 @@ Page({
     selectedVersion: null,
     selectedVersionId: '',
     searchGuideCountryName: '',
-    catalogLoading: false,
-    catalogInitialized: false,
-    catalogError: '',
   },
 
   onLoad() {
-    this.runtimeVisaCatalog = [];
+    this.runtimeVisaCatalog = visaCatalog;
     this.refreshCountries();
-    this.loadCountryFormCatalog();
   },
 
-  onPullDownRefresh() {
-    this.loadCountryFormCatalog({ force: true }).then(() => wx.stopPullDownRefresh());
+  refreshCloudVersions(countryId) {
+    if (typeof wx === 'undefined' || !wx.cloud || typeof wx.cloud.callFunction !== 'function') {
+      return Promise.resolve(false);
+    }
+    const country = (this.runtimeVisaCatalog || []).find((item) => item.id === countryId);
+    if (!country) return Promise.resolve(false);
+    const requestId = (this._countryVersionRequestId || 0) + 1;
+    this._countryVersionRequestId = requestId;
+    wx.showLoading({ title: '版本加载中', mask: false });
+    return loadCloudCountryFormVersions(country.cloudDirectory).then((versions) => {
+      replaceCountryCloudVersions(country.id, versions);
+      this.runtimeVisaCatalog = visaCatalog;
+      this.refreshCountries();
+      if (this.data.selectedCountryId !== country.id || this._countryVersionRequestId !== requestId) {
+        return false;
+      }
+      const selectedCountry = decorateCountry(
+        visaCatalog.find((item) => item.id === country.id),
+      );
+      this.setData(getCountrySelection(selectedCountry));
+      return true;
+    }).catch((err) => {
+      console.warn(`Load ${country.cloudDirectory} cloud versions failed, using local config`, err);
+      if (this.data.selectedCountryId === country.id && this._countryVersionRequestId === requestId) {
+        wx.showToast({ title: '云端版本读取失败，已使用本地配置', icon: 'none' });
+      }
+      return false;
+    }).then((result) => {
+      if (this._countryVersionRequestId === requestId) wx.hideLoading();
+      return result;
+    });
   },
 
-  loadCountryFormCatalog(options = {}) {
-    this.setData({ catalogLoading: true, catalogError: '' });
-    return listCountryFormCountries(options)
-      .then((cloudDirectories) => {
-        const supportedCatalog = buildCatalogFromCloudDirectories(visaCatalog, cloudDirectories);
-        const catalogCountries = supportedCatalog.filter((country) => country.cloudCatalog);
-        const requests = catalogCountries.map((country) => (
-          listCountryFormVersions(country.cloudCatalog.country, options)
-            .then((versions) => ({ country, versions, error: null }))
-            .catch((error) => ({ country, versions: [], error }))
-        ));
-        return Promise.all(requests).then((results) => ({ supportedCatalog, results }));
-      })
-      .then(({ supportedCatalog, results }) => {
-        this.runtimeVisaCatalog = results.reduce((catalog, result) => (
-          replaceCountryVersions(catalog, result.country, result.versions)
-        ), supportedCatalog);
-        const failures = results.filter((result) => result.error);
-        return new Promise((resolve) => {
-          this.setData({
-            catalogLoading: false,
-            catalogInitialized: true,
-            catalogError: failures.map((result) => (
-              `${result.country.name}：${result.error.message || String(result.error)}`
-            )).join('\n'),
-          }, () => {
-            this.refreshCountries();
-            this.resyncSelection();
-            resolve();
-          });
-        });
-      })
-      .catch((err) => {
-        console.error('Load country form catalog failed:', err);
-        this.runtimeVisaCatalog = [];
-        return new Promise((resolve) => {
-          this.setData({
-            catalogLoading: false,
-            catalogInitialized: true,
-            catalogError: err.message || String(err),
-          }, () => {
-            this.refreshCountries();
-            this.resyncSelection();
-            resolve();
-          });
-        });
-      });
+  onShareAppMessage() {
+    return getHomeShareMessage();
   },
 
   onSearch(e) {
@@ -229,6 +155,7 @@ Page({
     this.setData({
       ...getCountrySelection(country),
     });
+    if (country) this.refreshCloudVersions(country.id);
   },
 
   selectVisaType(e) {
@@ -298,7 +225,9 @@ Page({
     const query = rawQuery.toLowerCase();
     const {selectedContinent} = this.data;
     const source = this.runtimeVisaCatalog || [];
+    const availableContinents = getAvailableContinents(source);
     const countries = source.filter((country) => {
+      if (!countryHasPdfVersion(country)) return false;
       if (query) return countryMatchesQuery(country, query);
       const hitContinent = selectedContinent === HOT_FILTER
         ? country.hot
@@ -306,43 +235,10 @@ Page({
       return hitContinent;
     }).map(decorateCountry);
     this.setData({
+      continents: availableContinents,
+      destinationFilters: [HOT_FILTER, ...availableContinents],
       countries,
-      searchGuideCountryName: query && !countries.length && this.data.catalogInitialized
-        ? rawQuery
-        : '',
-    });
-  },
-
-  // 云目录加载完成后，若用户已经选中了某国家/签证类型，需要用最新的 runtimeVisaCatalog
-  // 重新绑定选择项，把加载前拿到的占位版本替换成真实的云端版本；若原选中的版本已不存在，
-  // 则清空第三步的选择，避免残留演示数据。
-  resyncSelection() {
-    const { selectedCountryId, selectedVisaTypeId, selectedVersionId } = this.data;
-    if (!selectedCountryId) return;
-    const source = this.runtimeVisaCatalog || [];
-    const country = decorateCountry(source.find((item) => item.id === selectedCountryId));
-    if (!country) {
-      this.setData(getCountrySelection(null));
-      return;
-    }
-    const selectedVisaType = selectedVisaTypeId
-      ? country.visaTypes.find((item) => item.id === selectedVisaTypeId)
-      : null;
-    if (!selectedVisaType) {
-      this.setData({ ...getCountrySelection(country) });
-      return;
-    }
-    const selectedDistrict = selectedVisaType.districts[0];
-    const selectedVersion = selectedVersionId
-      ? selectedDistrict.versions.find((item) => item.id === selectedVersionId)
-      : null;
-    this.setData({
-      selectedCountry: country,
-      selectedVisaType,
-      selectedVisaTypeId: selectedVisaType.id,
-      selectedDistrict,
-      selectedVersion: selectedVersion || null,
-      selectedVersionId: selectedVersion ? selectedVersion.id : '',
+      searchGuideCountryName: query && !countries.length ? rawQuery : '',
     });
   },
 

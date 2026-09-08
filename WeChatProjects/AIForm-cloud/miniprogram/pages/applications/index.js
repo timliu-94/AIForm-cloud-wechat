@@ -14,6 +14,7 @@ const {
 } = require('../../utils/reusableFieldSelection');
 const { shareFillNotice } = require('../../config/shareFillNotice');
 const { companionCreateNotice } = require('../../config/companionCreateNotice');
+const { getHomeShareMessage } = require('../../utils/share');
 
 const SHARE_FILL_COVER = '/static/share-fill-cover.jpg';
 const COMPANION_SELECTION_TIP = '系统默认带入行程、住宿等共用信息；姓名、证件号码、国籍等个人信息默认不带入。';
@@ -498,11 +499,7 @@ Page({
       const payload = this.buildInvitePayload();
       if (!payload) {
         wx.showToast({ title: '请先完成分享配置', icon: 'none' });
-        return {
-          title: '签证申请表辅助填写',
-          path: '/pages/home/index',
-          imageUrl: SHARE_FILL_COVER,
-        };
+        return getHomeShareMessage();
       }
       const title = payload.source.title
         ? `请帮我填写：${payload.source.title}`
@@ -514,11 +511,7 @@ Page({
         promise: this.createInviteShareConfig(payload),
       };
     }
-    return {
-      title: '签证申请表辅助填写',
-      path: '/pages/home/index',
-      imageUrl: SHARE_FILL_COVER,
-    };
+    return getHomeShareMessage();
   },
 
   renameApplication(e) {

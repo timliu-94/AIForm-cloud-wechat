@@ -56,16 +56,11 @@
       </view>
     </scroll-view>
 
-    <view class="section__loading" wx:if="{{catalogLoading && !countries.length}}">
-      <t-loading theme="circular" size="40rpx" />
-      <text>正在读取云存储中的国家目录…</text>
-    </view>
     <view
       class="section__empty"
-      wx:elif="{{catalogInitialized && !countries.length && !searchGuideCountryName}}"
+      wx:if="{{!countries.length && !searchGuideCountryName}}"
     >
-      <text wx:if="{{catalogError}}">国家目录读取失败，请下拉刷新重试。</text>
-      <text wx:else>当前分类下暂无已配置的国家。</text>
+      <text>当前分类下暂无已配置的国家。</text>
     </view>
     <view class="country-list" wx:else>
       <view
@@ -126,14 +121,8 @@
       <view class="section__locked" wx:else>请先完成第二步</view>
     </view>
     <block wx:if="{{selectedVisaType && selectedDistrict}}">
-      <view class="section__loading" wx:if="{{selectedCountry.cloudCatalog && catalogLoading}}">
-        <t-loading theme="circular" size="40rpx" />
-        <text>正在从云存储读取申请表…</text>
-      </view>
-      <block wx:else>
-      <view class="section__hint section__status" wx:if="{{catalogError}}">云目录读取失败，当前显示缓存配置</view>
       <view class="section__empty" wx:if="{{!selectedDistrict.versions.length}}">
-        <text>暂无可用的申请表，请稍后下拉刷新重试。</text>
+        <text>暂无可用的申请表。</text>
       </view>
       <view
         wx:for="{{selectedDistrict.versions}}"
@@ -146,8 +135,9 @@
         <view class="radio {{selectedVersionId === item.id ? 'radio--active' : ''}}"></view>
         <view class="version__body">
           <view class="version__name">{{item.name}}</view>
-          <view class="version__meta">版本: {{item.version}} | 更新于: {{item.publishedAt}}</view>
-          <view class="version__scope">{{item.scope}}</view>
+          <view class="version__meta">版本: {{item.version}}</view>
+          <view class="version__meta">更新于: {{item.publishedAt}}</view>
+          <view class="version__scope" wx:if="{{item.scope && item.scope !== '云存储版本'}}">{{item.scope}}</view>
           <view class="version__scope" wx:if="{{item.availableForFill === false}}">仅可查看 PDF，填写资源不完整</view>
         </view>
         <button class="version__preview" data-id="{{item.id}}" catchtap="previewVersion">
@@ -155,7 +145,6 @@
           <text>预览</text>
         </button>
       </view>
-      </block>
     </block>
   </view>
 

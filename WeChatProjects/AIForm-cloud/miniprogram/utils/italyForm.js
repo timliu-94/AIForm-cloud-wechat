@@ -10,7 +10,6 @@ const {
   loadTemplateSchema,
 } = require('../config/countryConfig');
 const { countryFormSchemaAsset, downloadCloudJSON } = require('./cloudAssets');
-const { findCachedCountryFormVersion } = require('./countryFormCatalog');
 const { buildScaledTextStyle, layoutText } = require('./textLayout');
 
 const TEMPLATE_ID = 'it-schengen-tourism-shanghai-demo';
@@ -361,8 +360,7 @@ function buildPagePreviewFields(page, values, options = {}) {
 }
 
 function normalizeTemplateVersion(templateId, override) {
-  const dynamic = override || findCachedCountryFormVersion(templateId);
-  if (dynamic) return dynamic;
+  if (override) return override;
   const configured = getTemplateConfig(templateId);
   const template = configured ? configured.template : {};
   const previewImages = getTemplateAsset(templateId, 'previewImages') || {};

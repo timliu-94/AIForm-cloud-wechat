@@ -3,7 +3,15 @@ const ITALY_TEMPLATE_ID = 'it-schengen-tourism-shanghai-demo';
 const ITALY_COUNTRY_DIR = 'Italy';
 const ITALY_VERSION_DIR = '上海_申根签证申请表（90天以内）';
 const ITALY_PDF_FILENAME = '上海_申根签证申请表（90天以内）.pdf';
-const DYNAMIC_COUNTRIES = new Set(['Italy', 'Japan']);
+// 与小程序 config/countryConfig.js 中启用的国家保持一致。云端只接受明确上线
+// 的国家目录，避免客户端借 templateAsset 访问未发布的模板资源。
+const CONFIGURED_COUNTRIES = new Set([
+  'Iceland',
+  'Italy',
+  'Japan',
+  'Spain',
+  'Switzerland',
+]);
 
 function countryFormAsset(country, versionDir, assetDir, filename) {
   return `${CLOUD_FILE_ROOT}/country_forms/${country}/${versionDir}/${assetDir}/${filename}`;
@@ -40,7 +48,7 @@ const pdfTemplates = {
 function getDynamicPdfTemplate(asset) {
   if (!asset) return null;
   const { country, versionDir, pdfFilename } = asset;
-  if (!DYNAMIC_COUNTRIES.has(country)) return null;
+  if (!CONFIGURED_COUNTRIES.has(country)) return null;
   if (!versionDir || versionDir === '.' || versionDir === '..' || /[\\/]/.test(versionDir)) return null;
   if (!pdfFilename || /[\\/]/.test(pdfFilename) || !/\.pdf$/i.test(pdfFilename)) return null;
   return {
@@ -61,6 +69,7 @@ function getPdfTemplate(templateId, dynamicAsset) {
 }
 
 module.exports = {
+  CONFIGURED_COUNTRIES,
   getPdfTemplate,
   getDynamicPdfTemplate,
   pdfTemplates,

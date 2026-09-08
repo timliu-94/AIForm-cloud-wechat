@@ -1,9 +1,7 @@
 {
   "navigationStyle": "custom",
-  "enablePullDownRefresh": true,
   "usingComponents": {
     "t-icon": "tdesign-miniprogram/icon/icon",
-    "t-loading": "tdesign-miniprogram/loading/loading",
     "nav": "/components/nav",
     "first-launch-notice": "/components/first-launch-notice/index"
   }

@@ -1,26 +1,81 @@
 const {
   countryFlagFile,
   countryFormAsset,
-  countryFormFile,
-  countryFormSchemaAsset,
   downloadCloudJSON,
 } = require('../utils/cloudAssets');
-const { findCachedCountryFormVersion } = require('../utils/countryFormCatalog');
-
-const ITALY_COUNTRY_DIR = 'Italy';
-const ITALY_VERSION_DIR = '上海_申根签证申请表（90天以内）';
-const ITALY_PDF_FILENAME = '上海_申根签证申请表（90天以内）.pdf';
-const ITALY_SCHEMA_FILENAME = '上海_申根签证申请表（90天以内）.parsed.simple.json';
-
-// 历史遗留的模板 ID（早期记录里 templateId 存成了国家名），统一映射到当前的示范模板，
-// 避免旧「我的表格」记录在分享填写 / 导出时因找不到模板而报「未配置 AcroForm JSON」。
-const LEGACY_TEMPLATE_ALIASES = {
-  italy: 'it-schengen-tourism-shanghai-demo',
-};
 
 const continents = ['欧洲', '亚洲', '北美洲', '南美洲', '非洲', '大洋洲'];
+const COUNTRY_CATALOG_VERSION = '2026-09-05.2';
 
+const COMMON_VISA_TYPE = { id: 'application', name: '签证申请表' };
+const COMMON_DISTRICT = { id: 'default', name: '通用' };
+const ITALY_VISA_TYPE = { id: 'tourism', name: '签证申请' };
+const ITALY_DISTRICT = { id: 'shanghai', name: '中国领区' };
+const JAPAN_VISA_TYPES = [
+  { id: 'short-term', name: '短期签证' },
+  { id: 'long-term', name: '长期签证' },
+];
+
+// 版本 ID 沿用原云目录接口的 SHA-1 结果。配置迁移后 ID 保持不变，确保已保存
+// 的草稿、分享邀请和导出记录仍能定位到同一份模板。
+function configuredTemplate({
+  id,
+  country,
+  versionDir,
+  pdfFilename = `${versionDir}.pdf`,
+  visaType = COMMON_VISA_TYPE,
+  visaTypes,
+  district = COMMON_DISTRICT,
+  publishedAt,
+}) {
+  const schemaFilename = `${pdfFilename.replace(/\.pdf$/i, '')}.parsed.simple.json`;
+  return {
+    id,
+    country,
+    versionDir,
+    pdfFilename,
+    visaType,
+    ...(visaTypes ? { visaTypes } : {}),
+    district,
+    name: pdfFilename.replace(/\.pdf$/i, ''),
+    version: versionDir,
+    publishedAt,
+    scope: '线上配置版本',
+    status: 'active',
+    enabled: true,
+    availableForFill: true,
+    assets: {
+      sourcePdf: countryFormAsset(country, versionDir, 'commonforms', pdfFilename),
+      editablePdf: countryFormAsset(country, versionDir, 'commonforms', pdfFilename),
+      editableFilename: pdfFilename,
+      acroformSchema: countryFormAsset(country, versionDir, 'outputs', schemaFilename),
+      previewImages: {
+        pattern: countryFormAsset(country, versionDir, 'preview', 'page-{page}.png'),
+      },
+    },
+  };
+}
+
+// 首页支持范围的唯一数据源。这里没有配置的云存储目录不会自动出现在首页；
+// 修改国家或版本后需要随小程序代码一起评审、测试和发布。
 const countries = [
+  {
+    id: 'iceland',
+    name: '冰岛',
+    cloudDirectory: 'Iceland',
+    iso2: 'is',
+    continent: '欧洲',
+    hot: true,
+    enabled: true,
+    templates: [
+      configuredTemplate({
+        id: 'cloud-iceland-80c4bbfe1f2b3d4d',
+        country: 'Iceland',
+        versionDir: '申根签证申请表（90天以内）',
+        publishedAt: '2026-09-05',
+      }),
+    ],
+  },
   {
     id: 'italy',
     name: '意大利',
@@ -28,143 +83,72 @@ const countries = [
     iso2: 'it',
     continent: '欧洲',
     hot: true,
-    cloudCatalog: {
-      country: 'Italy',
-      visaTypeId: 'tourism',
-      districtId: 'shanghai',
-    },
+    enabled: true,
     templates: [
-      {
-        id: 'it-schengen-tourism-shanghai-demo',
-        country: ITALY_COUNTRY_DIR,
-        versionDir: ITALY_VERSION_DIR,
-        pdfFilename: ITALY_PDF_FILENAME,
-        visaType: {
-          id: 'tourism',
-          name: '短期旅游',
-        },
-        district: {
-          id: 'shanghai',
-          name: '上海领区',
-        },
-        name: '申根短期签证申请表',
-        version: '示范版',
-        publishedAt: '2026-06-27',
-        scope: '以上海领区示例 PDF 和 AcroForm 标注演示',
-        status: 'active',
-        assets: {
-          sourcePdf: countryFormAsset(ITALY_COUNTRY_DIR, ITALY_VERSION_DIR, 'commonforms', ITALY_PDF_FILENAME),
-          editablePdf: countryFormAsset(ITALY_COUNTRY_DIR, ITALY_VERSION_DIR, 'commonforms', ITALY_PDF_FILENAME),
-          editableFilename: ITALY_PDF_FILENAME,
-          acroformSchema: countryFormAsset(
-            ITALY_COUNTRY_DIR,
-            ITALY_VERSION_DIR,
-            'outputs',
-            ITALY_SCHEMA_FILENAME,
-          ),
-          previewImages: {
-            pattern: countryFormAsset(ITALY_COUNTRY_DIR, ITALY_VERSION_DIR, 'preview', 'page-{page}.png'),
-          },
-        },
-      },
-    ],
-  },
-  {
-    id: 'france',
-    name: '法国',
-    cloudDirectory: 'France',
-    iso2: 'fr',
-    continent: '欧洲',
-    hot: true,
-    templates: [
-      {
-        id: 'fr-schengen-tourism-2026-01',
-        visaType: {
-          id: 'tourism',
-          name: '短期旅游',
-        },
-        district: {
-          id: 'shanghai',
-          name: '上海领区',
-        },
-        name: '申根短期签证申请表',
-        version: '2026.01',
-        publishedAt: '2026-01-10',
-        scope: '上海、江苏、浙江、安徽',
-        status: 'active',
-        assets: {
-          sourcePdf: countryFormFile('France', 'france_schengen_2026.pdf'),
-        },
-      },
-      {
-        id: 'fr-schengen-tourism-2025-12',
-        visaType: {
-          id: 'tourism',
-          name: '短期旅游',
-        },
-        district: {
-          id: 'beijing',
-          name: '北京领区',
-        },
-        name: '申根短期签证申请表',
-        version: '2025.12',
-        publishedAt: '2025-12-18',
-        scope: '北京、天津、河北、山东、山西、内蒙古',
-        status: 'active',
-        assets: {
-          sourcePdf: countryFormFile('France', 'france_schengen_2025.pdf'),
-        },
-      },
-      {
-        id: 'fr-business-2026-01',
-        visaType: {
-          id: 'business',
-          name: '商务',
-        },
-        district: {
-          id: 'shanghai',
-          name: '上海领区',
-        },
-        name: '商务访问申请表',
-        version: '2026.01',
-        publishedAt: '2026-01-10',
-        scope: '上海、江苏、浙江、安徽',
-        status: 'active',
-        assets: {
-          sourcePdf: countryFormFile('France', 'france_business_2026.pdf'),
-        },
-      },
-    ],
-  },
-  {
-    id: 'germany',
-    name: '德国',
-    cloudDirectory: 'Germany',
-    iso2: 'de',
-    continent: '欧洲',
-    hot: true,
-    applicationMode: 'official_web',
-    searchAliases: ['Germany', '德意志'],
-    templates: [
-      {
-        id: 'de-schengen-tourism-2026-02',
-        visaType: {
-          id: 'tourism',
-          name: '短期旅游',
-        },
-        district: {
-          id: 'shanghai',
-          name: '上海领区',
-        },
-        name: '申根短期签证申请表',
-        version: '2026.02',
-        publishedAt: '2026-02-04',
-        scope: '上海、江苏、浙江、安徽',
-        status: 'active',
-        assets: {
-          sourcePdf: countryFormFile('Germany', 'germany_schengen_2026.pdf'),
-        },
-      },
+      configuredTemplate({
+        id: 'cloud-italy-41b261e471b4df79',
+        country: 'Italy',
+        versionDir: '上海_申根签证申请表（90天以内）',
+        visaType: ITALY_VISA_TYPE,
+        district: ITALY_DISTRICT,
+        publishedAt: '2026-08-03',
+      }),
+      configuredTemplate({
+        id: 'cloud-italy-d4faaf25fe834b61',
+        country: 'Italy',
+        versionDir: '上海_国家签证申请表(90天以上)',
+        visaType: ITALY_VISA_TYPE,
+        district: ITALY_DISTRICT,
+        publishedAt: '2026-08-03',
+      }),
+      configuredTemplate({
+        id: 'cloud-italy-10458c474816879d',
+        country: 'Italy',
+        versionDir: '北京_申根签证申请表（90天以内）',
+        visaType: ITALY_VISA_TYPE,
+        district: ITALY_DISTRICT,
+        publishedAt: '2026-08-03',
+      }),
+      configuredTemplate({
+        id: 'cloud-italy-7060f117d87be402',
+        country: 'Italy',
+        versionDir: '北京_国家签证申请表(90天以上)',
+        visaType: ITALY_VISA_TYPE,
+        district: ITALY_DISTRICT,
+        publishedAt: '2026-08-03',
+      }),
+      configuredTemplate({
+        id: 'cloud-italy-871354a38c50a2e3',
+        country: 'Italy',
+        versionDir: '广州_申根签证申请表（90天以内）',
+        visaType: ITALY_VISA_TYPE,
+        district: ITALY_DISTRICT,
+        publishedAt: '2026-08-03',
+      }),
+      configuredTemplate({
+        id: 'cloud-italy-d387136180e8dc56',
+        country: 'Italy',
+        versionDir: '广州_国家签证申请表(90天以上)',
+        visaType: ITALY_VISA_TYPE,
+        district: ITALY_DISTRICT,
+        publishedAt: '2026-08-03',
+      }),
+      configuredTemplate({
+        id: 'cloud-italy-f1d840f4300c059e',
+        country: 'Italy',
+        versionDir: '重庆_申根签证申请表（90天以内）',
+        visaType: ITALY_VISA_TYPE,
+        district: ITALY_DISTRICT,
+        publishedAt: '2026-08-03',
+      }),
+      configuredTemplate({
+        id: 'cloud-italy-06ad6fa3db5015fa',
+        country: 'Italy',
+        versionDir: '重庆_国家签证申请表(90天以上)',
+        visaType: ITALY_VISA_TYPE,
+        district: ITALY_DISTRICT,
+        publishedAt: '2026-08-03',
+      }),
     ],
   },
   {
@@ -174,90 +158,88 @@ const countries = [
     iso2: 'jp',
     continent: '亚洲',
     hot: true,
-    cloudCatalog: {
-      country: 'Japan',
-      visaTypeIds: ['short-term', 'long-term'],
-      districtId: 'shanghai',
-    },
+    enabled: true,
     templates: [
-      {
-        id: 'jp-tourism-2026-01',
-        visaTypes: [
-          {
-            id: 'short-term',
-            name: '短期签证',
-          },
-          {
-            id: 'long-term',
-            name: '长期签证',
-          },
-        ],
-        district: {
-          id: 'shanghai',
-          name: '上海领区',
-        },
-        name: '日本签证申请表',
-        version: '2026.01',
-        publishedAt: '2026-01-01',
-        scope: '上海、江苏、浙江、安徽、江西',
-        status: 'active',
-        assets: {
-          sourcePdf: countryFormFile('Japan', 'japan_tourism_2026.pdf'),
-        },
-      },
+      configuredTemplate({
+        id: 'cloud-japan-20d1ebfb26b32018',
+        country: 'Japan',
+        versionDir: '签证申请表',
+        visaTypes: JAPAN_VISA_TYPES,
+        publishedAt: '2026-08-09',
+      }),
+      configuredTemplate({
+        id: 'cloud-japan-05449e664bc624a6',
+        country: 'Japan',
+        versionDir: '签证表-手绘框',
+        visaTypes: JAPAN_VISA_TYPES,
+        publishedAt: '2026-08-09',
+      }),
     ],
   },
   {
-    id: 'south-korea',
-    name: '韩国',
-    cloudDirectory: 'SouthKorea',
-    iso2: 'kr',
-    continent: '亚洲',
+    id: 'spain',
+    name: '西班牙',
+    cloudDirectory: 'Spain',
+    iso2: 'es',
+    continent: '欧洲',
     hot: true,
-    applicationMode: 'official_web',
-    searchAliases: ['Korea', 'South Korea', '南韩'],
-    templates: [],
+    enabled: true,
+    templates: [
+      configuredTemplate({
+        id: 'cloud-spain-26a09900d3ebf245',
+        country: 'Spain',
+        versionDir: '申根签证申请表（90天以内）',
+        publishedAt: '2026-09-03',
+      }),
+      configuredTemplate({
+        id: 'cloud-spain-eaca473f11a6b8d3',
+        country: 'Spain',
+        versionDir: '国家签证申请表(90天以上)',
+        publishedAt: '2026-09-03',
+      }),
+    ],
   },
   {
-    id: 'usa',
-    name: '美国',
-    cloudDirectory: 'USA',
-    iso2: 'us',
-    continent: '北美洲',
-    hot: false,
+    id: 'switzerland',
+    name: '瑞士',
+    cloudDirectory: 'Switzerland',
+    iso2: 'ch',
+    continent: '欧洲',
+    hot: true,
+    enabled: true,
     templates: [
-      {
-        id: 'us-ds160-demo',
-        visaType: {
-          id: 'business-tourism',
-          name: '商务/旅游',
-        },
-        district: {
-          id: 'china',
-          name: '中国大陆地区',
-        },
-        name: 'DS-160 信息采集表',
-        version: '2026.01',
-        publishedAt: '2026-01-15',
-        scope: '中国大陆地区填写参考',
-        status: 'active',
-        assets: {
-          sourcePdf: countryFormFile('USA', 'us_ds160_demo.pdf'),
-        },
-      },
+      configuredTemplate({
+        id: 'cloud-switzerland-90a2c04e498b5c63',
+        country: 'Switzerland',
+        versionDir: '申根签证申请表（90天以内）',
+        publishedAt: '2026-08-03',
+      }),
+      configuredTemplate({
+        id: 'cloud-switzerland-ba42fe5e69b66aab',
+        country: 'Switzerland',
+        versionDir: '国家签证申请表(90天以上)',
+        publishedAt: '2026-08-03',
+      }),
     ],
   },
 ];
+
+const LEGACY_TEMPLATE_ALIASES = {
+  italy: 'cloud-italy-41b261e471b4df79',
+  'it-schengen-tourism-shanghai-demo': 'cloud-italy-41b261e471b4df79',
+  'jp-tourism-2026-01': 'cloud-japan-20d1ebfb26b32018',
+};
+
+function isEnabled(item) {
+  return item && item.enabled !== false && (!item.status || item.status === 'active');
+}
 
 function getCountryConfig(countryId) {
   return countries.find((country) => country.id === countryId) || null;
 }
 
 function getCountryConfigByCloudDirectory(directory) {
-  return countries.find((country) => (
-    country.cloudDirectory === directory
-    || (country.cloudCatalog && country.cloudCatalog.country === directory)
-  )) || null;
+  return countries.find((country) => country.cloudDirectory === directory) || null;
 }
 
 function resolveTemplateId(templateId) {
@@ -279,24 +261,11 @@ function getTemplateConfig(templateId) {
   return result;
 }
 
-// 版本对象可能缺失 acroformSchema（例如仅存 PDF 元信息的旧缓存），此时按
-// country_forms/<country>/<versionDir>/outputs/<pdf>.parsed.simple.json 约定兜底推导。
-function dynamicAssetValue(dynamic, assetName) {
-  const direct = (dynamic.assets && dynamic.assets[assetName]) || dynamic[assetName] || '';
-  if (direct) return direct;
-  if (assetName === 'acroformSchema') {
-    return countryFormSchemaAsset(dynamic.country, dynamic.versionDir, dynamic.pdfFilename);
-  }
-  return '';
-}
-
 function getTemplateAsset(templateId, assetName) {
-  const resolvedId = resolveTemplateId(templateId);
-  const matched = getTemplateConfig(resolvedId);
-  if (matched && matched.template.assets) return matched.template.assets[assetName];
-  const dynamic = findCachedCountryFormVersion(resolvedId);
-  if (!dynamic) return '';
-  return dynamicAssetValue(dynamic, assetName);
+  const matched = getTemplateConfig(templateId);
+  return matched && matched.template.assets
+    ? matched.template.assets[assetName]
+    : '';
 }
 
 function getTemplateSchema(templateId) {
@@ -322,10 +291,55 @@ function getPreviewImage(templateId, page) {
 }
 
 function getCountryFlag(country) {
-  return country && country.iso2 ? countryFlagFile(country.iso2) : '';
+  if (!country || country.flag === false) return '';
+  return country.iso2 ? countryFlagFile(country.iso2) : '';
+}
+
+function validateCountryConfig(config = countries) {
+  const errors = [];
+  const countryIds = new Set();
+  const directories = new Set();
+  const templateIds = new Set();
+
+  config.forEach((country, countryIndex) => {
+    const label = country.id || `countries[${countryIndex}]`;
+    if (!country.id || countryIds.has(country.id)) errors.push(`${label}: 国家 ID 缺失或重复`);
+    countryIds.add(country.id);
+    if (!country.name) errors.push(`${label}: 国家名称缺失`);
+    if (!country.cloudDirectory || directories.has(country.cloudDirectory)) {
+      errors.push(`${label}: 云目录缺失或重复`);
+    }
+    directories.add(country.cloudDirectory);
+    if (continents.indexOf(country.continent) < 0) errors.push(`${label}: 所属洲配置无效`);
+    if (!Array.isArray(country.templates)) errors.push(`${label}: templates 必须为数组`);
+    if (isEnabled(country) && !(country.templates || []).some(isEnabled)) {
+      errors.push(`${label}: 启用国家至少需要一个启用模板`);
+    }
+
+    (country.templates || []).forEach((template, templateIndex) => {
+      const templateLabel = template.id || `${label}.templates[${templateIndex}]`;
+      if (!template.id || templateIds.has(template.id)) errors.push(`${templateLabel}: 模板 ID 缺失或重复`);
+      templateIds.add(template.id);
+      if (template.country !== country.cloudDirectory) errors.push(`${templateLabel}: country 与国家云目录不一致`);
+      if (!template.versionDir || !template.pdfFilename) errors.push(`${templateLabel}: 版本目录或 PDF 文件名缺失`);
+      if (!template.district || !template.district.id || !template.district.name) errors.push(`${templateLabel}: 领区配置不完整`);
+      const visaTypes = template.visaTypes || [template.visaType];
+      if (visaTypes.some((item) => !item || !item.id || !item.name)) errors.push(`${templateLabel}: 签证类型配置不完整`);
+      if (isEnabled(country) && isEnabled(template)) {
+        const assets = template.assets || {};
+        if (!assets.sourcePdf || !assets.editablePdf || !assets.editableFilename || !assets.acroformSchema) {
+          errors.push(`${templateLabel}: 启用模板的 PDF/Schema 资源配置不完整`);
+        }
+        if (!assets.previewImages || !assets.previewImages.pattern) errors.push(`${templateLabel}: 启用模板的预览图配置缺失`);
+      }
+    });
+  });
+
+  return errors;
 }
 
 module.exports = {
+  COUNTRY_CATALOG_VERSION,
   continents,
   countries,
   getCountryConfig,
@@ -335,5 +349,8 @@ module.exports = {
   getTemplateAsset,
   getTemplateConfig,
   getTemplateSchema,
+  isEnabled,
   loadTemplateSchema,
+  resolveTemplateId,
+  validateCountryConfig,
 };

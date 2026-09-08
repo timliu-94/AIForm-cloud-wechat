@@ -4,6 +4,7 @@ const { buildDefaultApplicationTitle, normalizeTitle } = require('../../utils/ap
 const { resolvePreviewImages } = require('../../utils/cloudAssets');
 const { exportApplicationPdf, getPdfExportErrorMessage, getPdfExportErrorTitle } = require('../../utils/pdfExport');
 const { hideExportProgress, showExportProgress } = require('../../utils/exportProgress');
+const { getHomeShareMessage } = require('../../utils/share');
 
 const APPLICATIONS_KEY = 'visa_applications';
 
@@ -45,6 +46,10 @@ Page({
   onUnload() {
     this._pageActive = false;
     hideExportProgress(this);
+  },
+
+  onShareAppMessage() {
+    return getHomeShareMessage();
   },
 
   initializePreview(options) {

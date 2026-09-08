@@ -720,6 +720,13 @@ function testLegacyAcroformFieldMapRecoveryDetection() {
   }), false);
 }
 
+function testTinyChoiceBoxDetection() {
+  assert.strictEqual(fillPdfAcroForm.__test.isTinyChoiceBox({ width: 8.88, height: 9.12 }), true);
+  assert.strictEqual(fillPdfAcroForm.__test.isTinyChoiceBox({ width: 8.16, height: 8.76 }), true);
+  assert.strictEqual(fillPdfAcroForm.__test.isTinyChoiceBox({ width: 60, height: 10 }), false);
+  assert.strictEqual(fillPdfAcroForm.__test.isTinyChoiceBox({ width: 5, height: 14 }), false);
+}
+
 async function run() {
   testSharedLayoutParity();
   testMultilineAndOverflow();
@@ -736,6 +743,7 @@ async function run() {
   await testExportedCheckboxDrawsMarkWithoutWidgetRectangle();
   await testQualifiedXfaFieldNameAndBooleanRadio();
   testLegacyAcroformFieldMapRecoveryDetection();
+  testTinyChoiceBoxDetection();
   console.log('text layout tests passed');
 }
 

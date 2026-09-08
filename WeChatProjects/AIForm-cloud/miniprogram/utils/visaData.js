@@ -3,8 +3,9 @@ const {
   continents,
   countries,
   getCountryFlag,
+  getTemplateConfig,
+  isEnabled,
 } = require('../config/countryConfig');
-const { findCachedCountryFormVersion } = require('./countryFormCatalog');
 
 function upsertById(list, id, factory) {
   let item = list.find((entry) => entry.id === id);
@@ -16,9 +17,9 @@ function upsertById(list, id, factory) {
 }
 
 function buildVisaCatalog() {
-  return countries.map((country) => {
+  return countries.filter(isEnabled).map((country) => {
     const visaTypes = [];
-    country.templates.forEach((template) => {
+    country.templates.filter(isEnabled).forEach((template) => {
       const templateVisaTypes = template.visaTypes || [template.visaType];
       templateVisaTypes.forEach((templateVisaType) => {
         const visaType = upsertById(visaTypes, templateVisaType.id, () => ({
@@ -38,7 +39,18 @@ function buildVisaCatalog() {
           publishedAt: template.publishedAt,
           scope: template.scope,
           status: template.status,
+          availableForFill: template.availableForFill,
+          country: template.country,
+          versionDir: template.versionDir,
+          pdfFilename: template.pdfFilename,
           sourcePdf: template.assets && template.assets.sourcePdf,
+          editablePdf: template.assets && template.assets.editablePdf,
+          editableFilename: template.assets && template.assets.editableFilename,
+          acroformSchema: template.assets && template.assets.acroformSchema,
+          previewPattern: template.assets
+            && template.assets.previewImages
+            && template.assets.previewImages.pattern,
+          assets: template.assets,
         });
       });
     });
@@ -51,7 +63,6 @@ function buildVisaCatalog() {
       hot: country.hot,
       applicationMode: country.applicationMode || 'form_assist',
       searchAliases: country.searchAliases || [],
-      cloudCatalog: country.cloudCatalog || null,
       flag: getCountryFlag(country),
       visaTypes,
     };
@@ -59,6 +70,52 @@ function buildVisaCatalog() {
 }
 
 const visaCatalog = buildVisaCatalog();
+
+function cloudVersionToTemplate(country, version) {
+  const configured = country.templates.find((template) => template.id === version.id)
+    || country.templates.find((template) => (
+      template.versionDir === version.versionDir
+      && template.pdfFilename === version.pdfFilename
+    ))
+    || country.templates[0];
+  if (!configured) return null;
+  return {
+    ...configured,
+    id: version.id,
+    country: version.country,
+    versionDir: version.versionDir,
+    pdfFilename: version.pdfFilename,
+    name: version.name,
+    version: version.version,
+    publishedAt: version.publishedAt,
+    scope: version.scope,
+    status: version.status,
+    availableForFill: version.availableForFill,
+    assets: {
+      sourcePdf: version.sourcePdf,
+      editablePdf: version.editablePdf,
+      editableFilename: version.editableFilename,
+      acroformSchema: version.acroformSchema,
+      previewImages: { pattern: version.previewPattern },
+    },
+  };
+}
+
+function replaceCountryCloudVersions(countryId, versions) {
+  const countryConfig = countries.find((country) => country.id === countryId);
+  const catalogIndex = visaCatalog.findIndex((country) => country.id === countryId);
+  if (!countryConfig || catalogIndex < 0 || !Array.isArray(versions)) return false;
+  const cloudTemplates = versions
+    .map((version) => cloudVersionToTemplate(countryConfig, version))
+    .filter(Boolean);
+  const originalTemplates = countryConfig.templates;
+  countryConfig.templates = cloudTemplates;
+  const refreshedCountry = buildVisaCatalog().find((country) => country.id === countryId);
+  countryConfig.templates = originalTemplates;
+  if (!refreshedCountry) return false;
+  visaCatalog.splice(catalogIndex, 1, refreshedCountry);
+  return true;
+}
 
 const pdfSchemas = {
   'fr-schengen-tourism-2026-01': {
@@ -424,12 +481,14 @@ function findCountry(countryId) {
 }
 
 function findTemplate(templateId) {
+  const configured = getTemplateConfig(templateId);
+  const resolvedId = configured ? configured.template.id : templateId;
   let result = null;
   visaCatalog.some((country) =>
     country.visaTypes.some((visaType) =>
       visaType.districts.some((district) =>
         district.versions.some((version) => {
-          if (version.id === templateId) {
+          if (version.id === resolvedId) {
             result = { country, visaType, district, version };
             return true;
           }
@@ -438,24 +497,6 @@ function findTemplate(templateId) {
       ),
     ),
   );
-  if (!result) {
-    const dynamic = findCachedCountryFormVersion(templateId);
-    const country = dynamic && visaCatalog.find((item) => (
-      item.cloudCatalog && item.cloudCatalog.country === dynamic.country
-    ));
-    const catalogVisaTypeIds = country && (
-      country.cloudCatalog.visaTypeIds || [country.cloudCatalog.visaTypeId]
-    );
-    const visaType = country && country.visaTypes.find(
-      (item) => catalogVisaTypeIds.indexOf(item.id) >= 0,
-    );
-    const district = visaType && visaType.districts.find(
-      (item) => item.id === country.cloudCatalog.districtId,
-    );
-    if (dynamic && country && visaType && district) {
-      result = { country, visaType, district, version: dynamic };
-    }
-  }
   return result;
 }
 
@@ -484,4 +525,5 @@ module.exports = {
   findTemplate,
   getSchema,
   getAllTemplates,
+  replaceCountryCloudVersions,
 };
