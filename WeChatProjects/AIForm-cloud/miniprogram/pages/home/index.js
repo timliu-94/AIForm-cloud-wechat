@@ -10,6 +10,7 @@ const {
 const { getHomeShareMessage } = require('../../utils/share');
 
 const HOT_FILTER = '热门';
+const NEXT_STEP_SCROLL_DURATION = 300;
 
 function countryHasPdfVersion(country) {
   return Boolean(country && (country.visaTypes || []).some((visaType) => (
@@ -154,6 +155,8 @@ Page({
     const country = decorateCountry(source.find((item) => item.id === e.currentTarget.dataset.id));
     this.setData({
       ...getCountrySelection(country),
+    }, () => {
+      if (country) this.scrollToStep('#visa-type-step');
     });
     if (country) this.refreshCloudVersions(country.id);
   },
@@ -169,6 +172,16 @@ Page({
       selectedDistrict,
       selectedVersion: null,
       selectedVersionId: '',
+    }, () => this.scrollToStep('#form-version-step'));
+  },
+
+  scrollToStep(selector) {
+    if (typeof wx === 'undefined' || typeof wx.pageScrollTo !== 'function') return;
+    wx.nextTick(() => {
+      wx.pageScrollTo({
+        selector,
+        duration: NEXT_STEP_SCROLL_DURATION,
+      });
     });
   },
 

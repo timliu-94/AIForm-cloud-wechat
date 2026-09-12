@@ -5,11 +5,12 @@ const {
 } = require('../utils/cloudAssets');
 
 const continents = ['欧洲', '亚洲', '北美洲', '南美洲', '非洲', '大洋洲'];
-const COUNTRY_CATALOG_VERSION = '2026-09-05.2';
+const COUNTRY_CATALOG_VERSION = '2026-09-10.1';
 
-const COMMON_VISA_TYPE = { id: 'application', name: '签证申请表' };
+// 新增国家的模板如未单独指定 visaType，首页默认归类为“短期签证”。
+const DEFAULT_VISA_TYPE = { id: 'application', name: '短期签证' };
 const COMMON_DISTRICT = { id: 'default', name: '通用' };
-const ITALY_VISA_TYPE = { id: 'tourism', name: '签证申请' };
+const ITALY_VISA_TYPE = { id: 'tourism', name: '短期签证' };
 const ITALY_DISTRICT = { id: 'shanghai', name: '中国领区' };
 const JAPAN_VISA_TYPES = [
   { id: 'short-term', name: '短期签证' },
@@ -23,7 +24,7 @@ function configuredTemplate({
   country,
   versionDir,
   pdfFilename = `${versionDir}.pdf`,
-  visaType = COMMON_VISA_TYPE,
+  visaType = DEFAULT_VISA_TYPE,
   visaTypes,
   district = COMMON_DISTRICT,
   publishedAt,

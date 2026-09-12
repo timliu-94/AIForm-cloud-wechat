@@ -24,6 +24,14 @@ assert.strictEqual(page.data.countries.length, 5);
 assert.ok(page.data.countries.every((country) => country.visaTypes.length > 0));
 assert.deepStrictEqual(page.data.continents, ['欧洲', '亚洲']);
 assert.deepStrictEqual(page.data.destinationFilters, ['热门', '欧洲', '亚洲']);
+['iceland', 'italy', 'spain', 'switzerland'].forEach((countryId) => {
+  const country = page.data.countries.find((item) => item.id === countryId);
+  assert.ok(country, `${countryId} should appear on home page`);
+  assert.deepStrictEqual(
+    [...new Set(country.visaTypes.map((visaType) => visaType.name))],
+    ['短期签证'],
+  );
+});
 
 page.runtimeVisaCatalog = [
   ...page.runtimeVisaCatalog,

@@ -88,7 +88,7 @@
     </view>
   </view>
 
-  <view class="section {{!selectedCountry ? 'section--collapsed' : ''}}">
+  <view id="visa-type-step" class="section {{!selectedCountry ? 'section--collapsed' : ''}}">
     <view class="section__header">
       <view class="section__heading">
         <view class="section__step {{selectedVisaType ? 'section__step--completed' : ''}}">2</view>
@@ -111,7 +111,7 @@
     </view>
   </view>
 
-  <view class="section {{!selectedVisaType ? 'section--collapsed' : ''}}">
+  <view id="form-version-step" class="section {{!selectedVisaType ? 'section--collapsed' : ''}}">
     <view class="section__header">
       <view class="section__heading">
         <view class="section__step {{selectedVersion ? 'section__step--completed' : ''}}">3</view>
