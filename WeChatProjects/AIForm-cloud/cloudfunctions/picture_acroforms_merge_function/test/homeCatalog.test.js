@@ -47,4 +47,22 @@ page.refreshCountries();
 assert.ok(!page.data.continents.includes('北美洲'));
 assert.ok(!page.data.countries.some((country) => country.id === 'canada'));
 
+page.data.selectedCountryId = 'japan';
+page.openStepHelp({ currentTarget: { dataset: { step: 'visa-type' } } });
+assert.strictEqual(page.data.stepHelpVisible, true);
+assert.strictEqual(page.data.stepHelpTitle, '什么是短期签证？');
+assert.ok(page.data.stepHelpContent.includes('日本短期签证'));
+assert.strictEqual(page.data.stepHelpNote, '');
+
+page.data.selectedCountryId = 'italy';
+page.openStepHelp({ currentTarget: { dataset: { step: 'visa-type' } } });
+assert.ok(page.data.stepHelpContent.includes('短期申根签证'));
+
+page.openStepHelp({ currentTarget: { dataset: { step: 'form-version' } } });
+assert.strictEqual(page.data.stepHelpTitle, '如何选择申请表版本？');
+assert.ok(page.data.stepHelpContent.includes('常住地所属的领区'));
+assert.ok(page.data.stepHelpNote.includes('使领馆'));
+page.closeStepHelp();
+assert.strictEqual(page.data.stepHelpVisible, false);
+
 console.log('home config catalog tests passed');

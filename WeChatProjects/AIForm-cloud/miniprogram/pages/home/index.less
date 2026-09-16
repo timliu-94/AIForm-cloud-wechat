@@ -151,11 +151,72 @@ button::after {
   justify-content: flex-start;
 }
 
+.section__header--stacked {
+  display: block;
+}
+
+.section__header-main {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+}
+
+.section__context {
+  display: flex;
+  align-items: center;
+  min-height: 38rpx;
+  margin-top: 8rpx;
+  margin-left: 58rpx;
+}
+
 .section__title {
   color: @ink;
   font-size: 36rpx;
   font-weight: 700;
   line-height: 48rpx;
+}
+
+.section__help {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 64rpx;
+  height: 64rpx;
+  margin: -10rpx -12rpx -10rpx 8rpx;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-sizing: border-box;
+
+  &:active {
+    background: transparent;
+
+    .section__help-icon {
+      background: rgba(0, 82, 217, 0.16);
+      transform: scale(0.94);
+    }
+  }
+}
+
+.section__help-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38rpx;
+  height: 38rpx;
+  padding-bottom: 1rpx;
+  border: 2rpx solid rgba(0, 82, 217, 0.28);
+  border-radius: 999rpx;
+  color: @primary-container;
+  font-size: 22rpx;
+  font-weight: 700;
+  line-height: 38rpx;
+  background: rgba(0, 82, 217, 0.08);
+  box-sizing: border-box;
+  transform: translateY(-1rpx);
+  transition: transform 120ms ease, background 120ms ease;
 }
 
 .section__hint {
@@ -433,19 +494,6 @@ button::after {
   padding: 32rpx 18rpx 28rpx 24rpx;
   margin-bottom: 24rpx;
 
-  &__badge {
-    position: absolute;
-    top: 0;
-    right: 0;
-    padding: 6rpx 16rpx;
-    border-bottom-left-radius: 12rpx;
-    color: @surface-lowest;
-    font-size: 20rpx;
-    font-weight: 700;
-    line-height: 28rpx;
-    background: @primary;
-  }
-
   &__body {
     flex: 1;
     min-width: 0;
@@ -481,6 +529,92 @@ button::after {
     font-weight: 600;
     line-height: 50rpx;
     background: transparent;
+  }
+}
+
+.help-overlay {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(25, 28, 30, 0.42);
+}
+
+.help-sheet {
+  width: 100%;
+  padding: 16rpx 32rpx calc(32rpx + env(safe-area-inset-bottom));
+  border-radius: 32rpx 32rpx 0 0;
+  background: @surface-lowest;
+  box-shadow: 0 -12rpx 32rpx rgba(25, 28, 30, 0.12);
+  box-sizing: border-box;
+
+  &__handle {
+    width: 64rpx;
+    height: 8rpx;
+    margin: 0 auto 22rpx;
+    border-radius: 999rpx;
+    background: @outline-variant;
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24rpx;
+  }
+
+  &__title {
+    color: @ink;
+    font-size: 36rpx;
+    font-weight: 700;
+    line-height: 50rpx;
+  }
+
+  &__close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 56rpx;
+    height: 56rpx;
+    margin: 0;
+    padding: 0;
+    border-radius: 999rpx;
+    background: @surface-container;
+  }
+
+  &__content,
+  &__note {
+    color: @ink-soft;
+    font-size: 28rpx;
+    line-height: 44rpx;
+  }
+
+  &__content {
+    margin-top: 24rpx;
+  }
+
+  &__note {
+    margin-top: 20rpx;
+    padding: 20rpx 22rpx;
+    border-radius: 16rpx;
+    color: @primary-container;
+    background: rgba(0, 82, 217, 0.08);
+  }
+
+  &__confirm {
+    height: 88rpx;
+    margin: 32rpx 0 0;
+    border-radius: 999rpx;
+    color: @surface-lowest;
+    font-size: 29rpx;
+    font-weight: 700;
+    line-height: 88rpx;
+    background: @primary-container;
   }
 }
 
@@ -702,10 +836,6 @@ page {
   content: '';
 }
 
-.version__badge {
-  background: @primary-container;
-}
-
 .version__preview {
   color: @primary-container;
 }
@@ -793,6 +923,12 @@ page {
     border-color: @outline-variant;
     color: @outline;
     background: @surface-container;
+  }
+
+  .section__help-icon {
+    border-color: rgba(0, 82, 217, 0.28);
+    color: @primary-container;
+    background: rgba(0, 82, 217, 0.08);
   }
 }
 

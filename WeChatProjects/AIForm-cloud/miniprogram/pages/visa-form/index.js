@@ -6,12 +6,19 @@ const { firstLaunchNotice } = require('../../config/firstLaunchNotice');
 const { getHomeShareMessage } = require('../../utils/share');
 
 const APPLICATIONS_KEY = 'visa_applications';
-const PREVIEW_PANE_RPX = 760; // 顶部预览区高度
+const PREVIEW_AREA_RPX = 580;
+const KEYBOARD_PREVIEW_AREA_RPX = 380;
 const PREVIEW_MIN_SCALE = 1;
+const PREVIEW_FOCUS_MIN_SCALE = 1.35;
+const PREVIEW_FOCUS_MAX_SCALE = 2.4;
 const PREVIEW_PADDING_RPX = 24;
 const PREVIEW_DOUBLE_TAP_SCALE = 2;
 const PREVIEW_DOUBLE_TAP_MS = 320;
 const PREVIEW_DOUBLE_TAP_DISTANCE_RPX = 64;
+// 当前输入框在下方表单可视区中的纵向锚点。放在上半区，为输入内容、
+// 示例以及后续字段留出更多向下浏览的空间，同时避免紧贴顶部。
+const FORM_FIELD_ANCHOR_Y = 0.42;
+const FORM_SCROLL_BLUR_DISTANCE_RPX = 16;
 const DATE_START_YEAR = 1900;
 const DATE_END_YEAR = 2100;
 
@@ -127,9 +134,13 @@ Page({
     previewX: 0,
     previewY: 0,
     formScrollIntoView: '',
+    formScrollTop: 0,
     applicationId: '',
     draftTitle: '',
     splitHeight: 0,
+    keyboardOpen: false,
+    focusedFieldName: '',
+    previewAreaHeightRpx: PREVIEW_AREA_RPX,
     hasNextPage: false,
     showFirstLaunchNotice: false,
     formReady: false,
@@ -138,6 +149,14 @@ Page({
   onLoad(options = {}) {
     this._pageActive = true;
     this._loadOptions = options;
+    this._keyboardHeightHandler = (res = {}) => {
+      this._keyboardHeightPx = Math.max(0, Number(res.height) || 0);
+      const keyboardOpen = this._keyboardHeightPx > 0;
+      this.setKeyboardOpen(keyboardOpen, () => {
+        if (keyboardOpen) this.scheduleFocusedFieldAnchor();
+      });
+    };
+    if (wx.onKeyboardHeightChange) wx.onKeyboardHeightChange(this._keyboardHeightHandler);
     // 被邀请人经分享链接直达填写页：首次访问需先完成隐私条款确认。
     if (options.inviteId && !wx.getStorageSync(firstLaunchNotice.storageKey)) {
       this.setData({ showFirstLaunchNotice: true });
@@ -208,6 +227,11 @@ Page({
     this._pageActive = false;
     this._loadOptions = null;
     if (this._previewScaleTimer) clearTimeout(this._previewScaleTimer);
+    if (this._keyboardBlurTimer) clearTimeout(this._keyboardBlurTimer);
+    if (this._focusedFieldAnchorTimer) clearTimeout(this._focusedFieldAnchorTimer);
+    if (wx.offKeyboardHeightChange && this._keyboardHeightHandler) {
+      wx.offKeyboardHeightChange(this._keyboardHeightHandler);
+    }
   },
 
   onShareAppMessage() {
@@ -237,10 +261,13 @@ Page({
     // 预览区默认按 contain 方式展示整页，放大后再由用户拖拽查看细节。
     const info = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
     const rpxToPx = info.windowWidth / 750;
+    this.baseWindowHeightPx = info.windowHeight;
     this.previewAreaWidthPx = info.windowWidth;
-    this.paneHeightPx = PREVIEW_PANE_RPX * rpxToPx;
+    this.rpxToPx = rpxToPx;
+    this.previewAreaHeightPx = PREVIEW_AREA_RPX * rpxToPx;
     this.previewPaddingPx = PREVIEW_PADDING_RPX * rpxToPx;
     this.previewDoubleTapDistancePx = PREVIEW_DOUBLE_TAP_DISTANCE_RPX * rpxToPx;
+    this.formScrollBlurDistancePx = FORM_SCROLL_BLUR_DISTANCE_RPX * rpxToPx;
     this._previewScale = PREVIEW_MIN_SCALE;
 
     this.form = form;
@@ -300,7 +327,7 @@ Page({
     const pageWidth = Number(page && page.width) || 595;
     const pageHeight = Number(page && page.height) || 842;
     const availableWidth = Math.max(1, this.previewAreaWidthPx - this.previewPaddingPx * 2);
-    const availableHeight = Math.max(1, this.paneHeightPx - this.previewPaddingPx * 2);
+    const availableHeight = Math.max(1, this.previewAreaHeightPx - this.previewPaddingPx * 2);
     const fitScale = Math.min(availableWidth / pageWidth, availableHeight / pageHeight);
     const width = pageWidth * fitScale;
     const height = pageHeight * fitScale;
@@ -308,7 +335,7 @@ Page({
       width,
       height,
       x: (this.previewAreaWidthPx - width) / 2,
-      y: (this.paneHeightPx - height) / 2,
+      y: (this.previewAreaHeightPx - height) / 2,
     };
   },
 
@@ -362,7 +389,7 @@ Page({
     this.setData({
       previewScale: scale,
       previewX: (this.previewAreaWidthPx - width * scale) / 2,
-      previewY: (this.paneHeightPx - height * scale) / 2,
+      previewY: (this.currentPreviewViewportHeightPx() - height * scale) / 2,
     });
   },
 
@@ -452,13 +479,178 @@ Page({
   // 避免 onFormScroll 把它误重置为当前文字块的第一个字段。
   onKeyboardFieldFocus(e) {
     const { name } = e.currentTarget.dataset;
+    if (this._keyboardBlurTimer) {
+      clearTimeout(this._keyboardBlurTimer);
+      this._keyboardBlurTimer = null;
+    }
     this._focusedFieldName = name;
-    this.setActiveField(name, true);
+    this.setKeyboardOpen(true, () => {
+      this.setActiveField(name, true);
+    }, { focusedFieldName: name });
   },
 
   onKeyboardFieldBlur(e) {
     const { name } = e.currentTarget.dataset;
     if (this._focusedFieldName === name) this._focusedFieldName = '';
+    if (this.data.focusedFieldName === name) this.setData({ focusedFieldName: '' });
+    // 切换相邻输入框时 blur 会先于下一次 focus，稍作延迟避免预览和底栏闪动。
+    if (this._keyboardBlurTimer) clearTimeout(this._keyboardBlurTimer);
+    this._keyboardBlurTimer = setTimeout(() => {
+      this._keyboardBlurTimer = null;
+      if (!this._focusedFieldName) {
+        this.setKeyboardOpen(false);
+      }
+    }, 120);
+  },
+
+  onFormTouchStart(e) {
+    const touch = e.touches && e.touches[0];
+    this._formTouchStartY = touch ? touch.clientY : null;
+    this._formTouchStartScrollTop = Number.isFinite(this._lastFormScrollTop)
+      ? this._lastFormScrollTop
+      : this.data.formScrollTop;
+    this._formTouchDismissedFocus = false;
+    this._formTouchActive = true;
+  },
+
+  onFormTouchMove(e) {
+    if (this._formTouchDismissedFocus || !this._focusedFieldName) return;
+    const touch = e.touches && e.touches[0];
+    if (!touch || !Number.isFinite(this._formTouchStartY)) return;
+    const distance = Math.abs(touch.clientY - this._formTouchStartY);
+    if (distance < (this.formScrollBlurDistancePx || 8)) return;
+    this._formTouchDismissedFocus = true;
+    this.dismissFormInputFocus();
+  },
+
+  dismissFormInputFocus() {
+    if (!this._focusedFieldName && !this.data.focusedFieldName) return;
+    this._focusedFieldName = '';
+    this.setData({ focusedFieldName: '' });
+    if (wx.hideKeyboard) wx.hideKeyboard();
+  },
+
+  onFormTouchEnd() {
+    this._formTouchStartY = null;
+    this._formTouchStartScrollTop = null;
+    this._formTouchDismissedFocus = false;
+    this._formTouchActive = false;
+  },
+
+  currentPreviewViewportHeightPx() {
+    const heightRpx = this.data.keyboardOpen
+      ? KEYBOARD_PREVIEW_AREA_RPX
+      : PREVIEW_AREA_RPX;
+    return heightRpx * (this.rpxToPx || 1);
+  },
+
+  setKeyboardOpen(open, callback, extraPatch = {}) {
+    if (!this._pageActive) return;
+    const keyboardOpen = !!open;
+    // 键盘出现时仅缩小预览窗口，不隐藏 PDF；释放出的高度用于完整展示
+    // 当前字段。预览画布本身尺寸不变，当前 AcroForm 仍能保持放大定位。
+    const previewAreaHeightRpx = keyboardOpen
+      ? KEYBOARD_PREVIEW_AREA_RPX
+      : PREVIEW_AREA_RPX;
+    // formScrollTop 只在程序定位时写入 data，用户手动滑动后的真实位置保存在
+    // _lastFormScrollTop。键盘布局切换时同步真实值，避免旧绑定值把列表拉回。
+    const formScrollTop = Number.isFinite(this._lastFormScrollTop)
+      ? this._lastFormScrollTop
+      : this.data.formScrollTop;
+    if (this.data.keyboardOpen === keyboardOpen
+      && this.data.previewAreaHeightRpx === previewAreaHeightRpx) {
+      if (Object.keys(extraPatch).length) {
+        this.setData(extraPatch, () => {
+          if (callback) callback();
+        });
+      } else if (callback) callback();
+      return;
+    }
+    this.setData({
+      keyboardOpen,
+      previewAreaHeightRpx,
+      formScrollTop,
+      ...extraPatch,
+    }, () => {
+      if (callback) callback();
+    });
+  },
+
+  // 等软键盘和分屏布局稳定后，将正在输入的文本框放到表单焦点位。
+  scheduleFocusedFieldAnchor() {
+    if (this._focusedFieldAnchorTimer) clearTimeout(this._focusedFieldAnchorTimer);
+    this._focusedFieldAnchorTimer = setTimeout(() => {
+      this._focusedFieldAnchorTimer = null;
+      if (!this._pageActive || !this._focusedFieldName || !this.data.keyboardOpen) return;
+      const field = this.findField(this._focusedFieldName);
+      if (field) this.scrollFormToAnchor(field.scrollId || field.leafId, field.leafId);
+    }, 100);
+  },
+
+  // scroll-into-view 只作为一次性命令使用。先清空可确保连续聚焦同一文字块
+  // 时也能重新触发，定位完成后再次清空，防止后续 resize 重放旧目标。
+  scrollFormToTarget(targetId) {
+    if (!targetId || !this._pageActive) return;
+    const applyTarget = () => {
+      wx.nextTick(() => {
+        if (!this._pageActive) return;
+        this.setData({ formScrollIntoView: targetId }, () => {
+          wx.nextTick(() => {
+            if (this._pageActive && this.data.formScrollIntoView === targetId) {
+              this.setData({ formScrollIntoView: '' });
+            }
+          });
+        });
+      });
+    };
+    if (this.data.formScrollIntoView) {
+      this.setData({ formScrollIntoView: '' }, applyTarget);
+      return;
+    }
+    applyTarget();
+  },
+
+  clampPreviewOffset(offset, viewportSize, contentSize) {
+    if (contentSize <= viewportSize) return (viewportSize - contentSize) / 2;
+    return Math.max(viewportSize - contentSize, Math.min(0, offset));
+  },
+
+  // 将当前 AcroForm 放到预览中心略偏上的位置，并保留足够的表格上下文。
+  focusPreviewField(field) {
+    if (!field || field.page !== this.data.activePage) return;
+    const canvasWidth = this.data.previewCanvasWidth;
+    const canvasHeight = this.data.previewCanvasHeight;
+    if (!canvasWidth || !canvasHeight) return;
+    const viewportWidth = this.previewAreaWidthPx;
+    const viewportHeight = this.currentPreviewViewportHeightPx();
+    const fieldWidth = canvasWidth * (Number(field.pWidth) || 0) / 100;
+    const fieldHeight = canvasHeight * (Number(field.pHeight) || 0) / 100;
+    const contextWidth = fieldWidth + canvasWidth * 0.34;
+    const contextHeight = fieldHeight + canvasHeight * 0.16;
+    const scale = Math.max(
+      PREVIEW_FOCUS_MIN_SCALE,
+      Math.min(
+        PREVIEW_FOCUS_MAX_SCALE,
+        viewportWidth / Math.max(1, contextWidth),
+        viewportHeight / Math.max(1, contextHeight),
+      ),
+    );
+    const centerX = canvasWidth * ((Number(field.pLeft) || 0) + (Number(field.pWidth) || 0) / 2) / 100;
+    const centerY = canvasHeight * ((Number(field.pTop) || 0) + (Number(field.pHeight) || 0) / 2) / 100;
+    const contentWidth = canvasWidth * scale;
+    const contentHeight = canvasHeight * scale;
+    const previewX = this.clampPreviewOffset(
+      viewportWidth / 2 - centerX * scale,
+      viewportWidth,
+      contentWidth,
+    );
+    const previewY = this.clampPreviewOffset(
+      viewportHeight * 0.44 - centerY * scale,
+      viewportHeight,
+      contentHeight,
+    );
+    this._previewScale = scale;
+    this.setData({ previewScale: scale, previewX, previewY });
   },
 
   onTextInput(e) {
@@ -564,15 +756,84 @@ Page({
   },
 
   // —— 联动 ——
-  // 点击顶部预览框 → 滚动到对应表单文字块。
+  // 点击顶部预览框 → 将对应输入框滚动到表单可视区域上半区。
   tapPreviewBox(e) {
     const { name, leaf } = e.currentTarget.dataset;
-    this.setActiveField(name, false);
-    this.setData({ formScrollIntoView: leaf });
+    const field = this.findField(name);
+    this.setActiveField(name, true);
+    this.scrollFormToAnchor((field && field.scrollId) || leaf, leaf);
+  },
+
+  scrollFormToAnchor(targetId, fallbackId) {
+    if (!targetId || !this._pageActive) return;
+    wx.nextTick(() => {
+      if (!this._pageActive) return;
+      const query = wx.createSelectorQuery().in(this);
+      query.select('.form-list').boundingClientRect();
+      query.select('.form-list').scrollOffset();
+      query.select(`#${targetId}`).boundingClientRect();
+      query.exec((res) => {
+        const listRect = res[0];
+        const scroll = res[1];
+        const targetRect = res[2];
+        if (!listRect || !scroll || !targetRect) {
+          this.scrollFormToTarget(fallbackId || targetId);
+          return;
+        }
+        let visibleListHeight = listRect.height;
+        if (this.data.keyboardOpen && this._keyboardHeightPx > 0) {
+          const info = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
+          // 有些机型 resize 后 windowHeight 已排除键盘，有些机型保持原值并由
+          // 键盘覆盖页面；取二者较小值可兼容两种模式，且不会重复扣除键盘。
+          const keyboardTop = Math.min(
+            info.windowHeight,
+            (this.baseWindowHeightPx || info.windowHeight) - this._keyboardHeightPx,
+          );
+          visibleListHeight = Math.max(
+            1,
+            Math.min(listRect.height, keyboardTop - listRect.top),
+          );
+        }
+        const anchorY = visibleListHeight * FORM_FIELD_ANCHOR_Y;
+        const rawTop = scroll.scrollTop
+          + targetRect.top
+          - listRect.top
+          - anchorY
+          + targetRect.height / 2;
+        const maxTop = Number.isFinite(scroll.scrollHeight)
+          ? Math.max(0, scroll.scrollHeight - listRect.height)
+          : rawTop;
+        const targetTop = Math.max(0, Math.min(maxTop, rawTop));
+        const applyTarget = () => this.setData({ formScrollTop: targetTop });
+
+        // 用户手动滚动后，目标值可能与上次定位值相同。先同步当前实际位置，
+        // 确保 scroll-top 的下一次赋值仍会触发滚动。
+        if (Math.abs(this.data.formScrollTop - targetTop) < 0.5
+          && Math.abs(scroll.scrollTop - targetTop) >= 0.5) {
+          this.setData({ formScrollTop: scroll.scrollTop }, () => wx.nextTick(applyTarget));
+          return;
+        }
+        applyTarget();
+      });
+    });
   },
 
   // 表单滚动 → 高亮所在文字块，并把预览移动到对应位置（节流）。
   onFormScroll(e) {
+    const scrollTop = Number(e.detail && e.detail.scrollTop) || 0;
+    this._lastFormScrollTop = scrollTop;
+    // scroll-view/原生输入组件可能吞掉 touchmove，但实际滚动事件仍会触发。
+    // 仅在用户触摸手势期间清除焦点，避免键盘或程序定位造成误失焦。
+    const touchScrollDistance = Number.isFinite(this._formTouchStartScrollTop)
+      ? Math.abs(scrollTop - this._formTouchStartScrollTop)
+      : 0;
+    if (this._formTouchActive
+      && this._focusedFieldName
+      && touchScrollDistance >= (this.formScrollBlurDistancePx || 8)) {
+      this._formTouchDismissedFocus = true;
+      this.dismissFormInputFocus();
+      return;
+    }
     const now = Date.now();
     if (this._scrollGate && now - this._scrollGate < 120) return;
     this._scrollGate = now;
@@ -581,7 +842,7 @@ Page({
     if (this._focusedFieldName) return;
     const offsets = this._leafOffsets;
     if (!offsets || !offsets.length) return;
-    const top = e.detail.scrollTop + 40;
+    const top = scrollTop + 40;
     let current = offsets[0];
     for (let i = 0; i < offsets.length; i += 1) {
       if (offsets[i].top <= top) current = offsets[i];
@@ -635,6 +896,9 @@ Page({
       this._previewScale = PREVIEW_MIN_SCALE;
     }
     this.setData(patch);
+    if (fromForm) {
+      wx.nextTick(() => this.focusPreviewField(field));
+    }
   },
 
   findField(name) {
@@ -739,6 +1003,7 @@ Page({
     if (!this._pageActive || !this.data.formReady) return;
     // .split 紧跟在自定义导航之后，用它的顶部位置反推剩余视口高度，让分屏铺满。
     const info = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
+    if (!this.data.keyboardOpen) this.baseWindowHeightPx = info.windowHeight;
     wx.createSelectorQuery()
       .in(this)
       .select('.split')
@@ -747,6 +1012,9 @@ Page({
         const splitHeight = Math.max(0, info.windowHeight - rect.top);
         this.setData({ splitHeight }, () => {
           this.queryLeafOffsets();
+          // 部分机型先触发键盘高度变化、后触发窗口 resize。等最终可视高度
+          // 落定后再定位一次，避免输入框按旧的表单高度滚到键盘下方。
+          if (this.data.keyboardOpen) this.scheduleFocusedFieldAnchor();
         });
       })
       .exec();

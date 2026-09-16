@@ -211,13 +211,14 @@ function assignUniqueFieldIds(pages) {
   });
 
   const usedIds = new Set();
-  allFields.forEach((field) => {
+  allFields.forEach((field, fieldIndex) => {
     const name = String(field.name || '');
     const fieldName = String(field.fieldName || '').trim();
     const hasDuplicateName = nameCounts[name] > 1;
     const hasDuplicateFieldName = fieldName && fieldNameCounts[fieldName] > 1;
     if (name && !hasDuplicateName && !hasDuplicateFieldName && !usedIds.has(name)) {
       field.id = name;
+      field.scrollId = `form_field_${fieldIndex}`;
       usedIds.add(name);
       return;
     }
@@ -245,6 +246,7 @@ function assignUniqueFieldIds(pages) {
       id = `${base}_${suffix}`;
     }
     field.id = id;
+    field.scrollId = `form_field_${fieldIndex}`;
     usedIds.add(id);
   });
 }

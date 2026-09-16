@@ -89,13 +89,24 @@
   </view>
 
   <view id="visa-type-step" class="section {{!selectedCountry ? 'section--collapsed' : ''}}">
-    <view class="section__header">
-      <view class="section__heading">
-        <view class="section__step {{selectedVisaType ? 'section__step--completed' : ''}}">2</view>
-        <view class="section__title">第二步：选择签证类型</view>
+    <view class="section__header section__header--stacked">
+      <view class="section__header-main">
+        <view class="section__heading">
+          <view class="section__step {{selectedVisaType ? 'section__step--completed' : ''}}">2</view>
+          <view class="section__title">第二步：选择签证类型</view>
+        </view>
+        <button
+          class="section__help"
+          data-step="visa-type"
+          catchtap="openStepHelp"
+          aria-label="查看签证类型说明"
+        >
+          <view class="section__help-icon">?</view>
+        </button>
       </view>
-      <view class="section__pill" wx:if="{{selectedCountry}}">{{selectedCountry.name}}</view>
-      <view class="section__locked" wx:else>请先完成第一步</view>
+      <view class="section__context" wx:if="{{!selectedCountry}}">
+        <view class="section__locked">请先完成第一步</view>
+      </view>
     </view>
     <view class="option-grid" wx:if="{{selectedCountry}}">
       <view
@@ -112,13 +123,24 @@
   </view>
 
   <view id="form-version-step" class="section {{!selectedVisaType ? 'section--collapsed' : ''}}">
-    <view class="section__header">
-      <view class="section__heading">
-        <view class="section__step {{selectedVersion ? 'section__step--completed' : ''}}">3</view>
-        <view class="section__title">第三步：确认申请表</view>
+    <view class="section__header section__header--stacked">
+      <view class="section__header-main">
+        <view class="section__heading">
+          <view class="section__step {{selectedVersion ? 'section__step--completed' : ''}}">3</view>
+          <view class="section__title">第三步：确认申请表</view>
+        </view>
+        <button
+          class="section__help"
+          data-step="form-version"
+          catchtap="openStepHelp"
+          aria-label="查看申请表版本说明"
+        >
+          <view class="section__help-icon">?</view>
+        </button>
       </view>
-      <view class="section__pill" wx:if="{{selectedVisaType}}">{{selectedVisaType.name}}</view>
-      <view class="section__locked" wx:else>请先完成第二步</view>
+      <view class="section__context" wx:if="{{!selectedVisaType}}">
+        <view class="section__locked">请先完成第二步</view>
+      </view>
     </view>
     <block wx:if="{{selectedVisaType && selectedDistrict}}">
       <view class="section__empty" wx:if="{{!selectedDistrict.versions.length}}">
@@ -131,7 +153,6 @@
         data-id="{{item.id}}"
         bindtap="selectVersion"
       >
-        <view class="version__badge" wx:if="{{index === 0}}">推荐</view>
         <view class="radio {{selectedVersionId === item.id ? 'radio--active' : ''}}"></view>
         <view class="version__body">
           <view class="version__name">{{item.name}}</view>
@@ -148,6 +169,26 @@
     </block>
   </view>
 
+</view>
+
+<view
+  class="help-overlay {{stepHelpVisible ? 'help-overlay--visible' : ''}}"
+  wx:if="{{stepHelpVisible}}"
+  catchtouchmove="preventTouchMove"
+  catchtap="closeStepHelp"
+>
+  <view class="help-sheet" catchtap="preventBubble">
+    <view class="help-sheet__handle"></view>
+    <view class="help-sheet__header">
+      <view class="help-sheet__title">{{stepHelpTitle}}</view>
+      <button class="help-sheet__close" catchtap="closeStepHelp" aria-label="关闭说明">
+        <t-icon name="close" size="32rpx" color="#737686" />
+      </button>
+    </view>
+    <view class="help-sheet__content">{{stepHelpContent}}</view>
+    <view class="help-sheet__note" wx:if="{{stepHelpNote}}">{{stepHelpNote}}</view>
+    <button class="help-sheet__confirm" catchtap="closeStepHelp">我知道了</button>
+  </view>
 </view>
 
 <view class="action-bar">

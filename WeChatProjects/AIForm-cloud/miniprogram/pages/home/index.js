@@ -11,6 +11,12 @@ const { getHomeShareMessage } = require('../../utils/share');
 
 const HOT_FILTER = '热门';
 const NEXT_STEP_SCROLL_DURATION = 300;
+const SCHENGEN_COUNTRY_IDS = new Set(['iceland', 'italy', 'spain', 'switzerland']);
+const JAPAN_SHORT_STAY_HELP = '日本短期签证适用于旅游、短期商务、探亲访友等停留不超过90天的行程，原则上不得从事有报酬的活动。赴日工作、留学或停留超过90天，应选择相应的长期签证类型。具体申请类别请以日本驻华使领馆的最新要求为准。';
+const SCHENGEN_SHORT_STAY_HELP = '短期申根签证适用于旅游、探亲访友、商务访问等短期行程，通常允许在任意连续180天内累计停留不超过90天。学习、工作或停留超过90天，一般需要申请相应的长期签证。具体适用类型和停留期限请以目的地国家领事机构的最新要求为准。';
+const GENERIC_SHORT_STAY_HELP = '短期签证通常适用于旅游、探亲访友、商务访问等短期行程。不同国家对停留期限和可从事活动的规定有所不同，请先选择目的地，并以该国驻华使领馆发布的最新要求为准。';
+const FORM_VERSION_HELP = '部分国家在中国大陆设有多个领事机构，不同领区适用的申请表版本可能有所不同。请根据该国的申请要求以及您常住地所属的领区，选择对应版本。若页面仅提供一个版本，表示当前无需按领区区分，直接选择该版本即可。';
+const FORM_VERSION_NOTE = '领区划分和申请要求可能调整，提交材料前请以相关使领馆发布的最新信息为准。';
 
 function countryHasPdfVersion(country) {
   return Boolean(country && (country.visaTypes || []).some((visaType) => (
@@ -82,6 +88,10 @@ Page({
     selectedVersion: null,
     selectedVersionId: '',
     searchGuideCountryName: '',
+    stepHelpVisible: false,
+    stepHelpTitle: '',
+    stepHelpContent: '',
+    stepHelpNote: '',
   },
 
   onLoad() {
@@ -194,6 +204,39 @@ Page({
       selectedVersionId: selectedVersion.id,
     });
   },
+
+  openStepHelp(e) {
+    const step = e.currentTarget.dataset.step;
+    if (step === 'form-version') {
+      this.setData({
+        stepHelpVisible: true,
+        stepHelpTitle: '如何选择申请表版本？',
+        stepHelpContent: FORM_VERSION_HELP,
+        stepHelpNote: FORM_VERSION_NOTE,
+      });
+      return;
+    }
+    const countryId = this.data.selectedCountryId;
+    const content = countryId === 'japan'
+      ? JAPAN_SHORT_STAY_HELP
+      : (SCHENGEN_COUNTRY_IDS.has(countryId)
+        ? SCHENGEN_SHORT_STAY_HELP
+        : GENERIC_SHORT_STAY_HELP);
+    this.setData({
+      stepHelpVisible: true,
+      stepHelpTitle: '什么是短期签证？',
+      stepHelpContent: content,
+      stepHelpNote: '',
+    });
+  },
+
+  closeStepHelp() {
+    this.setData({ stepHelpVisible: false });
+  },
+
+  preventBubble() {},
+
+  preventTouchMove() {},
 
   previewVersion(e) {
     const version = this.data.selectedDistrict.versions.find(

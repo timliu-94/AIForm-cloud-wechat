@@ -46,30 +46,13 @@ page {
   z-index: 2;
 
   &__head {
-    padding: 18rpx 32rpx 0;
-  }
-
-  &__meta {
-    display: flex;
-    align-items: center;
-    min-width: 0;
-  }
-
-  &__title {
-    flex: 1;
-    min-width: 0;
-    font-size: 26rpx;
-    color: @form-text;
-    font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    padding: 0 32rpx;
   }
 }
 
 .page-tabs {
   white-space: nowrap;
-  padding: 14rpx 0 16rpx;
+  padding: 10rpx 0 12rpx;
 }
 
 .page-tab {
@@ -101,9 +84,26 @@ page {
 .preview-area {
   display: block;
   width: 100%;
-  height: 760rpx;
+  height: 580rpx;
   background: @form-surface-low;
   overflow: hidden;
+  transition: height 0.2s ease;
+}
+
+/* 键盘态保留预览，仅收紧非必要留白，把更多高度让给当前输入框。 */
+.split--keyboard {
+  .page-tabs {
+    padding-top: 6rpx;
+    padding-bottom: 8rpx;
+  }
+
+  .preview-gesture-hint {
+    bottom: 12rpx;
+  }
+
+  .form-list {
+    padding-top: 16rpx;
+  }
 }
 
 .preview-gesture-hint {
@@ -254,12 +254,18 @@ page {
 }
 
 /* —— 底部表单 —— */
-.form-list {
+.form-list-clip {
   flex: 1;
-  /* flex 子项默认 min-height:auto，会被内容撑高到与内容等高，导致 scroll-view
-     自身不再溢出、无法内部滚动（再被 .split 的 overflow:hidden 裁掉）。
-     置 0 后它才会收缩到分配空间内、把超出部分作为可滚动内容。 */
   min-height: 0;
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.form-list {
+  display: block;
+  width: 100%;
+  height: 100%;
   padding: 24rpx 32rpx 18rpx;
   box-sizing: border-box;
 
@@ -298,16 +304,6 @@ page {
   &__content {
     flex: 1;
     min-width: 0;
-  }
-
-  &__eyebrow {
-    display: block;
-    margin-bottom: 4rpx;
-    font-size: 20rpx;
-    line-height: 1.4;
-    letter-spacing: 2rpx;
-    color: @form-brand-strong;
-    font-weight: 600;
   }
 
   &__line {
@@ -688,11 +684,6 @@ page {
 
 .preview-pane__head {
   background: @form-surface-low;
-}
-
-.preview-pane__title {
-  color: @form-text;
-  font-weight: 700;
 }
 
 .page-tab {
